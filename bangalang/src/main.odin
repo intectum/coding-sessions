@@ -18,5 +18,11 @@ main :: proc()
   stream := token_stream { tokens = tokens[:] }
   ast_nodes := parse_program(&stream)
 
+  type_check_ok := type_check_program(ast_nodes)
+  if !type_check_ok
+  {
+    os.exit(1)
+  }
+
   generate_program("./bin/out.asm", ast_nodes)
 }

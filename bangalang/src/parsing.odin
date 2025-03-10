@@ -26,6 +26,7 @@ ast_node :: struct
 {
     type: ast_node_type,
     value: string,
+    data_type: string,
     children: [dynamic]ast_node,
     line_number: int,
     column_number: int
@@ -66,6 +67,11 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     for peek_token(stream).type != .CLOSING_BRACKET
     {
         param_node := parse_identifier(stream)
+
+        next_token(stream, []token_type { .COLON })
+
+        param_node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
+
         append(&node.children, param_node)
 
         // TODO allows comma at end of params
@@ -76,6 +82,10 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     }
 
     next_token(stream, []token_type { .CLOSING_BRACKET })
+
+    next_token(stream, []token_type { .ARROW })
+
+    node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
 
     scope_node := parse_scope(stream)
     append(&node.children, scope_node)
@@ -237,9 +247,16 @@ parse_declaration :: proc(stream: ^token_stream) -> (node: ast_node)
     node.column_number = peek_token(stream).column_number
 
     lhs_node := parse_identifier(stream)
-    append(&node.children, lhs_node)
 
     next_token(stream, []token_type { .COLON })
+
+    if peek_token(stream).type == .DATA_TYPE
+    {
+        lhs_node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
+    }
+
+    append(&node.children, lhs_node)
+
     next_token(stream, []token_type { .EQUALS })
 
     rhs_node := parse_expression(stream)
@@ -400,7 +417,7 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node)
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, {}, token.line_number, token.column_number }
+    node = ast_node { .IDENTIFIER, token.value, "", {}, token.line_number, token.column_number }
 
     return
 }

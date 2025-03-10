@@ -5,15 +5,8 @@ import "core:os"
 import "core:strings"
 import "core:strconv"
 
-procedure :: struct
-{
-    name: string,
-    param_count: int
-}
-
 gen_context :: struct
 {
-    procedures: [dynamic]procedure,
     in_proc: bool,
 
     stack_top: int,
@@ -22,8 +15,6 @@ gen_context :: struct
     if_index: int,
     for_index: int
 }
-
-built_in_procedures := []procedure { { "add", 2 }, { "exit", 1 }, { "plus_one", 1 } }
 
 generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 {
@@ -39,14 +30,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "_start:")
 
     ctx: gen_context
-
-    for node in nodes
-    {
-        if node.type == .PROCEDURE
-        {
-            append(&ctx.procedures, procedure { node.children[0].value, len(node.children) - 2 })
-        }
-    }
 
     for node in nodes
     {
@@ -269,13 +252,6 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     lhs_node := node.children[0]
     rhs_node := node.children[1]
 
-    if lhs_node.value in ctx.stack_vars
-    {
-        fmt.println("Failed to generate declaration")
-        fmt.printfln("Duplicate identifier '%s' at line %i, column %i", lhs_node.value, lhs_node.line_number, lhs_node.column_number)
-        os.exit(1)
-    }
-
     generate_expression(file, rhs_node, ctx)
     fmt.fprintln(file, "  push r8 ; push to stack")
     ctx.stack_top += 8
@@ -288,13 +264,6 @@ generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     lhs_node := node.children[0]
     rhs_node := node.children[1]
-
-    if !(lhs_node.value in ctx.stack_vars)
-    {
-        fmt.println("Failed to generate assignment")
-        fmt.printfln("Undeclared identifier '%s' at line %i, column %i", lhs_node.value, lhs_node.line_number, lhs_node.column_number)
-        os.exit(1)
-    }
 
     var_pointer := ctx.stack_vars[lhs_node.value]
     var_offset := ctx.stack_top - var_pointer
@@ -357,7 +326,7 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
         fmt.fprintfln(file, "  idiv r%i ; divide: do it!", rhs_register_num)
         fmt.fprintfln(file, "  mov r%i, rax ; divide: assign result", register_num)
     case:
-        fmt.println("Failed to generate expression")
+        fmt.println("BUG: Failed to generate expression")
         fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
         os.exit(1)
     }
@@ -370,13 +339,6 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
     case .CALL:
         generate_call(file, node, ctx, register_num)
     case .IDENTIFIER:
-        if !(node.value in ctx.stack_vars)
-        {
-            fmt.println("Failed to generate primary")
-            fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
-            os.exit(1)
-        }
-
         var_pointer := ctx.stack_vars[node.value]
         var_offset := ctx.stack_top - var_pointer
         fmt.fprintfln(file, "  mov r%i, [rsp+%i] ; assign primary", register_num, var_offset)
@@ -395,31 +357,6 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     child_index := 0
     name_node := node.children[child_index]
     child_index += 1
-
-    found_procedure := false
-    for procedure in built_in_procedures
-    {
-        if procedure.name == name_node.value && procedure.param_count == len(node.children) - 1
-        {
-            found_procedure = true
-            break
-        }
-    }
-    for procedure in ctx.procedures
-    {
-        if procedure.name == name_node.value && procedure.param_count == len(node.children) - 1
-        {
-            found_procedure = true
-            break
-        }
-    }
-
-    if !found_procedure
-    {
-        fmt.println("Failed to generate call")
-        fmt.printfln("Undeclared identifier '%s' at line %i, column %i", name_node.value, name_node.line_number, name_node.column_number)
-        os.exit(1)
-    }
 
     for child_index < len(node.children)
     {
@@ -441,7 +378,6 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 copy_gen_context := proc(ctx: gen_context, inline := false) -> gen_context
 {
     ctx_copy: gen_context
-    ctx_copy.procedures = ctx.procedures
     ctx_copy.in_proc = ctx.in_proc
     ctx_copy.stack_top = ctx.stack_top
 

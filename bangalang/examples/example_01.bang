@@ -1,4 +1,4 @@
-x := 57
+x: i64 = 57
 y := x
 y = 34
 
@@ -65,21 +65,45 @@ sum_1_plus_1 := plus_one(add(2, 5))
 
 foo := plus_one(sum_1) + 4 * add(2, 5)
 
-return pow(3, 3)
+/*
+  Multi-line comment
 
-plus_two := proc(num)
+  /*
+    Nested multi-line comment!
+  */
+*/
+
+return pow32(3, 3)
+
+plus_two := proc(num: i64) -> i64
 {
     return num + 2
 }
 
-do_plus_two := proc(num)
+do_plus_two := proc(num: i64) -> i64
 {
     bar := 0
 
     return plus_two(num)
 }
 
-pow := proc(num, exp)
+// Raises num ot the power of exp
+pow32 := proc(num: i32, exp: i32) -> i32
+{
+    result := num
+
+    exp = exp - 1
+    for exp
+    {
+        result = result * num
+        exp = exp - 1
+    }
+
+    return result
+}
+
+// Raises num ot the power of exp
+pow64 := proc(num: i64, exp: i64) -> i64
 {
     result := num
 

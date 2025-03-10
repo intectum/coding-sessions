@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strings"
 
 token_type :: enum
@@ -17,13 +18,17 @@ token_type :: enum
   ASTERISK,
   BACKSLASH,
   COMMA,
+  ARROW,
   KEYWORD,
+  DATA_TYPE,
   IDENTIFIER,
   INTEGER_LITERAL,
   END_OF_FILE
 }
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
+
+data_types: []string = { "i32", "i64" }
 
 token :: struct
 {
@@ -184,10 +189,20 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
     }
     else if src[index] == '-'
     {
-      append(&tokens, token { .MINUS, "-", line_number, column_number })
+      if index + 1 < len(src) && src[index + 1] == '>'
+      {
+        append(&tokens, token { .ARROW, "->", line_number, column_number })
 
-      index += 1
-      column_number += 1
+        index += 2
+        column_number += 2
+      }
+      else
+      {
+        append(&tokens, token { .MINUS, "-", line_number, column_number })
+
+        index += 1
+        column_number += 1
+      }
     }
     else if src[index] == '*'
     {
@@ -198,10 +213,66 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
     }
     else if src[index] == '/'
     {
-      append(&tokens, token { .BACKSLASH, "/", line_number, column_number })
+      if index + 1 < len(src) && src[index + 1] == '/'
+      {
+        index += 2
+        column_number += 2
 
-      index += 1
-      column_number += 1
+        for index < len(src) && src[index] != '\n'
+        {
+          index += 1
+          column_number += 1
+        }
+      }
+      else if index + 1 < len(src) && src[index + 1] == '*'
+      {
+        index += 2
+        column_number += 2
+
+        nested_count := 0
+        for index < len(src)
+        {
+          if index + 1 < len(src) && src[index] == '/' && src[index + 1] == '*'
+          {
+            index += 2
+            column_number += 2
+
+            nested_count += 1
+          }
+          else if index + 1 < len(src) && src[index] == '*' && src[index + 1] == '/'
+          {
+            index += 2
+            column_number += 2
+
+            if nested_count > 0
+            {
+              nested_count -= 1
+            }
+            else
+            {
+              break
+            }
+          }
+          else if src[index] == '\n'
+          {
+            index += 1
+            line_number += 1
+            column_number = 1
+          }
+          else
+          {
+            index += 1
+            column_number += 1
+          }
+        }
+      }
+      else
+      {
+        append(&tokens, token { .BACKSLASH, "/", line_number, column_number })
+
+        index += 1
+        column_number += 1
+      }
     }
     else if src[index] == ','
     {
@@ -221,11 +292,17 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
       }
 
       token := token { .IDENTIFIER, src[start_index:end_index], line_number, column_number }
-      for keyword in keywords
+      _, found_keyword := slice.linear_search(keywords, token.value)
+      if found_keyword
       {
-        if token.value == keyword
+        token.type = .KEYWORD
+      }
+      else
+      {
+        _, found_data_type := slice.linear_search(data_types, token.value)
+        if found_data_type
         {
-          token.type = .KEYWORD
+          token.type = .DATA_TYPE
         }
       }
       append(&tokens, token)
