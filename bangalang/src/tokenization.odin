@@ -22,7 +22,7 @@ token_type :: enum
   KEYWORD,
   DATA_TYPE,
   IDENTIFIER,
-  INTEGER_LITERAL,
+  NUMBER,
   END_OF_FILE
 }
 
@@ -320,7 +320,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         end_index += 1
       }
 
-      append(&tokens, token { .INTEGER_LITERAL, src[start_index:end_index], line_number, column_number })
+      append(&tokens, token { .NUMBER, src[start_index:end_index], line_number, column_number })
 
       index = end_index
       column_number += end_index - start_index

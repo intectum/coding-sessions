@@ -19,7 +19,7 @@ ast_node_type :: enum
     NEGATE,
     CALL,
     IDENTIFIER,
-    INTEGER_LITERAL
+    NUMBER
 }
 
 ast_node :: struct
@@ -367,7 +367,7 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
         return
     }
 
-    token := next_token(stream, []token_type { .IDENTIFIER, .INTEGER_LITERAL })
+    token := next_token(stream, []token_type { .IDENTIFIER, .NUMBER })
 
     node.value = token.value
 
@@ -375,8 +375,8 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
     {
     case .IDENTIFIER:
         node.type = .IDENTIFIER
-    case .INTEGER_LITERAL:
-        node.type = .INTEGER_LITERAL
+    case .NUMBER:
+        node.type = .NUMBER
     case:
         fmt.println("Failed to parse primary")
         fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)

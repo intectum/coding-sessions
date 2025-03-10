@@ -342,7 +342,7 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
         var_pointer := ctx.stack_vars[node.value]
         var_offset := ctx.stack_top - var_pointer
         fmt.fprintfln(file, "  mov r%i, [rsp+%i] ; assign primary", register_num, var_offset)
-    case .INTEGER_LITERAL:
+    case .NUMBER:
         fmt.fprintfln(file, "  mov r%i, %s ; assign primary", register_num, node.value)
     case .NEGATE:
         generate_primary(file, node.children[0], ctx, register_num)

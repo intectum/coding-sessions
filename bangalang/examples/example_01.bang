@@ -4,12 +4,12 @@ y = 34
 
 {
     y = 77
-    z := 10
+    z: i32 = 10
 }
 
 z := y
 
-result := -((7 + 3) * 2) + 40
+result: i64 = -((7 + 3) * 2) + 40
 
 result = 0
 
@@ -47,16 +47,16 @@ else
     result = 9
 }
 
-sum_0 := 0
-index_0 := 10
+sum_0: i64 = 0
+index_0: i64 = 10
 for index_0
 {
     sum_0 = sum_0 + index_0
     index_0 = index_0 - 1
 }
 
-sum_1 := 0
-for index_1 := 10, index_1, index_1 = index_1 - 1
+sum_1: i64 = 0
+for index_1: i64 = 10, index_1, index_1 = index_1 - 1
 {
     sum_1 = sum_1 + index_1
 }
@@ -82,13 +82,13 @@ plus_two := proc(num: i64) -> i64
 
 do_plus_two := proc(num: i64) -> i64
 {
-    bar := 0
+    bar: i32 = 0
 
     return plus_two(num)
 }
 
-// Raises num ot the power of exp
-pow32 := proc(num: i32, exp: i32) -> i32
+// Raises num to the power of exp
+pow32 := proc(num: i32, exp: i64) -> i32
 {
     result := num
 
@@ -102,7 +102,7 @@ pow32 := proc(num: i32, exp: i32) -> i32
     return result
 }
 
-// Raises num ot the power of exp
+// Raises num to the power of exp
 pow64 := proc(num: i64, exp: i64) -> i64
 {
     result := num

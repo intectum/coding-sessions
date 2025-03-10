@@ -10,7 +10,7 @@ declaration\ &\to\ identifier\ \text{":"}\ type?\ \text{"="}\ expression\\
 assignment\ &\to\ identifier\ \text{"="}\ expression\\
 return\ &\to\ \text{"return"}\ expression\\
 expression\ &\to\ primary\ (\ (\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ )\ primary\ )^*\\
-primary\ &\to\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ integer\_literal\ |\ \text{"-"}\ primary\\
+primary\ &\to\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ number\ |\ \text{"-"}\ primary\\
 call\ &\to\ identifier\ \text{"("}\ (\ expression\ (\ \text{","}\ expression\ )^*\ )?\ \text{")"}\\
 \end{align}
 $$
