@@ -73,6 +73,11 @@ foo := plus_one(sum_1) + 4 * add(2, 5)
   */
 */
 
+var8: i8 = 8
+var16: i16 = 16
+
+return var16
+
 return pow32(3, 3)
 
 plus_two := proc(num: i64) -> i64

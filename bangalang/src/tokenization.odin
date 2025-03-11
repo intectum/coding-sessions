@@ -28,7 +28,7 @@ token_type :: enum
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
 
-data_types: []string = { "i32", "i64" }
+data_types: []string = { "i8", "i16", "i32", "i64" }
 
 token :: struct
 {
