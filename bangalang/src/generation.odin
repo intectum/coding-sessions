@@ -11,8 +11,8 @@ gen_context :: struct
 
     in_proc: bool,
 
-    stack_top: int,
-    stack_vars: map[string]int,
+    stack_size: int,
+    stack_variable_offsets: map[string]int,
 
     if_index: int,
     for_index: int
@@ -57,16 +57,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
-    fmt.fprintln(file, "plus_one:")
-    fmt.fprintln(file, "  mov r8, [rsp+8] ; assign arg0")
-    fmt.fprintln(file, "  inc r8 ; do it!")
-    fmt.fprintln(file, "  ret ; return")
-
-    fmt.fprintln(file, "add:")
-    fmt.fprintln(file, "  mov r8, [rsp+16] ; assign arg0")
-    fmt.fprintln(file, "  add r8, [rsp+8] ; do it!")
-    fmt.fprintln(file, "  ret ; return")
-
     for node in nodes
     {
         if node.type == .PROCEDURE
@@ -89,12 +79,12 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_con
         param_node := node.children[child_index]
         child_index += 1
 
-        scope_ctx.stack_top += scope_ctx.data_sizes[param_node.data_type]
-        scope_ctx.stack_vars[param_node.value] = scope_ctx.stack_top
+        scope_ctx.stack_size += scope_ctx.data_sizes[param_node.data_type.name]
+        scope_ctx.stack_variable_offsets[param_node.value] = scope_ctx.stack_size
     }
 
     // Account for the instruction pointer pushed to the stack by 'call'
-    scope_ctx.stack_top += 8
+    scope_ctx.stack_size += 8
 
     fmt.fprintfln(file, "%s:", name_node.value)
 
@@ -244,7 +234,7 @@ generate_scope :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_context
         fmt.fprintln(file, ".end:")
     }
 
-    scope_stack_size := scope_ctx.stack_top - parent_ctx.stack_top
+    scope_stack_size := scope_ctx.stack_size - parent_ctx.stack_size
     if scope_stack_size > 0
     {
         fmt.fprintln(file, "  ; close scope")
@@ -259,16 +249,20 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     fmt.fprintln(file, "  ; declare")
 
     lhs_node := node.children[0]
-    rhs_node := node.children[1]
 
-    location := generate_expression(file, rhs_node, ctx)
-
-    data_size := ctx.data_sizes[lhs_node.data_type]
+    data_size := ctx.data_sizes[lhs_node.data_type.name] * lhs_node.data_type.length
     fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", data_size)
-    ctx.stack_top += ctx.data_sizes[lhs_node.data_type]
+    ctx.stack_size += data_size
+    ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
-    fmt.fprintfln(file, "  mov [rsp], %s ; assign to top of stack", location)
-    ctx.stack_vars[lhs_node.value] = ctx.stack_top
+    if len(node.children) > 1
+    {
+        rhs_node := node.children[1]
+
+        location := generate_expression(file, rhs_node, ctx)
+
+        fmt.fprintfln(file, "  mov [rsp], %s ; assign to top of stack", location)
+    }
 }
 
 generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
@@ -278,10 +272,9 @@ generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     lhs_node := node.children[0]
     rhs_node := node.children[1]
 
-    var_pointer := ctx.stack_vars[lhs_node.value]
-    var_offset := ctx.stack_top - var_pointer
+    offset := ctx.stack_size - ctx.stack_variable_offsets[lhs_node.value] + lhs_node.data_index * ctx.data_sizes[lhs_node.data_type.name]
     location := generate_expression(file, rhs_node, ctx)
-    fmt.fprintfln(file, "  mov [rsp+%i], %s ; assign value", var_offset, location)
+    fmt.fprintfln(file, "  mov [rsp+%i], %s ; assign value", offset, location)
 }
 
 generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
@@ -298,7 +291,7 @@ generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     }
     else
     {
-        data_size := ctx.data_sizes[expression_node.data_type]
+        data_size := ctx.data_sizes[expression_node.data_type.name]
 
         fmt.fprintfln(file, "  mov %s, 60 ; syscall: exit", register("ax", data_size))
         fmt.fprintfln(file, "  mov %s, %s ; arg0: exit_code", register("di", data_size), location)
@@ -322,7 +315,7 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
     lhs_location := generate_expression(file, lhs_node, ctx, lhs_register_num)
     rhs_location := generate_expression(file, rhs_node, ctx, rhs_register_num)
 
-    data_size := ctx.data_sizes[node.data_type]
+    data_size := ctx.data_sizes[node.data_type.name]
     location := register(register_num, data_size)
 
     #partial switch node.type
@@ -358,12 +351,12 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
     case .CALL:
         return generate_call(file, node, ctx, register_num)
     case .IDENTIFIER:
-        var_offset := ctx.stack_top - ctx.stack_vars[node.value]
-        location := register(register_num, ctx.data_sizes[node.data_type])
-        fmt.fprintfln(file, "  mov %s, [rsp+%i] ; assign primary", location, var_offset)
+        offset := ctx.stack_size - ctx.stack_variable_offsets[node.value] + node.data_index * ctx.data_sizes[node.data_type.name]
+        location := register(register_num, ctx.data_sizes[node.data_type.name])
+        fmt.fprintfln(file, "  mov %s, [rsp+%i] ; assign primary", location, offset)
         return location
     case .NUMBER:
-        location := register(register_num, ctx.data_sizes[node.data_type])
+        location := register(register_num, ctx.data_sizes[node.data_type.name])
         fmt.fprintfln(file, "  mov %s, %s ; assign primary", location, node.value)
         return location
     case .NEGATE:
@@ -389,9 +382,9 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 
         location := generate_expression(file, param_node, ctx)
 
-        data_size := ctx.data_sizes[param_node.data_type]
+        data_size := ctx.data_sizes[param_node.data_type.name]
         fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", data_size)
-        ctx.stack_top += ctx.data_sizes[param_node.data_type]
+        ctx.stack_size += data_size
 
         fmt.fprintfln(file, "  mov [rsp], %s ; assign to top of stack", location)
 
@@ -403,8 +396,8 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     param_count := len(node.children) - 1
     fmt.fprintfln(file, "  add rsp, %i ; clear params from stack", params_stack_size)
 
-    from_location := register(8, ctx.data_sizes[node.data_type])
-    location := register(register_num, ctx.data_sizes[node.data_type])
+    from_location := register(8, ctx.data_sizes[node.data_type.name])
+    location := register(register_num, ctx.data_sizes[node.data_type.name])
     fmt.fprintfln(file, "  mov %s, %s ; assign return value", location, from_location)
 
     return location
@@ -415,13 +408,13 @@ copy_gen_context := proc(ctx: gen_context, inline := false) -> gen_context
     ctx_copy: gen_context
     ctx_copy.data_sizes = ctx.data_sizes
     ctx_copy.in_proc = ctx.in_proc
-    ctx_copy.stack_top = ctx.stack_top
+    ctx_copy.stack_size = ctx.stack_size
 
     if inline
     {
-        for key in ctx.stack_vars
+        for key in ctx.stack_variable_offsets
         {
-            ctx_copy.stack_vars[key] = ctx.stack_vars[key]
+            ctx_copy.stack_variable_offsets[key] = ctx.stack_variable_offsets[key]
         }
 
         ctx_copy.if_index = ctx.if_index

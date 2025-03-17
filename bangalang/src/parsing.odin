@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:strconv"
 
 ast_node_type :: enum
 {
@@ -22,11 +23,18 @@ ast_node_type :: enum
     NUMBER
 }
 
+data_type :: struct
+{
+    name: string,
+    length: int
+}
+
 ast_node :: struct
 {
     type: ast_node_type,
     value: string,
-    data_type: string,
+    data_type: data_type,
+    data_index: int,
     children: [dynamic]ast_node,
     line_number: int,
     column_number: int
@@ -70,7 +78,7 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
 
         next_token(stream, []token_type { .COLON })
 
-        param_node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
+        param_node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
 
         append(&node.children, param_node)
 
@@ -85,7 +93,7 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, []token_type { .ARROW })
 
-    node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
+    node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
 
     scope_node := parse_scope(stream)
     append(&node.children, scope_node)
@@ -106,6 +114,8 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node)
             node = parse_assignment(stream)
         case .OPENING_BRACKET:
             node = parse_call(stream)
+        case .OPENING_SQUARE_BRACKET:
+            node = parse_assignment(stream)
         case:
             token := peek_token(stream, 1)
             fmt.println("Failed to parse statement")
@@ -252,15 +262,18 @@ parse_declaration :: proc(stream: ^token_stream) -> (node: ast_node)
 
     if peek_token(stream).type == .DATA_TYPE
     {
-        lhs_node.data_type = next_token(stream, []token_type { .DATA_TYPE }).value
+        parse_type(stream, &lhs_node)
     }
 
     append(&node.children, lhs_node)
 
-    next_token(stream, []token_type { .EQUALS })
+    if peek_token(stream).type == .EQUALS
+    {
+        next_token(stream, []token_type { .EQUALS })
 
-    rhs_node := parse_expression(stream)
-    append(&node.children, rhs_node)
+        rhs_node := parse_expression(stream)
+        append(&node.children, rhs_node)
+    }
 
     return
 }
@@ -271,7 +284,7 @@ parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node)
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    lhs_node := parse_identifier(stream)
+    lhs_node := parse_variable(stream)
     append(&node.children, lhs_node)
 
     next_token(stream, []token_type { .EQUALS })
@@ -344,18 +357,19 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
         node = parse_expression(stream)
 
         next_token(stream, []token_type { .CLOSING_BRACKET })
-
-        return
     }
-
-    if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .OPENING_BRACKET
+    else if peek_token(stream).type == .IDENTIFIER
     {
-        node = parse_call(stream)
-
-        return
+        if peek_token(stream, 1).type == .OPENING_BRACKET
+        {
+            node = parse_call(stream)
+        }
+        else
+        {
+            node = parse_variable(stream)
+        }
     }
-
-    if peek_token(stream).type == .MINUS
+    else if peek_token(stream).type == .MINUS
     {
         next_token(stream, []token_type { .MINUS })
 
@@ -363,21 +377,15 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
 
         primary_node := parse_primary(stream)
         append(&node.children, primary_node)
-
-        return
     }
-
-    token := next_token(stream, []token_type { .IDENTIFIER, .NUMBER })
-
-    node.value = token.value
-
-    #partial switch token.type
+    else if peek_token(stream).type == .NUMBER
     {
-    case .IDENTIFIER:
-        node.type = .IDENTIFIER
-    case .NUMBER:
         node.type = .NUMBER
-    case:
+        node.value = next_token(stream, []token_type { .NUMBER }).value
+    }
+    else
+    {
+        token := peek_token(stream)
         fmt.println("Failed to parse primary")
         fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
         os.exit(1)
@@ -414,10 +422,42 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node)
     return
 }
 
+parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
+{
+    node = parse_identifier(stream)
+
+    if peek_token(stream).type == .OPENING_SQUARE_BRACKET
+    {
+        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
+
+        node.data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
+
+        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
+    }
+
+    return
+}
+
+parse_type :: proc(stream: ^token_stream, node: ^ast_node)
+{
+    node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
+
+    if peek_token(stream).type == .OPENING_SQUARE_BRACKET
+    {
+        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
+
+        node.data_type.length = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
+
+        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
+    }
+
+    return
+}
+
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, "", {}, token.line_number, token.column_number }
+    node = ast_node { .IDENTIFIER, token.value, { "", 1 }, -1, {}, token.line_number, token.column_number }
 
     return
 }

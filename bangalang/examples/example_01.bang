@@ -61,10 +61,6 @@ for index_1: i64 = 10, index_1, index_1 = index_1 - 1
     sum_1 = sum_1 + index_1
 }
 
-sum_1_plus_1 := plus_one(add(2, 5))
-
-foo := plus_one(sum_1) + 4 * add(2, 5)
-
 /*
   Multi-line comment
 
@@ -73,12 +69,11 @@ foo := plus_one(sum_1) + 4 * add(2, 5)
   */
 */
 
-var8: i8 = 8
-var16: i16 = 16
+array: i32[8]
+array[5] = 4
+array[3] = array[5]
 
-return var16
-
-return pow32(3, 3)
+return pow32(array[3], 3)
 
 plus_two := proc(num: i64) -> i64
 {
