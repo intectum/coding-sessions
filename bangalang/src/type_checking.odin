@@ -453,28 +453,29 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 {
     if !(node.value in ctx.variable_data_types)
     {
-        fmt.println("Failed to type check primary")
+        fmt.println("Failed to type check variable")
         fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
         ok = false
     }
 
-    node.data_type = ctx.variable_data_types[node.value]
+    variable_data_type := ctx.variable_data_types[node.value]
 
-    if node.data_type.length > 1 && node.data_index == -1
+    if variable_data_type.length > 1 && node.data_index == -1
     {
-        fmt.println("Failed to type check primary")
+        fmt.println("Failed to type check variable")
         fmt.printfln("Index required for '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
         ok = false
     }
 
+    node.data_type = { variable_data_type.name, 1 }
     if node.data_index == -1
     {
         node.data_index = 0
     }
 
-    if node.data_index >= node.data_type.length
+    if node.data_index >= variable_data_type.length
     {
-        fmt.println("Failed to type check primary")
+        fmt.println("Failed to type check variable")
         fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, node.value, node.line_number, node.column_number)
         ok = false
     }
