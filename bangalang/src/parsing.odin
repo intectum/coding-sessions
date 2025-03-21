@@ -78,7 +78,7 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
 
         next_token(stream, []token_type { .COLON })
 
-        param_node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
+        parse_type(stream, &param_node)
 
         append(&node.children, param_node)
 
@@ -90,10 +90,9 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     }
 
     next_token(stream, []token_type { .CLOSING_BRACKET })
-
     next_token(stream, []token_type { .ARROW })
 
-    node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
+    parse_type(stream, &node)
 
     scope_node := parse_scope(stream)
     append(&node.children, scope_node)

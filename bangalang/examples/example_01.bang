@@ -73,37 +73,19 @@ array: i32[8]
 array[5] = 4
 array[3] = array[5]
 
-return pow32(array[3], 3)
+inc_arr := increment_fourth_element(array)
+return inc_arr[3]
 
-plus_two := proc(num: i64) -> i64
+return pow(array[3], 3)
+
+increment_fourth_element := proc(arr: i32[8]) -> i32[8]
 {
-    return num + 2
-}
-
-do_plus_two := proc(num: i64) -> i64
-{
-    bar: i32 = 0
-
-    return plus_two(num)
+    arr[3] = arr[3] + 1
+    return arr
 }
 
 // Raises num to the power of exp
-pow32 := proc(num: i32, exp: i64) -> i32
-{
-    result := num
-
-    exp = exp - 1
-    for exp
-    {
-        result = result * num
-        exp = exp - 1
-    }
-
-    return result
-}
-
-// Raises num to the power of exp
-pow64 := proc(num: i64, exp: i64) -> i64
+pow := proc(num: i32, exp: i64) -> i32
 {
     result := num
 

@@ -1,7 +1,7 @@
 $$
 \begin{align}
 program\ &\to\ (\ procedure\ |\ statement\ )^*\\
-procedure\ &\to\ identifier\ \text{":"}\ \text{"="}\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ data\_type\ (\ \text{","}\ identifier\ \text{":"}\ data\_type\ )^*\ )?\ \text{")"}\ \text{"->"}\ data\_type\ scope\\
+procedure\ &\to\ identifier\ \text{":"}\ \text{"="}\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ type\ (\ \text{","}\ identifier\ \text{":"}\ type\ )^*\ )?\ \text{")"}\ \text{"->"}\ type\ scope\\
 statement\ &\to\ if\ |\ scope\ |\ declaration\ |\ assignment\ |\ return\ |\ call \\
 if\ &\to\ \text{"if"}\ expression\ scope\ (\ \text{"else"}\ \text{"if"}\ expression\ scope\ )^*\ (\ \text{"else"}\ scope\ )?\\
 for\ &\to\ \text{"for"}\ (\ expression\ |\ declaration\ \text{","}\ expression\ \text{","}\ assignment\ )\ scope\\

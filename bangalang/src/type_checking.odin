@@ -328,10 +328,13 @@ type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expe
     data_type, coerse_ok := coerse_type(data_types)
     if !coerse_ok
     {
-        data_type_names: [3]string
+        data_type_names: [dynamic]string
         for data_type, index in data_types
         {
-            data_type_names[index] = data_type.name
+            if data_type.name != ""
+            {
+                append(&data_type_names, data_type_name(data_type))
+            }
         }
         fmt.println("Failed to type check expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
@@ -370,13 +373,23 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, ex
     data_type, coerse_ok := coerse_type(data_types)
     if !coerse_ok
     {
-        data_type_names: [3]string
+        data_type_names: [dynamic]string
         for data_type, index in data_types
         {
-            data_type_names[index] = data_type.name
+            if data_type.name != ""
+            {
+                append(&data_type_names, data_type_name(data_type))
+            }
         }
         fmt.println("Failed to type check expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
+        ok = false
+    }
+
+    if data_type.length > 1
+    {
+        fmt.println("Failed to type check expression")
+        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
         ok = false
     }
 
@@ -398,7 +411,18 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
     case .NUMBER:
         node.data_type = { "number", 1 }
     case .NEGATE:
-        ok = type_check_primary(&node.children[0], ctx, expected_data_type)
+        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        if !primary_ok
+        {
+            ok = false
+        }
+
+        if node.children[0].data_type.length > 1
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+            ok = false
+        }
     case:
         ok = type_check_expression_1(node, ctx, expected_data_type)
     }
@@ -460,20 +484,17 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 
     variable_data_type := ctx.variable_data_types[node.value]
 
-    if variable_data_type.length > 1 && node.data_index == -1
-    {
-        fmt.println("Failed to type check variable")
-        fmt.printfln("Index required for '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
-        ok = false
-    }
-
-    node.data_type = { variable_data_type.name, 1 }
+    node.data_type = variable_data_type
     if node.data_index == -1
     {
         node.data_index = 0
     }
+    else
+    {
+        node.data_type.length = 1
+    }
 
-    if node.data_index >= variable_data_type.length
+    if ok && node.data_index >= variable_data_type.length
     {
         fmt.println("Failed to type check variable")
         fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, node.value, node.line_number, node.column_number)
@@ -509,7 +530,7 @@ coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
             continue
         }
 
-        if coerced_data_type.name != "" && data_type.name != coerced_data_type.name
+        if coerced_data_type.name != "" && (data_type.name != coerced_data_type.name || data_type.length != coerced_data_type.length)
         {
             return {}, false
         }
@@ -523,4 +544,15 @@ coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
     }
 
     return {}, false
+}
+
+data_type_name :: proc(data_type: data_type) -> string
+{
+    if data_type.length == 1
+    {
+        return data_type.name
+    }
+
+    buf: [8]byte
+    return strings.concatenate({ data_type.name, "[", strconv.itoa(buf[:], data_type.length), "]" })
 }

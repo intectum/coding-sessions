@@ -5,16 +5,16 @@ import "core:os"
 import "core:strings"
 import "core:strconv"
 
-memory_type :: enum
+location_type :: enum
 {
     IMMEDIATE,
-    POINTER,
+    MEMORY,
     REGISTER
 }
 
-memory :: struct
+location :: struct
 {
-    type: memory_type,
+    type: location_type,
     value: string,
     offset: int
 }
@@ -94,10 +94,12 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_con
         param_node := node.children[child_index]
         child_index += 1
 
-
-        scope_ctx.stack_size += scope_ctx.data_sizes[param_node.data_type.name]
+        scope_ctx.stack_size += scope_ctx.data_sizes[param_node.data_type.name] * param_node.data_type.length
         scope_ctx.stack_variable_offsets[param_node.value] = scope_ctx.stack_size
     }
+
+    scope_ctx.stack_size += scope_ctx.data_sizes[node.data_type.name] * node.data_type.length
+    scope_ctx.stack_variable_offsets["[return]"] = scope_ctx.stack_size
 
     // Account for the instruction pointer pushed to the stack by 'call'
     scope_ctx.stack_size += 8
@@ -130,7 +132,7 @@ generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         generate_return(file, node, ctx)
     case .CALL:
         fmt.fprintln(file, "  ; call")
-        generate_call(file, node, ctx)
+        generate_call(file, node, ctx, {})
     case:
         fmt.println("Failed to generate statement")
         fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
@@ -150,10 +152,10 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     child_index := 2
     else_index := 0
+    expression_dest := register(8, ctx.data_sizes[expression_node.data_type.name])
 
-    location := generate_expression(file, expression_node, ctx)
-    location = move_to_register(file, location, 8, ctx.data_sizes[expression_node.data_type.name])
-    fmt.fprintfln(file, "  test %s, %s ; test expression", operand(location), operand(location))
+    generate_expression(file, expression_node, ctx, expression_dest)
+    fmt.fprintfln(file, "  test %s, %s ; test expression", operand(expression_dest), operand(expression_dest))
     fmt.fprintfln(file, "  jz .if_%i_%s ; skip main scope when false/zero", if_index, child_index < len(node.children) ? "else_0" : "end")
 
     generate_scope(file, scope_node, ctx)
@@ -164,11 +166,10 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         fmt.fprintfln(file, ".if_%i_else_%i:", if_index, else_index)
         else_index += 1
 
-        else_if_location := generate_expression(file, node.children[child_index], ctx)
-        else_if_location = move_to_register(file, else_if_location, 8, ctx.data_sizes[node.children[child_index].data_type.name])
+        generate_expression(file, node.children[child_index], ctx, expression_dest)
         child_index += 1
 
-        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(else_if_location), operand(else_if_location))
+        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(expression_dest), operand(expression_dest))
 
         buf: [256]byte
         else_with_index := strings.concatenate({ "else_", strconv.itoa(buf[:], else_index) })
@@ -205,9 +206,9 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         fmt.fprintfln(file, ".for_%i:", for_index)
 
         expression_node := node.children[1]
-        location := generate_expression(file, expression_node, ctx)
-        location = move_to_register(file, location, 8, ctx.data_sizes[expression_node.data_type.name])
-        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(location), operand(location))
+        expression_dest := register(8, ctx.data_sizes[expression_node.data_type.name])
+        generate_expression(file, expression_node, ctx, expression_dest)
+        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(expression_dest), operand(expression_dest))
         fmt.fprintfln(file, "  jz .for_%i_end ; skip for scope when false/zero", for_index)
     }
     else
@@ -215,9 +216,9 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         fmt.fprintfln(file, ".for_%i:", for_index)
 
         expression_node := node.children[0]
-        location := generate_expression(file, expression_node, ctx)
-        location = move_to_register(file, location, 8, ctx.data_sizes[expression_node.data_type.name])
-        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(location), operand(location))
+        expression_dest := register(8, ctx.data_sizes[expression_node.data_type.name])
+        generate_expression(file, expression_node, ctx, expression_dest)
+        fmt.fprintfln(file, "  test %s, %s ; test expression", operand(expression_dest), operand(expression_dest))
         fmt.fprintfln(file, "  jz .for_%i_end ; skip for scope when false/zero", for_index)
     }
 
@@ -271,6 +272,7 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     lhs_node := node.children[0]
 
     data_size := ctx.data_sizes[lhs_node.data_type.name] * lhs_node.data_type.length
+
     fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", data_size)
     ctx.stack_size += data_size
     ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
@@ -279,8 +281,7 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     {
         rhs_node := node.children[1]
 
-        location := generate_expression(file, rhs_node, ctx)
-        copy(file, location, { .POINTER, "rsp", 0 }, data_size)
+        generate_expression(file, rhs_node, ctx, { .MEMORY, "rsp", 0 })
     }
 }
 
@@ -291,10 +292,11 @@ generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     lhs_node := node.children[0]
     rhs_node := node.children[1]
 
+    data_size := ctx.data_sizes[lhs_node.data_type.name] * lhs_node.data_type.length
+
     variable_position := ctx.stack_size - ctx.stack_variable_offsets[lhs_node.value]
     offset := variable_position + lhs_node.data_index * ctx.data_sizes[lhs_node.data_type.name]
-    location := generate_expression(file, rhs_node, ctx)
-    copy(file, location, { .POINTER, "rsp", offset }, ctx.data_sizes[lhs_node.data_type.name])
+    generate_expression(file, rhs_node, ctx, { .MEMORY, "rsp", offset })
 }
 
 generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
@@ -303,29 +305,37 @@ generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     expression_node := node.children[0]
 
-    location := generate_expression(file, expression_node, ctx)
-
-    data_size := ctx.data_sizes[expression_node.data_type.name]
-
     if ctx.in_proc
     {
-        move_to_register(file, location, 8, data_size)
+        variable_position := ctx.stack_size - ctx.stack_variable_offsets["[return]"]
+        generate_expression(file, expression_node, ctx, { .MEMORY, "rsp", variable_position })
         fmt.fprintln(file, "  jmp .end ; skip to end")
     }
     else
     {
-        fmt.fprintfln(file, "  mov %s, 60 ; syscall: exit", operand(register("ax", data_size)))
-        fmt.fprintfln(file, "  mov %s, %s ; arg0: exit_code", operand(register("di", data_size)), operand(location))
+        data_size := ctx.data_sizes[expression_node.data_type.name]
+        generate_expression(file, expression_node, ctx, register("di", data_size))
+        copy(file, { .IMMEDIATE, "60", 0 }, register("ax", data_size), data_size)
         fmt.fprintln(file, "  syscall ; call kernel")
     }
 }
 
-generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, register_num: int = 8) -> memory
+generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location)
+{
+    dest_1 := generate_expression_1(file, node, ctx, dest, 8)
+
+    data_size := ctx.data_sizes[node.data_type.name] * node.data_type.length
+    copy(file, dest_1, dest, data_size)
+}
+
+generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location, register_num: int) -> location
 {
     if node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
     {
-        return generate_primary(file, node, ctx, register_num)
+        return generate_primary(file, node, ctx, dest, register_num)
     }
+
+    data_size := ctx.data_sizes[node.data_type.name]
 
     lhs_node := node.children[0]
     rhs_node := node.children[1]
@@ -333,117 +343,106 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
     lhs_register_num := register_num / 2 * 2 + 2
     rhs_register_num := lhs_register_num + 1
 
-    lhs_location := generate_expression(file, lhs_node, ctx, lhs_register_num)
-    rhs_location := generate_expression(file, rhs_node, ctx, rhs_register_num)
-
-    data_size := ctx.data_sizes[node.data_type.name]
-    result_location := register(register_num, data_size)
-
-    lhs_operand := operand(lhs_location)
-    rhs_operand := operand(rhs_location)
-    result_operand := operand(result_location)
+    lhs_dest := generate_expression_1(file, lhs_node, ctx, dest, lhs_register_num)
+    rhs_dest := generate_expression_1(file, rhs_node, ctx, dest, rhs_register_num)
+    final_dest := move_to_register(file, lhs_dest, register_num, data_size)
 
     #partial switch node.type
     {
     case .ADD:
-        result_location = move_to_register(file, lhs_location, register_num, data_size)
-        fmt.fprintfln(file, "  add %s, %s ; add", operand(result_location), rhs_operand)
+        fmt.fprintfln(file, "  add %s, %s ; add", operand(final_dest), operand(rhs_dest))
     case .SUBTRACT:
-        result_location = move_to_register(file, lhs_location, register_num, data_size)
-        fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(result_location), rhs_operand)
+        fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(final_dest), operand(rhs_dest))
     case .MULTIPLY:
-        result_location = move_to_register(file, lhs_location, register_num, data_size)
-        fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), rhs_operand)
+        fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(final_dest), operand(rhs_dest))
     case .DIVIDE:
         // dividend / divisor
         fmt.fprintfln(file, "  mov %s, 0 ; divide: assign zero to dividend high part", operand(register("dx", data_size)))
-        fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", data_size)), lhs_operand)
-        fmt.fprintfln(file, "  idiv %s ; divide: do it!", rhs_operand)
-        fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", result_operand, operand(register("ax", data_size)))
+        fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", data_size)), operand(lhs_dest))
+        fmt.fprintfln(file, "  idiv %s ; divide: do it!", operand(rhs_dest))
+        fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(final_dest), operand(register("ax", data_size)))
     case:
         fmt.println("BUG: Failed to generate expression")
         fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
         os.exit(1)
     }
 
-    return result_location
+    return final_dest
 }
 
-generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, register_num: int) -> memory
+generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location, register_num: int) -> location
 {
     #partial switch node.type
     {
     case .CALL:
-        return generate_call(file, node, ctx, register_num)
+        generate_call(file, node, ctx, dest)
+        return dest
     case .IDENTIFIER:
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
         offset := variable_position + node.data_index * ctx.data_sizes[node.data_type.name]
-        return { .POINTER, "rsp", offset }
+        return { .MEMORY, "rsp", offset }
     case .NUMBER:
         return { .IMMEDIATE, node.value, 0 }
     case .NEGATE:
-        location := generate_primary(file, node.children[0], ctx, register_num)
-        location = move_to_register(file, location, register_num, ctx.data_sizes[node.data_type.name])
-        fmt.fprintfln(file, "  neg %s ; negate", operand(location))
-        return location
+        primary_dest := generate_primary(file, node.children[0], ctx, dest, register_num)
+        register_dest := move_to_register(file, primary_dest, register_num, ctx.data_sizes[node.data_type.name])
+        fmt.fprintfln(file, "  neg %s ; negate", operand(register_dest))
+        return register_dest
     case:
-        return generate_expression(file, node, ctx, register_num)
+        return generate_expression_1(file, node, ctx, dest, register_num)
     }
 }
 
-generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, register_num: int = 8) -> memory
+generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location)
 {
     child_index := 0
     name_node := node.children[child_index]
     child_index += 1
 
-    params_stack_size := 0
+    call_stack_size := 0
     for child_index < len(node.children)
     {
         param_node := node.children[child_index]
         child_index += 1
 
-        data_size := ctx.data_sizes[param_node.data_type.name]
+        param_data_size := ctx.data_sizes[param_node.data_type.name] * param_node.data_type.length
 
-        fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", data_size)
-        ctx.stack_size += data_size
+        fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", param_data_size)
+        ctx.stack_size += param_data_size
+        call_stack_size += param_data_size
 
-        location := generate_expression(file, param_node, ctx)
-        copy(file, location, { .POINTER, "rsp", 0 }, data_size)
-
-        params_stack_size += data_size
+        generate_expression(file, param_node, ctx, { .MEMORY, "rsp", 0 })
     }
+
+    return_data_size := ctx.data_sizes[node.data_type.name] * node.data_type.length
+    fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", return_data_size)
+    ctx.stack_size += return_data_size
+    call_stack_size += return_data_size
 
     fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
 
-    param_count := len(node.children) - 1
-    fmt.fprintfln(file, "  add rsp, %i ; clear params from stack", params_stack_size)
-    ctx.stack_size -= params_stack_size
+    fmt.fprintfln(file, "  add rsp, %i ; clear params from stack", call_stack_size)
+    ctx.stack_size -= call_stack_size
 
-    data_size := ctx.data_sizes[node.data_type.name]
-    location := register(register_num, data_size)
-    if register_num != 8
+    if dest.value != ""
     {
-        from_location := register(8, data_size)
-        copy(file, from_location, location, data_size)
+        copy(file, { .MEMORY, "rsp", -call_stack_size }, dest, return_data_size)
     }
-
-    return location
 }
 
-move_to_register :: proc(file: os.Handle, location: memory, number: int, size: int) -> memory
+move_to_register :: proc(file: os.Handle, src: location, number: int, size: int) -> location
 {
-    if location.type == .REGISTER
+    if src.type == .REGISTER
     {
-        return location
+        return src
     }
 
-    register_location := register(number, size)
-    copy(file, location, register_location, size)
-    return register_location
+    register_dest := register(number, size)
+    copy(file, src, register_dest, size)
+    return register_dest
 }
 
-copy :: proc(file: os.Handle, src: memory, dest: memory, size: int)
+copy :: proc(file: os.Handle, src: location, dest: location, size: int)
 {
     if dest.type == .IMMEDIATE
     {
@@ -451,6 +450,10 @@ copy :: proc(file: os.Handle, src: memory, dest: memory, size: int)
         os.exit(1)
     }
 
+    if dest == src
+    {
+        // Nothing to do!
+    }
     if src.type == .REGISTER || dest.type == .REGISTER
     {
         fmt.fprintfln(file, "  mov %s, %s ; copy", operand(dest), operand(src))
@@ -495,7 +498,7 @@ register :: proc
     register_numbered
 }
 
-register_named :: proc(name: string, size: int) -> memory
+register_named :: proc(name: string, size: int) -> location
 {
     switch size
     {
@@ -521,7 +524,7 @@ register_named :: proc(name: string, size: int) -> memory
     }
 }
 
-register_numbered :: proc(number: int, size: int) -> memory
+register_numbered :: proc(number: int, size: int) -> location
 {
     buf: [2]byte
     number_string := strconv.itoa(buf[:], number)
@@ -542,19 +545,20 @@ register_numbered :: proc(number: int, size: int) -> memory
     }
 }
 
-operand :: proc(location: memory) -> string
+operand :: proc(location: location) -> string
 {
     switch location.type
     {
     case .IMMEDIATE:
         return location.value
-    case .POINTER:
-        if location.offset > 0
+    case .MEMORY:
+        if location.offset == 0
         {
-            buf: [8]byte
-            return strings.concatenate({ "[", location.value, " + ", strconv.itoa(buf[:], location.offset), "]" })
+            return strings.concatenate({ "[", location.value, "]" })
         }
-        return strings.concatenate({ "[", location.value, "]" })
+
+        buf: [8]byte
+        return strings.concatenate({ "[", location.value, " + ", strconv.itoa(buf[:], location.offset), "]" })
     case .REGISTER:
         return location.value
     }
