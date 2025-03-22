@@ -17,7 +17,10 @@ ast_node_type :: enum
     SUBTRACT,
     MULTIPLY,
     DIVIDE,
+    REFERENCE,
+    DEREFERENCE,
     NEGATE,
+    INDEX,
     CALL,
     IDENTIFIER,
     NUMBER
@@ -26,7 +29,9 @@ ast_node_type :: enum
 data_type :: struct
 {
     name: string,
-    length: int
+    length: int,
+
+    is_reference: bool
 }
 
 ast_node :: struct
@@ -349,45 +354,76 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    if peek_token(stream).type == .OPENING_BRACKET
+    #partial switch peek_token(stream).type
     {
-        next_token(stream, []token_type { .OPENING_BRACKET })
+    case .HAT:
+        next_token(stream, []token_type { .HAT })
 
-        node = parse_expression(stream)
+        node.type = .REFERENCE
 
-        next_token(stream, []token_type { .CLOSING_BRACKET })
-    }
-    else if peek_token(stream).type == .IDENTIFIER
-    {
-        if peek_token(stream, 1).type == .OPENING_BRACKET
-        {
-            node = parse_call(stream)
-        }
-        else
-        {
-            node = parse_variable(stream)
-        }
-    }
-    else if peek_token(stream).type == .MINUS
-    {
+        primary_node := parse_primary(stream)
+        append(&node.children, primary_node)
+    case .MINUS:
         next_token(stream, []token_type { .MINUS })
 
         node.type = .NEGATE
 
         primary_node := parse_primary(stream)
         append(&node.children, primary_node)
-    }
-    else if peek_token(stream).type == .NUMBER
-    {
+    case .OPENING_BRACKET:
+        next_token(stream, []token_type { .OPENING_BRACKET })
+
+        node = parse_expression(stream)
+
+        next_token(stream, []token_type { .CLOSING_BRACKET })
+    case .IDENTIFIER:
+        if peek_token(stream, 1).type == .OPENING_BRACKET
+        {
+            node = parse_call(stream)
+        }
+        else
+        {
+            node = parse_identifier(stream)
+        }
+    case .NUMBER:
         node.type = .NUMBER
         node.value = next_token(stream, []token_type { .NUMBER }).value
-    }
-    else
-    {
+    case:
         token := peek_token(stream)
         fmt.println("Failed to parse primary")
         fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
         os.exit(1)
+    }
+
+    #partial switch peek_token(stream).type
+    {
+    case .HAT:
+        next_token(stream, []token_type { .HAT })
+
+        child_node := node
+
+        node = {
+            type = .DEREFERENCE,
+            line_number = child_node.line_number,
+            column_number = child_node.column_number
+        }
+
+        append(&node.children, child_node)
+    case .OPENING_SQUARE_BRACKET:
+        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
+
+        child_node := node
+
+        node = {
+            type = .INDEX,
+            data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value),
+            line_number = child_node.line_number,
+            column_number = child_node.column_number
+        }
+
+        append(&node.children, child_node)
+
+        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
     }
 
     return
@@ -439,8 +475,15 @@ parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
 
 parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 {
-    node.data_type = { next_token(stream, []token_type { .DATA_TYPE }).value, 1 }
+    if peek_token(stream).type == .HAT
+    {
+        next_token(stream, []token_type { .HAT })
+        node.data_type.is_reference = true
+    }
 
+    node.data_type.name = next_token(stream, []token_type { .DATA_TYPE }).value
+
+    node.data_type.length = 1
     if peek_token(stream).type == .OPENING_SQUARE_BRACKET
     {
         next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
@@ -456,7 +499,7 @@ parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, { "", 1 }, -1, {}, token.line_number, token.column_number }
+    node = ast_node { .IDENTIFIER, token.value, { "", 1, false }, -1, {}, token.line_number, token.column_number }
 
     return
 }

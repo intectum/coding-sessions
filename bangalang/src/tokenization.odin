@@ -20,6 +20,7 @@ token_type :: enum
   ASTERISK,
   BACKSLASH,
   COMMA,
+  HAT,
   ARROW,
   KEYWORD,
   DATA_TYPE,
@@ -293,6 +294,13 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
     else if src[index] == ','
     {
       append(&tokens, token { .COMMA, ",", line_number, column_number })
+
+      index += 1
+      column_number += 1
+    }
+    else if src[index] == '^'
+    {
+      append(&tokens, token { .HAT, "^", line_number, column_number })
 
       index += 1
       column_number += 1

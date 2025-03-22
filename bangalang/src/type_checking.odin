@@ -24,7 +24,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     ctx: type_checking_context
 
     exit: procedure
-    append(&exit.param_data_types, data_type { "i64", 1 })
+    append(&exit.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["exit"] = exit
 
     for node in nodes
@@ -138,7 +138,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
     expression_node := &node.children[child_index]
     child_index += 1
 
-    expression_ok := type_check_expression(expression_node, ctx, { "i64", 1 })
+    expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
     if !expression_ok
     {
         ok = false
@@ -155,7 +155,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
 
     for child_index + 1 < len(node.children)
     {
-        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { "i64", 1 })
+        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { "i64", 1, false })
         if !else_if_expression_ok
         {
             ok = false
@@ -196,7 +196,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: boo
         }
 
         expression_node := &node.children[1]
-        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1 })
+        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
         if !expression_ok
         {
             ok = false
@@ -205,7 +205,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: boo
     else
     {
         expression_node := &node.children[0]
-        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1 })
+        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
         if !expression_ok
         {
             ok = false
@@ -404,12 +404,22 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
 {
     #partial switch node.type
     {
-    case .CALL:
-        ok = type_check_call(node, ctx)
-    case .IDENTIFIER:
-        ok = type_check_variable(node, ctx)
-    case .NUMBER:
-        node.data_type = { "number", 1 }
+    case .REFERENCE:
+        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        if !primary_ok
+        {
+            ok = false
+        }
+
+        node.data_type = node.children[0].data_type
+        node.data_type.is_reference = true
+
+        if node.children[0].data_type.is_reference
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+            ok = false
+        }
     case .NEGATE:
         primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
         if !primary_ok
@@ -417,12 +427,59 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
             ok = false
         }
 
-        if node.children[0].data_type.length > 1
+        node.data_type = node.children[0].data_type
+
+        if node.data_type.is_reference && node.data_type.length > 1
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
             ok = false
         }
+    case .DEREFERENCE:
+        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        if !primary_ok
+        {
+            ok = false
+        }
+
+        node.data_type = node.children[0].data_type
+        node.data_type.is_reference = false
+
+        if !node.children[0].data_type.is_reference
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+            ok = false
+        }
+    case .INDEX:
+        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        if !primary_ok
+        {
+            ok = false
+        }
+
+        node.data_type = node.children[0].data_type
+        node.data_type.length = 1
+
+        if node.data_index >= node.children[0].data_type.length
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, node.children[0].value, node.line_number, node.column_number)
+            ok = false
+        }
+    case .CALL:
+        ok = type_check_call(node, ctx)
+    case .IDENTIFIER:
+        node.data_type = ctx.variable_data_types[node.value]
+
+        if !(node.value in ctx.variable_data_types)
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
+            ok = false
+        }
+    case .NUMBER:
+        node.data_type = { "number", 1, false }
     case:
         ok = type_check_expression_1(node, ctx, expected_data_type)
     }
@@ -507,7 +564,11 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 copy_type_checking_context := proc(ctx: type_checking_context, inline := false) -> type_checking_context
 {
     ctx_copy: type_checking_context
-    ctx_copy.procedures = ctx.procedures
+    for key in ctx.procedures
+    {
+        ctx_copy.procedures[key] = ctx.procedures[key]
+    }
+    ctx_copy.procedure = ctx.procedure
 
     if inline
     {
@@ -530,7 +591,7 @@ coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
             continue
         }
 
-        if coerced_data_type.name != "" && (data_type.name != coerced_data_type.name || data_type.length != coerced_data_type.length)
+        if coerced_data_type.name != "" && (data_type.name != coerced_data_type.name || data_type.length != coerced_data_type.length || data_type.is_reference != coerced_data_type.is_reference)
         {
             return {}, false
         }
@@ -548,11 +609,18 @@ coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
 
 data_type_name :: proc(data_type: data_type) -> string
 {
-    if data_type.length == 1
+    name := data_type.name
+
+    if data_type.is_reference
     {
-        return data_type.name
+        name = strings.concatenate({ "^", name })
     }
 
-    buf: [8]byte
-    return strings.concatenate({ data_type.name, "[", strconv.itoa(buf[:], data_type.length), "]" })
+    if data_type.length > 1
+    {
+        buf: [8]byte
+        name = strings.concatenate({ name, "[", strconv.itoa(buf[:], data_type.length), "]" })
+    }
+
+    return name
 }
