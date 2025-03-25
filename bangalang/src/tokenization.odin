@@ -15,6 +15,8 @@ token_type :: enum
   CLOSING_SQUIGGLY_BRACKET,
   COLON,
   EQUALS,
+  EQUALS_EQUALS,
+  EXCLAMATION_EQUALS,
   PLUS,
   MINUS,
   ASTERISK,
@@ -26,12 +28,13 @@ token_type :: enum
   DATA_TYPE,
   IDENTIFIER,
   NUMBER,
+  BOOLEAN,
   END_OF_FILE
 }
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
 
-data_types: []string = { "i8", "i16", "i32", "i64" }
+data_types: []string = { "bool", "i8", "i16", "i32", "i64" }
 
 token :: struct
 {
@@ -192,10 +195,27 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
     }
     else if src[index] == '='
     {
-      append(&tokens, token { .EQUALS, "=", line_number, column_number })
+      if index + 1 < len(src) && src[index + 1] == '='
+      {
+        append(&tokens, token { .EQUALS_EQUALS, "==", line_number, column_number })
 
-      index += 1
-      column_number += 1
+        index += 2
+        column_number += 2
+      }
+      else
+      {
+        append(&tokens, token { .EQUALS, "=", line_number, column_number })
+
+        index += 1
+        column_number += 1
+      }
+    }
+    else if index + 1 < len(src) && src[index] == '!' && src[index + 1] == '='
+    {
+      append(&tokens, token { .EXCLAMATION_EQUALS, "!=", line_number, column_number })
+
+      index += 2
+      column_number += 2
     }
     else if src[index] == '+'
     {
@@ -316,17 +336,24 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
       }
 
       token := token { .IDENTIFIER, src[start_index:end_index], line_number, column_number }
-      _, found_keyword := slice.linear_search(keywords, token.value)
-      if found_keyword
+      if token.value == "false" || token.value == "true"
       {
-        token.type = .KEYWORD
+        token.type = .BOOLEAN
       }
       else
       {
-        _, found_data_type := slice.linear_search(data_types, token.value)
-        if found_data_type
+        _, found_keyword := slice.linear_search(keywords, token.value)
+        if found_keyword
         {
-          token.type = .DATA_TYPE
+          token.type = .KEYWORD
+        }
+        else
+        {
+          _, found_data_type := slice.linear_search(data_types, token.value)
+          if found_data_type
+          {
+            token.type = .DATA_TYPE
+          }
         }
       }
       append(&tokens, token)

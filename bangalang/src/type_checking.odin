@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 import "core:strconv"
+import slice "core:slice"
 
 procedure :: struct
 {
@@ -18,6 +19,8 @@ type_checking_context :: struct
 
     variable_data_types: map[string]data_type
 }
+
+numerical_data_types: []string = { "i8", "i16", "i32", "i64", "number" }
 
 type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 {
@@ -348,7 +351,7 @@ type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expe
 
 type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
 {
-    if node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
+    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
     {
         ok = type_check_primary(node, ctx, expected_data_type)
         return
@@ -386,16 +389,29 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, ex
         ok = false
     }
 
+    node.data_type = data_type
+    lhs_node.data_type = data_type
+    rhs_node.data_type = data_type
+
+    _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
     if data_type.length > 1
     {
         fmt.println("Failed to type check expression")
         fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
         ok = false
     }
-
-    node.data_type = data_type
-    lhs_node.data_type = data_type
-    rhs_node.data_type = data_type
+    else if numerical_data_type && (node.type == .EQUAL || node.type == .NOT_EQUAL)
+    {
+        fmt.println("Failed to type check expression")
+        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+        ok = false
+    }
+    else if data_type.name == "bool" && node.type != .EQUAL && node.type != .NOT_EQUAL
+    {
+        fmt.println("Failed to type check expression")
+        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+        ok = false
+    }
 
     return
 }
@@ -480,6 +496,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
         }
     case .NUMBER:
         node.data_type = { "number", 1, false }
+    case .BOOLEAN:
+        node.data_type = { "bool", 1, false }
     case:
         ok = type_check_expression_1(node, ctx, expected_data_type)
     }
@@ -583,20 +601,45 @@ copy_type_checking_context := proc(ctx: type_checking_context, inline := false) 
 
 coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
 {
-    coerced_data_type: data_type
-    for data_type in data_types
+    coerced_data_type := data_types[0]
+    for data_type in data_types[1:]
     {
-        if data_type.name == "" || data_type.name == "number"
+        if data_type.name == ""
         {
             continue
         }
 
-        if coerced_data_type.name != "" && (data_type.name != coerced_data_type.name || data_type.length != coerced_data_type.length || data_type.is_reference != coerced_data_type.is_reference)
+        if coerced_data_type.name == ""
         {
+            coerced_data_type = data_type
+            continue
+        }
+
+        if data_type == coerced_data_type
+        {
+            continue
+        }
+
+        if data_type.name == coerced_data_type.name
+        {
+            // Non-name member is different
             return {}, false
         }
 
-        coerced_data_type = data_type
+        _, coerced_numerical_data_type := slice.linear_search(numerical_data_types, coerced_data_type.name)
+        if data_type.name == "number" && coerced_numerical_data_type
+        {
+            continue
+        }
+
+        _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
+        if coerced_data_type.name == "number" && numerical_data_type
+        {
+            coerced_data_type = data_type
+            continue
+        }
+
+        return {}, false
     }
 
     if coerced_data_type.name != ""

@@ -1,11 +1,50 @@
 package main
 
+import "core:c/libc"
 import "core:fmt"
 import "core:os"
+import "core:strings"
+import "core:sys/linux"
 
 main :: proc()
 {
-  src_data, read_ok := os.read_entire_file("./examples/example_01.bang")
+  run("examples/example_01.bang", "bin/example_01")
+}
+
+run :: proc(src_path: string, bin_path: string)
+{
+  build(src_path, bin_path)
+
+  os.exit(int(exec(bin_path)))
+}
+
+build :: proc(src_path: string, bin_path: string)
+{
+  asm_path := strings.concatenate({ bin_path, ".asm" })
+  object_path := strings.concatenate({ bin_path, ".o" })
+
+  compile(src_path, asm_path)
+
+  nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
+  nasm_code := exec(nasm_command)
+  if nasm_code > 0
+  {
+    fmt.println("Failed to assemble")
+    os.exit(int(nasm_code))
+  }
+
+  ld_command := strings.concatenate({ "ld ", object_path, " -o ", bin_path })
+  ld_code := exec(ld_command)
+  if ld_code > 0
+  {
+    fmt.println("Failed to link")
+    os.exit(int(ld_code))
+  }
+}
+
+compile :: proc(src_path: string, asm_path: string)
+{
+  src_data, read_ok := os.read_entire_file(src_path)
   if !read_ok
   {
     fmt.println("Failed to read src file")
@@ -21,8 +60,14 @@ main :: proc()
   type_check_ok := type_check_program(ast_nodes)
   if !type_check_ok
   {
+    fmt.println("Failed to type check")
     os.exit(1)
   }
 
-  generate_program("./bin/out.asm", ast_nodes)
+  generate_program(asm_path, ast_nodes)
+}
+
+exec :: proc(command: string) -> u32
+{
+  return linux.WEXITSTATUS(u32(libc.system(strings.clone_to_cstring(command))))
 }

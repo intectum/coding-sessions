@@ -69,6 +69,12 @@ for index_1: i64 = 10, index_1, index_1 = index_1 - 1
   */
 */
 
+my_bool: bool
+my_bool = true == false
+//return my_bool
+
+//assert(true == false, "True is not false")
+
 array: i32[8]
 array[5] = 4
 array[3] = array[5]

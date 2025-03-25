@@ -47,6 +47,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
     ctx: gen_context
 
+    ctx.data_sizes["bool"] = 1
     ctx.data_sizes["i8"] = 1
     ctx.data_sizes["i16"] = 2
     ctx.data_sizes["i32"] = 4
@@ -259,7 +260,7 @@ generate_scope :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_context
     if scope_stack_size > 0
     {
         fmt.fprintln(file, "  ; close scope")
-        fmt.fprintfln(file, "  add rsp, %i ; clear scope's stack", scope_stack_size)
+        deallocate(file, scope_stack_size, &scope_ctx)
     }
 
     fmt.fprintln(file, "; scope end")
@@ -273,15 +274,14 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     data_size := byte_size_of(lhs_node.data_type, ctx^)
 
-    fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", data_size)
-    ctx.stack_size += data_size
+    allocate(file, data_size, ctx)
     ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
     if len(node.children) > 1
     {
         rhs_node := node.children[1]
 
-        generate_expression(file, rhs_node, ctx, { .MEMORY, "rsp", 0 })
+        generate_expression(file, rhs_node, ctx, memory("rsp", 0))
     }
 }
 
@@ -297,12 +297,12 @@ generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     if lhs_node.data_type.is_reference
     {
         register_dest := register("bx", 8)
-        copy(file, { .MEMORY, "rsp", variable_position }, register_dest, 8, "dereference")
-        generate_expression(file, rhs_node, ctx, { .MEMORY, operand(register_dest), offset })
+        copy(file, memory("rsp", variable_position), register_dest, 8, "dereference")
+        generate_expression(file, rhs_node, ctx, memory(operand(register_dest), offset))
     }
     else
     {
-        generate_expression(file, rhs_node, ctx, { .MEMORY, "rsp", offset })
+        generate_expression(file, rhs_node, ctx, memory("rsp", variable_position + offset))
     }
 }
 
@@ -315,14 +315,14 @@ generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     if ctx.in_proc
     {
         variable_position := ctx.stack_size - ctx.stack_variable_offsets["[return]"]
-        generate_expression(file, expression_node, ctx, { .MEMORY, "rsp", variable_position })
+        generate_expression(file, expression_node, ctx, memory("rsp", variable_position))
         fmt.fprintln(file, "  jmp .end ; skip to end")
     }
     else
     {
         data_size := ctx.data_sizes[expression_node.data_type.name]
         generate_expression(file, expression_node, ctx, register("di", data_size))
-        copy(file, { .IMMEDIATE, "60", 0 }, register("ax", data_size), data_size)
+        copy(file, immediate("60"), register("ax", data_size), data_size)
         fmt.fprintln(file, "  syscall ; call kernel")
     }
 }
@@ -336,7 +336,7 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
 
 generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location, register_num: int) -> location
 {
-    if node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
+    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
     {
         return generate_primary(file, node, ctx, dest, register_num)
     }
@@ -351,15 +351,26 @@ generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context
 
     lhs_dest := generate_expression_1(file, lhs_node, ctx, dest, lhs_register_num)
     rhs_dest := generate_expression_1(file, rhs_node, ctx, dest, rhs_register_num)
-    final_dest := copy_to_register(file, lhs_dest, register_num, data_size)
+    final_dest := dest
 
     #partial switch node.type
     {
+    case .EQUAL:
+        lhs_dest = copy_to_register(file, lhs_dest, register_num, data_size)
+        fmt.fprintfln(file, "  cmp %s, %s ; equal: compare", operand(lhs_dest), operand(rhs_dest))
+        fmt.fprintfln(file, "  sete %s ; equal", operand(final_dest))
+    case .NOT_EQUAL:
+        lhs_dest = copy_to_register(file, lhs_dest, register_num, data_size)
+        fmt.fprintfln(file, "  cmp %s, %s ; not equal: compare", operand(lhs_dest), operand(rhs_dest))
+        fmt.fprintfln(file, "  setne %s ; not equal", operand(final_dest))
     case .ADD:
+        final_dest = copy_to_register(file, lhs_dest, register_num, data_size)
         fmt.fprintfln(file, "  add %s, %s ; add", operand(final_dest), operand(rhs_dest))
     case .SUBTRACT:
+        final_dest = copy_to_register(file, lhs_dest, register_num, data_size)
         fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(final_dest), operand(rhs_dest))
     case .MULTIPLY:
+        final_dest = copy_to_register(file, lhs_dest, register_num, data_size)
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(final_dest), operand(rhs_dest))
     case .DIVIDE:
         // dividend / divisor
@@ -393,14 +404,14 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, des
     case .DEREFERENCE:
         primary_dest := generate_primary(file, node.children[0], ctx, dest, register_num)
         register_dest := copy_to_register(file, primary_dest, register_num, 8, "dereference")
-        return { .MEMORY, operand(register_dest), 0 }
+        return memory(operand(register_dest), 0)
     case .INDEX:
         primary_dest := generate_primary(file, node.children[0], ctx, dest, register_num)
         offset := node.data_index * ctx.data_sizes[node.data_type.name]
         if node.data_type.is_reference
         {
             register_dest := copy_to_register(file, primary_dest, register_num, 8, "dereference")
-            return { .MEMORY, operand(register_dest), offset }
+            return memory(operand(register_dest), offset)
         }
         else
         {
@@ -412,9 +423,11 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, des
         return dest
     case .IDENTIFIER:
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
-        return { .MEMORY, "rsp", variable_position }
+        return memory("rsp", variable_position)
     case .NUMBER:
-        return { .IMMEDIATE, node.value, 0 }
+        return immediate(node.value)
+    case .BOOLEAN:
+        return immediate(node.value == "true" ? "1" : "0")
     case:
         return generate_expression_1(file, node, ctx, dest, register_num)
     }
@@ -433,27 +446,23 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: 
         child_index += 1
 
         param_byte_size := byte_size_of(param_node.data_type, ctx^)
-
-        fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", param_byte_size)
-        ctx.stack_size += param_byte_size
+        allocate(file, param_byte_size, ctx)
         call_stack_size += param_byte_size
 
-        generate_expression(file, param_node, ctx, { .MEMORY, "rsp", 0 })
+        generate_expression(file, param_node, ctx, memory("rsp", 0))
     }
 
     return_byte_size := byte_size_of(node.data_type, ctx^)
-    fmt.fprintfln(file, "  sub rsp, %i ; allocate space in stack", return_byte_size)
-    ctx.stack_size += return_byte_size
+    allocate(file, return_byte_size, ctx)
     call_stack_size += return_byte_size
 
     fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
 
-    fmt.fprintfln(file, "  add rsp, %i ; clear params from stack", call_stack_size)
-    ctx.stack_size -= call_stack_size
+    deallocate(file, call_stack_size, ctx)
 
     if dest.value != ""
     {
-        copy(file, { .MEMORY, "rsp", -call_stack_size }, dest, return_byte_size)
+        copy(file, memory("rsp", -call_stack_size), dest, return_byte_size)
     }
 }
 
@@ -524,6 +533,16 @@ copy_gen_context := proc(ctx: gen_context, inline := false) -> gen_context
     }
 
     return ctx_copy
+}
+
+immediate :: proc(value: string) -> location
+{
+    return { .IMMEDIATE, value, 0 }
+}
+
+memory :: proc(address: string, offset: int) -> location
+{
+    return { .MEMORY, address, offset  }
 }
 
 register :: proc
@@ -627,4 +646,16 @@ byte_size_of :: proc(data_type: data_type, ctx: gen_context) -> int
     }
 
     return ctx.data_sizes[data_type.name] * data_type.length
+}
+
+allocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
+{
+    fmt.fprintfln(file, "  sub rsp, %i ; allocate (stack)", size)
+    ctx.stack_size += size
+}
+
+deallocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
+{
+    fmt.fprintfln(file, "  add rsp, %i ; allocate (stack)", size)
+    ctx.stack_size -= size
 }

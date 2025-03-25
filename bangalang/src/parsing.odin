@@ -13,6 +13,8 @@ ast_node_type :: enum
     DECLARATION,
     ASSIGNMENT,
     RETURN,
+    EQUAL,
+    NOT_EQUAL,
     ADD,
     SUBTRACT,
     MULTIPLY,
@@ -23,7 +25,8 @@ ast_node_type :: enum
     INDEX,
     CALL,
     IDENTIFIER,
-    NUMBER
+    NUMBER,
+    BOOLEAN
 }
 
 data_type :: struct
@@ -388,6 +391,9 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
     case .NUMBER:
         node.type = .NUMBER
         node.value = next_token(stream, []token_type { .NUMBER }).value
+    case .BOOLEAN:
+        node.type = .BOOLEAN
+        node.value = next_token(stream, []token_type { .BOOLEAN }).value
     case:
         token := peek_token(stream)
         fmt.println("Failed to parse primary")
@@ -508,13 +514,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .PLUS:
-        return true
-    case .MINUS:
-        return true
-    case .ASTERISK:
-        return true
-    case .BACKSLASH:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH:
         return true
     case:
         return false
@@ -525,14 +525,12 @@ binary_operator_precedence :: proc(token: token) -> int
 {
     #partial switch token.type
     {
-    case .PLUS:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS:
         return 1
-    case .MINUS:
-        return 1
-    case .ASTERISK:
+    case .PLUS, .MINUS:
         return 2
-    case .BACKSLASH:
-        return 2
+    case .ASTERISK, .BACKSLASH:
+        return 3
     case:
         fmt.println("Failed to determine binary operator precedence")
         fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
@@ -544,6 +542,10 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
 {
     #partial switch token.type
     {
+    case .EQUALS_EQUALS:
+        return .EQUAL
+    case .EXCLAMATION_EQUALS:
+        return .NOT_EQUAL
     case .PLUS:
         return .ADD
     case .MINUS:
