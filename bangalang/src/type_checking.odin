@@ -141,7 +141,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
     expression_node := &node.children[child_index]
     child_index += 1
 
-    expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
+    expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
     if !expression_ok
     {
         ok = false
@@ -158,7 +158,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
 
     for child_index + 1 < len(node.children)
     {
-        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { "i64", 1, false })
+        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { "bool", 1, false })
         if !else_if_expression_ok
         {
             ok = false
@@ -199,7 +199,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: boo
         }
 
         expression_node := &node.children[1]
-        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
+        expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
         if !expression_ok
         {
             ok = false
@@ -208,7 +208,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: boo
     else
     {
         expression_node := &node.children[0]
-        expression_ok := type_check_expression(expression_node, ctx, { "i64", 1, false })
+        expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
         if !expression_ok
         {
             ok = false
@@ -325,7 +325,7 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: 
 
 type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
 {
-    type_check_expression_1(node, ctx, expected_data_type)
+    type_check_expression_1(node, ctx)
 
     data_types := []data_type { node.data_type, expected_data_type }
     data_type, coerse_ok := coerse_type(data_types)
@@ -344,35 +344,42 @@ type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expe
         ok = false
     }
 
-    node.data_type = data_type
+    if node.data_type.name == "number"
+    {
+        propagate_data_type(node, data_type)
+    }
+    else
+    {
+        node.data_type = data_type
+    }
 
     return
 }
 
-type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
+type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
+    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
     {
-        ok = type_check_primary(node, ctx, expected_data_type)
+        ok = type_check_primary(node, ctx)
         return
     }
 
     lhs_node := &node.children[0]
     rhs_node := &node.children[1]
 
-    lhs_ok := type_check_expression_1(lhs_node, ctx, expected_data_type)
+    lhs_ok := type_check_expression_1(lhs_node, ctx)
     if !lhs_ok
     {
         ok = false
     }
 
-    rhs_ok := type_check_expression_1(rhs_node, ctx, expected_data_type)
+    rhs_ok := type_check_expression_1(rhs_node, ctx)
     if !rhs_ok
     {
         ok = false
     }
 
-    data_types := []data_type { lhs_node.data_type, rhs_node.data_type, expected_data_type }
+    data_types := []data_type { lhs_node.data_type, rhs_node.data_type }
     data_type, coerse_ok := coerse_type(data_types)
     if !coerse_ok
     {
@@ -389,18 +396,24 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, ex
         ok = false
     }
 
-    node.data_type = data_type
-    lhs_node.data_type = data_type
-    rhs_node.data_type = data_type
+    if node.type == .EQUAL || node.type == .NOT_EQUAL || node.type == .LESS_THAN || node.type == .GREATER_THAN || node.type == .LESS_THAN_OR_EQUAL || node.type == .GREATER_THAN_OR_EQUAL
+    {
+        node.data_type = { "bool", 1, false }
+        if data_type.name == "number"
+        {
+            propagate_data_type(lhs_node, { "i64", 1, false })
+            propagate_data_type(rhs_node, { "i64", 1, false })
+        }
+    }
+    else
+    {
+        node.data_type = data_type
+        lhs_node.data_type = data_type
+        rhs_node.data_type = data_type
+    }
 
     _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
     if data_type.length > 1
-    {
-        fmt.println("Failed to type check expression")
-        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-        ok = false
-    }
-    else if numerical_data_type && (node.type == .EQUAL || node.type == .NOT_EQUAL)
     {
         fmt.println("Failed to type check expression")
         fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
@@ -416,12 +429,12 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context, ex
     return
 }
 
-type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
+type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
     #partial switch node.type
     {
     case .REFERENCE:
-        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        primary_ok := type_check_primary(&node.children[0], ctx)
         if !primary_ok
         {
             ok = false
@@ -437,7 +450,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
             ok = false
         }
     case .NEGATE:
-        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        primary_ok := type_check_primary(&node.children[0], ctx)
         if !primary_ok
         {
             ok = false
@@ -452,7 +465,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
             ok = false
         }
     case .DEREFERENCE:
-        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        primary_ok := type_check_primary(&node.children[0], ctx)
         if !primary_ok
         {
             ok = false
@@ -468,7 +481,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
             ok = false
         }
     case .INDEX:
-        primary_ok := type_check_primary(&node.children[0], ctx, expected_data_type)
+        primary_ok := type_check_primary(&node.children[0], ctx)
         if !primary_ok
         {
             ok = false
@@ -499,7 +512,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, expecte
     case .BOOLEAN:
         node.data_type = { "bool", 1, false }
     case:
-        ok = type_check_expression_1(node, ctx, expected_data_type)
+        ok = type_check_expression_1(node, ctx)
     }
 
     return
@@ -666,4 +679,13 @@ data_type_name :: proc(data_type: data_type) -> string
     }
 
     return name
+}
+
+propagate_data_type :: proc(node: ^ast_node, data_type: data_type)
+{
+    node.data_type = data_type
+    for &child_node in node.children
+    {
+        propagate_data_type(&child_node, data_type)
+    }
 }

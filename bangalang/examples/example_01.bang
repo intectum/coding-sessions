@@ -13,27 +13,27 @@ result: i64 = -((7 + 3) * 2) + 40
 
 result = 0
 
-if result
+if result != 0
 {
     result = 2
 }
 
-if z - 77
+if z - 77 != 0
 {
     result = 5
     result = 3 * result
 }
-else if result
+else if result != 0
 {
     result = 42
 }
-else if z + 77
+else if z + 77 != 0
 {
-    if 0
+    if false
     {
         result = 43
     }
-    else if z - 77
+    else if z - 77 != 0
     {
         result = 44
     }
@@ -49,14 +49,14 @@ else
 
 sum_0: i64 = 0
 index_0: i64 = 10
-for index_0
+for index_0 > 0
 {
     sum_0 = sum_0 + index_0
     index_0 = index_0 - 1
 }
 
 sum_1: i64 = 0
-for index_1: i64 = 10, index_1, index_1 = index_1 - 1
+for index_1: i64 = 10, index_1 > 0, index_1 = index_1 - 1
 {
     sum_1 = sum_1 + index_1
 }
@@ -70,7 +70,7 @@ for index_1: i64 = 10, index_1, index_1 = index_1 - 1
 */
 
 my_bool: bool
-my_bool = true == false
+my_bool = 3 <= 4
 //return my_bool
 
 //assert(true == false, "True is not false")
@@ -79,8 +79,10 @@ array: i32[8]
 array[5] = 4
 array[3] = array[5]
 
-inc_arr := increment_fourth_element(^array)
-return inc_arr[3]
+//return increment_fourth_element(^array)[3]
+
+//inc_arr := increment_fourth_element(^array)
+//return inc_arr[3]
 
 return pow(array[3], 3)
 
@@ -95,8 +97,7 @@ pow := proc(num: i32, exp: i64) -> i32
 {
     result := num
 
-    exp = exp - 1
-    for exp
+    for exp > 1
     {
         result = result * num
         exp = exp - 1

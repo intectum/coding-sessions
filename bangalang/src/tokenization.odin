@@ -9,6 +9,10 @@ token_type :: enum
 {
   OPENING_BRACKET,
   CLOSING_BRACKET,
+  OPENING_ANGLE_BRACKET,
+  OPENING_ANGLE_BRACKET_EQUALS,
+  CLOSING_ANGLE_BRACKET,
+  CLOSING_ANGLE_BRACKET_EQUALS,
   OPENING_SQUARE_BRACKET,
   CLOSING_SQUARE_BRACKET,
   OPENING_SQUIGGLY_BRACKET,
@@ -157,6 +161,40 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
 
       index += 1
       column_number += 1
+    }
+    else if src[index] == '<'
+    {
+      if index + 1 < len(src) && src[index + 1] == '='
+      {
+        append(&tokens, token { .OPENING_ANGLE_BRACKET_EQUALS, "<=", line_number, column_number })
+
+        index += 2
+        column_number += 2
+      }
+      else
+      {
+        append(&tokens, token { .OPENING_ANGLE_BRACKET, "<", line_number, column_number })
+
+        index += 1
+        column_number += 1
+      }
+    }
+    else if src[index] == '>'
+    {
+      if index + 1 < len(src) && src[index + 1] == '='
+      {
+        append(&tokens, token { .CLOSING_ANGLE_BRACKET_EQUALS, ">=", line_number, column_number })
+
+        index += 2
+        column_number += 2
+      }
+      else
+      {
+        append(&tokens, token { .CLOSING_ANGLE_BRACKET, ">", line_number, column_number })
+
+        index += 1
+        column_number += 1
+      }
     }
     else if src[index] == '['
     {

@@ -15,6 +15,10 @@ ast_node_type :: enum
     RETURN,
     EQUAL,
     NOT_EQUAL,
+    LESS_THAN,
+    GREATER_THAN,
+    LESS_THAN_OR_EQUAL,
+    GREATER_THAN_OR_EQUAL,
     ADD,
     SUBTRACT,
     MULTIPLY,
@@ -514,7 +518,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH:
         return true
     case:
         return false
@@ -525,7 +529,7 @@ binary_operator_precedence :: proc(token: token) -> int
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS:
         return 1
     case .PLUS, .MINUS:
         return 2
@@ -546,6 +550,14 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
         return .EQUAL
     case .EXCLAMATION_EQUALS:
         return .NOT_EQUAL
+    case .OPENING_ANGLE_BRACKET:
+        return .LESS_THAN
+    case .CLOSING_ANGLE_BRACKET:
+        return .GREATER_THAN
+    case .OPENING_ANGLE_BRACKET_EQUALS:
+        return .LESS_THAN_OR_EQUAL
+    case .CLOSING_ANGLE_BRACKET_EQUALS:
+        return .GREATER_THAN_OR_EQUAL
     case .PLUS:
         return .ADD
     case .MINUS:

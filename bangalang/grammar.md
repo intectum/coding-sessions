@@ -9,7 +9,7 @@ scope\ &\to\ \text{"\{"}\ statement^*\ \text{"\}"}\\
 declaration\ &\to\ identifier\ \text{":"}\ type?\ (\ \text{"="}\ expression\ )?\\
 assignment\ &\to\ variable\ \text{"="}\ expression\\
 return\ &\to\ \text{"return"}\ expression\\
-expression\ &\to\ primary\ (\ (\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ )\ primary\ )^*\\
+expression\ &\to\ primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ )\ primary\ )^*\\
 primary\ &\to\ (\ \text{"^"}\ |\ \text{"-"}\ )\ primary\ |\ primary\ (\ \text{"^"}\ |\ \text{"["}\ number\ \text{"]"}\ )\ |\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ number\ |\ boolean\\
 call\ &\to\ identifier\ \text{"("}\ (\ expression\ (\ \text{","}\ expression\ )^*\ )?\ \text{")"}\\
 variable\ &\to\ identifier\ (\ \text{"["}\ number\ \text{"]"}\ )?\\
