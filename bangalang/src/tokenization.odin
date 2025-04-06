@@ -31,6 +31,7 @@ token_type :: enum
   KEYWORD,
   DATA_TYPE,
   IDENTIFIER,
+  STRING,
   NUMBER,
   BOOLEAN,
   END_OF_FILE
@@ -38,7 +39,7 @@ token_type :: enum
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
 
-data_types: []string = { "bool", "i8", "i16", "i32", "i64" }
+data_types: []string = { "bool", "i8", "i16", "i32", "i64", "string" }
 
 token :: struct
 {
@@ -46,6 +47,73 @@ token :: struct
   value: string,
   line_number: int,
   column_number: int
+}
+
+rune_stream :: struct
+{
+  src: string,
+  next_index: int,
+  line_number: int,
+  column_number: int
+}
+
+peek_rune :: proc(stream: ^rune_stream) -> rune
+{
+  if stream.next_index >= len(stream.src)
+  {
+    return 0
+  }
+
+  return rune(stream.src[stream.next_index])
+}
+
+peek_runes :: proc(stream: ^rune_stream, count: int) -> string
+{
+  if stream.next_index + count > len(stream.src)
+  {
+    return ""
+  }
+
+  return stream.src[stream.next_index:stream.next_index + count]
+}
+
+next_rune :: proc(stream: ^rune_stream) -> rune
+{
+  next_rune := peek_rune(stream)
+  stream.next_index += 1
+
+  if next_rune == '\n'
+  {
+    stream.line_number += 1
+    stream.column_number = 1
+  }
+  else
+  {
+    stream.column_number += 1
+  }
+
+  return next_rune
+}
+
+next_runes :: proc(stream: ^rune_stream, count: int) -> string
+{
+  next_runes := peek_runes(stream, count)
+  stream.next_index += count
+
+  for next_rune in next_runes
+  {
+    if next_rune == '\n'
+    {
+      stream.line_number += 1
+      stream.column_number = 1
+    }
+    else
+    {
+      stream.column_number += 1
+    }
+  }
+
+  return next_runes
 }
 
 token_stream :: struct
@@ -129,251 +197,123 @@ next_token_of_types :: proc(stream: ^token_stream, types: []token_type) -> token
 
 tokenize :: proc(src: string) -> (tokens: [dynamic]token)
 {
-  line_number := 1
-  column_number := 1
+  stream := rune_stream { src, 0, 1, 1 }
 
-  for index := 0; index < len(src);
+  fixed_token_types: map[string]token_type
+  fixed_token_types["("] = .OPENING_BRACKET
+  fixed_token_types[")"] = .CLOSING_BRACKET
+  fixed_token_types["<"] = .OPENING_ANGLE_BRACKET
+  fixed_token_types["<="] = .OPENING_ANGLE_BRACKET_EQUALS
+  fixed_token_types[">"] = .CLOSING_ANGLE_BRACKET
+  fixed_token_types[">="] = .CLOSING_ANGLE_BRACKET_EQUALS
+  fixed_token_types["["] = .OPENING_SQUARE_BRACKET
+  fixed_token_types["]"] = .CLOSING_SQUARE_BRACKET
+  fixed_token_types["{"] = .OPENING_SQUIGGLY_BRACKET
+  fixed_token_types["}"] = .CLOSING_SQUIGGLY_BRACKET
+  fixed_token_types[":"] = .COLON
+  fixed_token_types["="] = .EQUALS
+  fixed_token_types["=="] = .EQUALS_EQUALS
+  fixed_token_types["!="] = .EXCLAMATION_EQUALS
+  fixed_token_types["+"] = .PLUS
+  fixed_token_types["-"] = .MINUS
+  fixed_token_types["*"] = .ASTERISK
+  fixed_token_types["/"] = .BACKSLASH
+  fixed_token_types[","] = .COMMA
+  fixed_token_types["^"] = .HAT
+  fixed_token_types["->"] = .ARROW
+
+  for peek_rune(&stream) != 0
   {
-    if strings.is_space(rune(src[index]))
+    if strings.is_space(peek_rune(&stream))
     {
-      if src[index] == '\n'
+      next_rune(&stream)
+    }
+    else if peek_runes(&stream, 2) == "//"
+    {
+      read_single_line_comment(&stream)
+    }
+    else if peek_runes(&stream, 2) == "/*"
+    {
+      next_runes(&stream, 2)
+
+      nested_count := 0
+      for peek_rune(&stream) != 0
       {
-        line_number += 1
-        column_number = 1
-      }
-      else
-      {
-        column_number += 1
-      }
-
-      index += 1
-    }
-    else if src[index] == '('
-    {
-      append(&tokens, token { .OPENING_BRACKET, "(", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == ')'
-    {
-      append(&tokens, token { .CLOSING_BRACKET, ")", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '<'
-    {
-      if index + 1 < len(src) && src[index + 1] == '='
-      {
-        append(&tokens, token { .OPENING_ANGLE_BRACKET_EQUALS, "<=", line_number, column_number })
-
-        index += 2
-        column_number += 2
-      }
-      else
-      {
-        append(&tokens, token { .OPENING_ANGLE_BRACKET, "<", line_number, column_number })
-
-        index += 1
-        column_number += 1
-      }
-    }
-    else if src[index] == '>'
-    {
-      if index + 1 < len(src) && src[index + 1] == '='
-      {
-        append(&tokens, token { .CLOSING_ANGLE_BRACKET_EQUALS, ">=", line_number, column_number })
-
-        index += 2
-        column_number += 2
-      }
-      else
-      {
-        append(&tokens, token { .CLOSING_ANGLE_BRACKET, ">", line_number, column_number })
-
-        index += 1
-        column_number += 1
-      }
-    }
-    else if src[index] == '['
-    {
-      append(&tokens, token { .OPENING_SQUARE_BRACKET, "[", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == ']'
-    {
-      append(&tokens, token { .CLOSING_SQUARE_BRACKET, "]", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '{'
-    {
-      append(&tokens, token { .OPENING_SQUIGGLY_BRACKET, "{", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '}'
-    {
-      append(&tokens, token { .CLOSING_SQUIGGLY_BRACKET, "}", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == ':'
-    {
-      append(&tokens, token { .COLON, ":", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '='
-    {
-      if index + 1 < len(src) && src[index + 1] == '='
-      {
-        append(&tokens, token { .EQUALS_EQUALS, "==", line_number, column_number })
-
-        index += 2
-        column_number += 2
-      }
-      else
-      {
-        append(&tokens, token { .EQUALS, "=", line_number, column_number })
-
-        index += 1
-        column_number += 1
-      }
-    }
-    else if index + 1 < len(src) && src[index] == '!' && src[index + 1] == '='
-    {
-      append(&tokens, token { .EXCLAMATION_EQUALS, "!=", line_number, column_number })
-
-      index += 2
-      column_number += 2
-    }
-    else if src[index] == '+'
-    {
-      append(&tokens, token { .PLUS, "+", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '-'
-    {
-      if index + 1 < len(src) && src[index + 1] == '>'
-      {
-        append(&tokens, token { .ARROW, "->", line_number, column_number })
-
-        index += 2
-        column_number += 2
-      }
-      else
-      {
-        append(&tokens, token { .MINUS, "-", line_number, column_number })
-
-        index += 1
-        column_number += 1
-      }
-    }
-    else if src[index] == '*'
-    {
-      append(&tokens, token { .ASTERISK, "*", line_number, column_number })
-
-      index += 1
-      column_number += 1
-    }
-    else if src[index] == '/'
-    {
-      if index + 1 < len(src) && src[index + 1] == '/'
-      {
-        index += 2
-        column_number += 2
-
-        for index < len(src) && src[index] != '\n'
+        if peek_runes(&stream, 2) == "/*"
         {
-          index += 1
-          column_number += 1
+          next_runes(&stream, 2)
+
+          nested_count += 1
         }
-      }
-      else if index + 1 < len(src) && src[index + 1] == '*'
-      {
-        index += 2
-        column_number += 2
-
-        nested_count := 0
-        for index < len(src)
+        else if peek_runes(&stream, 2) == "*/"
         {
-          if index + 1 < len(src) && src[index] == '/' && src[index + 1] == '*'
-          {
-            index += 2
-            column_number += 2
+          next_runes(&stream, 2)
 
-            nested_count += 1
-          }
-          else if index + 1 < len(src) && src[index] == '*' && src[index + 1] == '/'
+          if nested_count > 0
           {
-            index += 2
-            column_number += 2
-
-            if nested_count > 0
-            {
-              nested_count -= 1
-            }
-            else
-            {
-              break
-            }
-          }
-          else if src[index] == '\n'
-          {
-            index += 1
-            line_number += 1
-            column_number = 1
+            nested_count -= 1
           }
           else
           {
-            index += 1
-            column_number += 1
+            break
           }
         }
+        else if peek_runes(&stream, 2) == "//"
+        {
+          read_single_line_comment(&stream)
+        }
+        else if peek_rune(&stream) == '"'
+        {
+          read_string(&stream)
+        }
+        else
+        {
+          next_rune(&stream)
+        }
       }
-      else
+    }
+    else if peek_runes(&stream, 2) in fixed_token_types
+    {
+      value := peek_runes(&stream, 2)
+      append(&tokens, token { fixed_token_types[value], value, stream.line_number, stream.column_number })
+      next_runes(&stream, 2)
+    }
+    else if peek_runes(&stream, 1) in fixed_token_types
+    {
+      value := peek_runes(&stream, 1)
+      append(&tokens, token { fixed_token_types[value], value, stream.line_number, stream.column_number })
+      next_runes(&stream, 1)
+    }
+    else if peek_rune(&stream) == '"'
+    {
+      initial_stream := stream
+      read_string(&stream)
+
+      append(&tokens, token { .STRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+    }
+    else if (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9')
+    {
+      initial_stream := stream
+      next_rune(&stream)
+
+      for peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
       {
-        append(&tokens, token { .BACKSLASH, "/", line_number, column_number })
-
-        index += 1
-        column_number += 1
+        next_rune(&stream)
       }
-    }
-    else if src[index] == ','
-    {
-      append(&tokens, token { .COMMA, ",", line_number, column_number })
 
-      index += 1
-      column_number += 1
+      append(&tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
     }
-    else if src[index] == '^'
+    else if (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_'
     {
-      append(&tokens, token { .HAT, "^", line_number, column_number })
+      initial_stream := stream
+      next_rune(&stream)
 
-      index += 1
-      column_number += 1
-    }
-    else if (src[index] >= 'a' && src[index] <= 'z') || (src[index] >= 'A' && src[index] <= 'Z') || src[index] == '_'
-    {
-      start_index := index
-      end_index := index + 1
-
-      for end_index < len(src) && ((src[end_index] >= 'a' && src[end_index] <= 'z') || (src[end_index] >= 'A' && src[end_index] <= 'Z') || src[end_index] == '_' || (src[end_index] >= '0' && src[end_index] <= '9'))
+      for (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_' || (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9')
       {
-        end_index += 1
+        next_rune(&stream)
       }
 
-      token := token { .IDENTIFIER, src[start_index:end_index], line_number, column_number }
+      token := token { .IDENTIFIER, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number }
       if token.value == "false" || token.value == "true"
       {
         token.type = .BOOLEAN
@@ -395,31 +335,42 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         }
       }
       append(&tokens, token)
-
-      index = end_index
-      column_number += end_index - start_index
-    }
-    else if (src[index] >= '0' && src[index] <= '9')
-    {
-      start_index := index
-      end_index := index + 1
-
-      for end_index < len(src) && src[end_index] >= '0' && src[end_index] <= '9'
-      {
-        end_index += 1
-      }
-
-      append(&tokens, token { .NUMBER, src[start_index:end_index], line_number, column_number })
-
-      index = end_index
-      column_number += end_index - start_index
     }
     else
     {
-      fmt.printfln("Invalid token at line %i, column %i", line_number, column_number)
+      fmt.printfln("Invalid token at line %i, column %i", stream.line_number, stream.column_number)
       os.exit(1)
     }
   }
 
   return
+}
+
+read_single_line_comment :: proc(stream: ^rune_stream)
+{
+  next_runes(stream, 2)
+
+  for peek_rune(stream) != '\n'
+  {
+    next_rune(stream)
+  }
+}
+
+read_string :: proc(stream: ^rune_stream)
+{
+  initial_stream := stream
+  next_rune(stream)
+
+  for peek_rune(stream) != 0 && peek_rune(stream) != '"'
+  {
+    next_rune(stream)
+  }
+
+  if peek_rune(stream) == 0
+  {
+    fmt.printfln("Unclosed string at line %i, column %i", initial_stream.line_number, initial_stream.column_number)
+    os.exit(1)
+  }
+
+  next_rune(stream)
 }

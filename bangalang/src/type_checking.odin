@@ -26,6 +26,10 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 {
     ctx: type_checking_context
 
+    print: procedure
+    append(&print.param_data_types, data_type { "string", 1, false })
+    ctx.procedures["print"] = print
+
     exit: procedure
     append(&exit.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["exit"] = exit
@@ -325,11 +329,15 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: 
 
 type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
 {
-    type_check_expression_1(node, ctx)
+    expression_1_ok := type_check_expression_1(node, ctx)
+    if !expression_1_ok
+    {
+        ok = false
+    }
 
     data_types := []data_type { node.data_type, expected_data_type }
-    data_type, coerse_ok := coerse_type(data_types)
-    if !coerse_ok
+    data_type, coerce_ok := coerce_type(data_types)
+    if !coerce_ok
     {
         data_type_names: [dynamic]string
         for data_type, index in data_types
@@ -380,8 +388,8 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
     }
 
     data_types := []data_type { lhs_node.data_type, rhs_node.data_type }
-    data_type, coerse_ok := coerse_type(data_types)
-    if !coerse_ok
+    data_type, coerce_ok := coerce_type(data_types)
+    if !coerce_ok
     {
         data_type_names: [dynamic]string
         for data_type, index in data_types
@@ -507,6 +515,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
             fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
             ok = false
         }
+    case .STRING:
+        node.data_type = { "string", 1, false }
     case .NUMBER:
         node.data_type = { "number", 1, false }
     case .BOOLEAN:
@@ -612,7 +622,7 @@ copy_type_checking_context := proc(ctx: type_checking_context, inline := false) 
     return ctx_copy
 }
 
-coerse_type :: proc(data_types: []data_type) -> (data_type, bool)
+coerce_type :: proc(data_types: []data_type) -> (data_type, bool)
 {
     coerced_data_type := data_types[0]
     for data_type in data_types[1:]

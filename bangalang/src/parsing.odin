@@ -29,6 +29,7 @@ ast_node_type :: enum
     INDEX,
     CALL,
     IDENTIFIER,
+    STRING,
     NUMBER,
     BOOLEAN
 }
@@ -392,6 +393,9 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
         {
             node = parse_identifier(stream)
         }
+    case .STRING:
+        node.type = .STRING
+        node.value = next_token(stream, []token_type { .STRING }).value
     case .NUMBER:
         node.type = .NUMBER
         node.value = next_token(stream, []token_type { .NUMBER }).value
