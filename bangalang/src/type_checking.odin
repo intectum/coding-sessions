@@ -131,9 +131,7 @@ type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (o
     case .CALL:
         ok = type_check_call(node, ctx)
     case:
-        fmt.println("BUG: Failed to type check statement")
-        fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
-        ok = false
+        assert(false, "Failed to type check statement")
     }
 
     return
@@ -495,13 +493,31 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
             ok = false
         }
 
+        identifier := node.children[0].value
+
+        if node.children[0].data_type.is_reference
+        {
+            child_node := node.children[0]
+
+            node.children[0] = {
+                type = .DEREFERENCE,
+                line_number = child_node.line_number,
+                column_number = child_node.column_number
+            }
+
+            node.children[0].data_type = child_node.data_type
+            node.children[0].data_type.is_reference = false
+
+            append(&node.children[0].children, child_node)
+        }
+
         node.data_type = node.children[0].data_type
         node.data_type.length = 1
 
         if node.data_index >= node.children[0].data_type.length
         {
             fmt.println("Failed to type check primary")
-            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, node.children[0].value, node.line_number, node.column_number)
+            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier, node.line_number, node.column_number)
             ok = false
         }
     case .CALL:
@@ -573,29 +589,42 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
 
 type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    if !(node.value in ctx.variable_data_types)
+    identifier_node := node.type == .INDEX ? &node.children[0] : node
+
+    if !(identifier_node.value in ctx.variable_data_types)
     {
         fmt.println("Failed to type check variable")
-        fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
+        fmt.printfln("Undeclared identifier '%s' at line %i, column %i", identifier_node.value, node.line_number, node.column_number)
         ok = false
     }
 
-    variable_data_type := ctx.variable_data_types[node.value]
+    identifier_node.data_type = ctx.variable_data_types[identifier_node.value]
+    identifier_node_copy := identifier_node^
 
-    node.data_type = variable_data_type
-    if node.data_index == -1
+    if node.type == .INDEX
     {
-        node.data_index = 0
-    }
-    else
-    {
+        if identifier_node_copy.data_type.is_reference
+        {
+            node.children[0] = {
+                type = .DEREFERENCE,
+                line_number = identifier_node_copy.line_number,
+                column_number = identifier_node_copy.column_number
+            }
+
+            node.children[0].data_type = identifier_node_copy.data_type
+            node.children[0].data_type.is_reference = false
+
+            append(&node.children[0].children, identifier_node_copy)
+        }
+
+        node.data_type = identifier_node.data_type
         node.data_type.length = 1
     }
 
-    if ok && node.data_index >= variable_data_type.length
+    if ok && node.data_index >= identifier_node_copy.data_type.length
     {
         fmt.println("Failed to type check variable")
-        fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, node.value, node.line_number, node.column_number)
+        fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier_node_copy.value, node.line_number, node.column_number)
         ok = false
     }
 
@@ -638,31 +667,33 @@ coerce_type :: proc(data_types: []data_type) -> (data_type, bool)
             continue
         }
 
-        if data_type == coerced_data_type
+        if data_type.length != coerced_data_type.length
         {
-            continue
-        }
-
-        if data_type.name == coerced_data_type.name
-        {
-            // Non-name member is different
             return {}, false
         }
 
-        _, coerced_numerical_data_type := slice.linear_search(numerical_data_types, coerced_data_type.name)
-        if data_type.name == "number" && coerced_numerical_data_type
+        if data_type.is_reference != coerced_data_type.is_reference
         {
-            continue
+            return {}, false
         }
 
-        _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
-        if coerced_data_type.name == "number" && numerical_data_type
+        if data_type.name != coerced_data_type.name
         {
-            coerced_data_type = data_type
-            continue
-        }
+            _, coerced_numerical_data_type := slice.linear_search(numerical_data_types, coerced_data_type.name)
+            if data_type.name == "number" && coerced_numerical_data_type
+            {
+                continue
+            }
 
-        return {}, false
+            _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
+            if coerced_data_type.name == "number" && numerical_data_type
+            {
+                coerced_data_type = data_type
+                continue
+            }
+
+            return {}, false
+        }
     }
 
     if coerced_data_type.name != ""

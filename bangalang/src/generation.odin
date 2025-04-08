@@ -311,18 +311,8 @@ generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     lhs_node := node.children[0]
     rhs_node := node.children[1]
 
-    variable_position := ctx.stack_size - ctx.stack_variable_offsets[lhs_node.value]
-    offset := lhs_node.data_index * ctx.data_sizes[lhs_node.data_type.name]
-    if lhs_node.data_type.is_reference
-    {
-        register_dest := register("bx", address_size)
-        copy(file, memory("rsp", variable_position), register_dest, address_size, "dereference")
-        generate_expression(file, rhs_node, ctx, memory(operand(register_dest), offset))
-    }
-    else
-    {
-        generate_expression(file, rhs_node, ctx, memory("rsp", variable_position + offset))
-    }
+    dest := generate_primary(file, lhs_node, ctx, 8)
+    generate_expression(file, rhs_node, ctx, dest, 9)
 }
 
 generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
@@ -346,10 +336,10 @@ generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     }
 }
 
-generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location)
+generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location, register_num: int = 8)
 {
     expression_ctx := copy_gen_context(ctx^, true)
-    dest_1 := generate_expression_1(file, node, &expression_ctx, 8)
+    dest_1 := generate_expression_1(file, node, &expression_ctx, register_num)
 
     expression_stack_size := expression_ctx.stack_size - ctx.stack_size
     if expression_stack_size > 0
@@ -418,14 +408,13 @@ generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_dest), operand(rhs_dest))
     case .DIVIDE:
         // dividend / divisor
+        rhs_dest = copy_to_non_immediate(file, rhs_dest, register_num, result_data_size)
         fmt.fprintfln(file, "  mov %s, 0 ; divide: assign zero to dividend high part", operand(register("dx", result_data_size)))
         fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", result_data_size)), operand(lhs_dest))
         fmt.fprintfln(file, "  idiv %s ; divide", operand(rhs_dest))
         fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(result_dest), operand(register("ax", result_data_size)))
     case:
-        fmt.println("BUG: Failed to generate expression")
-        fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
-        os.exit(1)
+        assert(false, "Failed to generate expression")
     }
 
     return result_dest
@@ -451,17 +440,8 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
         return memory(operand(register_dest), 0)
     case .INDEX:
         primary_dest := generate_primary(file, node.children[0], ctx, register_num)
-        offset := node.data_index * ctx.data_sizes[node.data_type.name]
-        if node.data_type.is_reference
-        {
-            register_dest := copy_to_register(file, primary_dest, register_num, address_size, "dereference")
-            return memory(operand(register_dest), offset)
-        }
-        else
-        {
-            primary_dest.offset += offset
-            return primary_dest
-        }
+        primary_dest.offset += node.data_index * ctx.data_sizes[node.data_type.name]
+        return primary_dest
     case .CALL:
         return generate_call(file, node, ctx, register_num, false)
     case .IDENTIFIER:
@@ -528,6 +508,19 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     return memory(operand(dest), 0)
 }
 
+copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, size: int, comment: string = "") -> location
+{
+    if src.type != .IMMEDIATE
+    {
+        return src
+    }
+
+    register_dest := register(number, size)
+    copy(file, src, register_dest, size, comment)
+    return register_dest
+}
+
+// TODO review, could change to copy_to_non_immediate in some places
 copy_to_register :: proc(file: os.Handle, src: location, number: int, size: int, comment: string = "") -> location
 {
     if src.type == .REGISTER
@@ -542,16 +535,12 @@ copy_to_register :: proc(file: os.Handle, src: location, number: int, size: int,
 
 copy :: proc(file: os.Handle, src: location, dest: location, size: int, comment: string = "")
 {
+    assert(dest.type != .IMMEDIATE, "Cannot copy to immediate")
+
     final_comment := "copy"
     if comment != ""
     {
         final_comment = comment
-    }
-
-    if dest.type == .IMMEDIATE
-    {
-        fmt.println("BUG: Cannot move to immediate")
-        os.exit(1)
     }
 
     if dest == src
@@ -645,10 +634,10 @@ register_named :: proc(name: string, size: int) -> location
         return { .REGISTER, strings.concatenate({ "e", name }), 0 }
     case 8:
         return { .REGISTER, strings.concatenate({ "r", name }), 0 }
-    case:
-        fmt.println("BUG: Unsupported register size")
-        os.exit(1)
     }
+
+    assert(false, "Unsupported register size")
+    return {}
 }
 
 register_numbered :: proc(number: int, size: int) -> location
@@ -666,10 +655,10 @@ register_numbered :: proc(number: int, size: int) -> location
         return { .REGISTER, strings.concatenate({ "r", number_string, "d" }), 0 }
     case 8:
         return { .REGISTER, strings.concatenate({ "r", number_string }), 0 }
-    case:
-        fmt.println("BUG: Unsupported register size")
-        os.exit(1)
     }
+
+    assert(false, "Unsupported register size")
+    return {}
 }
 
 operand :: proc(location: location) -> string
@@ -690,8 +679,8 @@ operand :: proc(location: location) -> string
         return location.value
     }
 
-    fmt.println("BUG: Unsupported operand")
-    os.exit(1)
+    assert(false, "Unsupported operand")
+    return ""
 }
 
 operation_size :: proc(size: int) -> string
@@ -706,10 +695,10 @@ operation_size :: proc(size: int) -> string
         return "dword"
     case 8:
         return "qword"
-    case:
-        fmt.println("BUG: Unsupported operation size")
-        os.exit(1)
     }
+
+    assert(false, "Unsupported operation size")
+    return ""
 }
 
 byte_size_of :: proc(data_type: data_type, ctx: gen_context) -> int

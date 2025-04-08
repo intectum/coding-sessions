@@ -8,6 +8,8 @@ import "core:sys/linux"
 
 main :: proc()
 {
+  run_test_suite()
+
   run("examples/example_01.bang", "bin/example_01")
 }
 
@@ -70,4 +72,15 @@ compile :: proc(src_path: string, asm_path: string)
 exec :: proc(command: string) -> u32
 {
   return linux.WEXITSTATUS(u32(libc.system(strings.clone_to_cstring(command))))
+}
+
+run_test_suite :: proc()
+{
+  build("src/tests.bang", "bin/tests")
+  tests_code := exec("bin/tests")
+  if tests_code > 0
+  {
+    fmt.println("Failed tests")
+    os.exit(int(tests_code))
+  }
 }

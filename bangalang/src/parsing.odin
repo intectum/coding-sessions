@@ -272,7 +272,7 @@ parse_declaration :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, []token_type { .COLON })
 
-    if peek_token(stream).type == .DATA_TYPE
+    if peek_token(stream).type == .DATA_TYPE || peek_token(stream).type == .HAT
     {
         parse_type(stream, &lhs_node)
     }
@@ -479,7 +479,16 @@ parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
     {
         next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
 
-        node.data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
+        child_node := node
+
+        node = {
+            type = .INDEX,
+            data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value),
+            line_number = child_node.line_number,
+            column_number = child_node.column_number
+        }
+
+        append(&node.children, child_node)
 
         next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
     }
@@ -513,7 +522,7 @@ parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, { "", 1, false }, -1, {}, token.line_number, token.column_number }
+    node = ast_node { .IDENTIFIER, token.value, { "", 1, false }, 0, {}, token.line_number, token.column_number }
 
     return
 }
