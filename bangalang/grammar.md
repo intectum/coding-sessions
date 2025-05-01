@@ -1,10 +1,10 @@
 $$
 \begin{align}
 program\ &\to\ (\ procedure\ |\ statement\ )^*\\
-procedure\ &\to\ identifier\ \text{":"}\ \text{"="}\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ type\ (\ \text{","}\ identifier\ \text{":"}\ type\ )^*\ )?\ \text{")"}\ \text{"->"}\ type\ scope\\
+procedure\ &\to\ identifier\ \text{":"}\ \text{"="}\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ type\ (\ \text{","}\ identifier\ \text{":"}\ type\ )^*\ )?\ \text{")"}\ \text{"->"}\ type\ statement\\
 statement\ &\to\ if\ |\ for\ |\ scope\ |\ declaration\ |\ assignment\ |\ return\ |\ call \\
-if\ &\to\ \text{"if"}\ expression\ scope\ (\ \text{"else"}\ \text{"if"}\ expression\ scope\ )^*\ (\ \text{"else"}\ scope\ )?\\
-for\ &\to\ \text{"for"}\ (\ expression\ |\ declaration\ \text{","}\ expression\ \text{","}\ assignment\ )\ scope\\
+if\ &\to\ \text{"if"}\ \text{"("}\ expression\ \text{")"}\ statement\ (\ \text{"else"}\ \text{"if"}\ \text{"("}\ expression\ \text{")"}\ statement\ )^*\ (\ \text{"else"}\ statement\ )?\\
+for\ &\to\ \text{"for"}\ \text{"("}\ (\ declaration\ \text{","}\ )?\ expression\ (\ \text{","}\ assignment\ )?\ \text{")"}\ statement\\
 scope\ &\to\ \text{"\{"}\ statement^*\ \text{"\}"}\\
 declaration\ &\to\ identifier\ \text{":"}\ type?\ (\ \text{"="}\ expression\ )?\\
 assignment\ &\to\ variable\ \text{"="}\ expression\\

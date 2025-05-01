@@ -107,8 +107,8 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
 
     parse_type(stream, &node)
 
-    scope_node := parse_scope(stream)
-    append(&node.children, scope_node)
+    statement_node := parse_statement(stream)
+    append(&node.children, statement_node)
 
     return
 }
@@ -174,30 +174,38 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, token_type.KEYWORD, "if")
 
+    next_token(stream, []token_type { .OPENING_BRACKET })
+
     expression_node := parse_expression(stream)
     append(&node.children, expression_node)
 
-    scope_node := parse_scope(stream)
-    append(&node.children, scope_node)
+    next_token(stream, []token_type { .CLOSING_BRACKET })
+
+    statement_node := parse_statement(stream)
+    append(&node.children, statement_node)
 
     for peek_token(stream).value == "else" && peek_token(stream, 1).value == "if"
     {
         next_token(stream, token_type.KEYWORD, "else")
         next_token(stream, token_type.KEYWORD, "if")
 
+        next_token(stream, []token_type { .OPENING_BRACKET })
+
         else_if_expression_node := parse_expression(stream)
         append(&node.children, else_if_expression_node)
 
-        else_if_scope_node := parse_scope(stream)
-        append(&node.children, else_if_scope_node)
+        next_token(stream, []token_type { .CLOSING_BRACKET })
+
+        else_if_statement_node := parse_statement(stream)
+        append(&node.children, else_if_statement_node)
     }
 
     if peek_token(stream).value == "else"
     {
         next_token(stream, token_type.KEYWORD, "else")
 
-        else_scope_node := parse_scope(stream)
-        append(&node.children, else_scope_node)
+        else_statement_node := parse_statement(stream)
+        append(&node.children, else_statement_node)
     }
 
     return
@@ -211,6 +219,8 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, token_type.KEYWORD, "for")
 
+    next_token(stream, []token_type { .OPENING_BRACKET })
+
     // TODO this is way too manual checking...
     if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .COLON
     {
@@ -218,23 +228,23 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node)
         append(&node.children, declaration_node)
 
         next_token(stream, []token_type { .COMMA })
+    }
 
-        expression_node := parse_expression(stream)
-        append(&node.children, expression_node)
+    expression_node := parse_expression(stream)
+    append(&node.children, expression_node)
 
+    if peek_token(stream).type == .COMMA
+    {
         next_token(stream, []token_type { .COMMA })
 
         assignment_node := parse_assignment(stream)
         append(&node.children, assignment_node)
     }
-    else
-    {
-        expression_node := parse_expression(stream)
-        append(&node.children, expression_node)
-    }
 
-    scope_node := parse_scope(stream)
-    append(&node.children, scope_node)
+    next_token(stream, []token_type { .CLOSING_BRACKET })
+
+    statement_node := parse_statement(stream)
+    append(&node.children, statement_node)
 
     return
 }

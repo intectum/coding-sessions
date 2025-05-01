@@ -100,41 +100,52 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     }
 }
 
-generate_procedure :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_context)
+generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 {
     child_index := 0
     name_node := node.children[child_index]
     child_index += 1
 
-    scope_ctx := copy_gen_context(parent_ctx^)
-    scope_ctx.in_proc = true
+    procedure_ctx := copy_gen_context(ctx^)
+    procedure_ctx.in_proc = true
 
-    scope_ctx.stack_size += byte_size_of(node.data_type, scope_ctx)
-    scope_ctx.stack_variable_offsets["[return]"] = scope_ctx.stack_size
+    procedure_ctx.stack_size += byte_size_of(node.data_type, procedure_ctx)
+    procedure_ctx.stack_variable_offsets["[return]"] = procedure_ctx.stack_size
 
     for child_index + 1 < len(node.children)
     {
         param_node := node.children[child_index]
         child_index += 1
 
-        scope_ctx.stack_size += byte_size_of(param_node.data_type, scope_ctx)
-        scope_ctx.stack_variable_offsets[param_node.value] = scope_ctx.stack_size
+        procedure_ctx.stack_size += byte_size_of(param_node.data_type, procedure_ctx)
+        procedure_ctx.stack_variable_offsets[param_node.value] = procedure_ctx.stack_size
     }
 
     // Account for the instruction pointer pushed to the stack by 'call'
-    scope_ctx.stack_size += address_size
+    procedure_ctx.stack_size += address_size
 
     fmt.fprintfln(file, "%s:", name_node.value)
 
-    scope_node := node.children[child_index]
+    statement_node := node.children[child_index]
     child_index += 1
 
-    generate_scope(file, scope_node, &scope_ctx, true)
+    procedure_body_ctx := copy_gen_context(procedure_ctx, true)
+    generate_statement(file, statement_node, &procedure_body_ctx, true)
+
+    ctx.if_index = procedure_body_ctx.if_index
+    ctx.for_index = procedure_body_ctx.for_index
+
+    procedure_body_stack_size := procedure_body_ctx.stack_size - procedure_ctx.stack_size
+    if procedure_body_stack_size > 0
+    {
+        fmt.fprintln(file, "  ; close procedure body")
+        deallocate(file, procedure_body_stack_size, &procedure_body_ctx)
+    }
 
     fmt.fprintln(file, "  ret ; return")
 }
 
-generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
+generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, include_end_label := false)
 {
     #partial switch node.type
     {
@@ -143,7 +154,7 @@ generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     case .FOR:
         generate_for(file, node, ctx)
     case .SCOPE:
-        generate_scope(file, node, ctx)
+        generate_scope(file, node, ctx, include_end_label)
     case .DECLARATION:
         generate_declaration(file, node, ctx)
     case .ASSIGNMENT:
@@ -158,6 +169,11 @@ generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
         os.exit(1)
     }
+
+    if node.type != .SCOPE && include_end_label
+    {
+        fmt.fprintln(file, ".end:")
+    }
 }
 
 generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
@@ -168,7 +184,7 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     fmt.fprintfln(file, "; if_%i", if_index)
 
     expression_node := node.children[0]
-    scope_node := node.children[1]
+    statement_node := node.children[1]
 
     child_index := 2
     else_index := 0
@@ -178,7 +194,7 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
     fmt.fprintfln(file, "  je .if_%i_%s ; skip main scope when false/zero", if_index, child_index < len(node.children) ? "else_0" : "end")
 
-    generate_scope(file, scope_node, ctx)
+    generate_statement(file, statement_node, ctx)
 
     for child_index + 1 < len(node.children)
     {
@@ -195,7 +211,7 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         else_with_index := strings.concatenate({ "else_", strconv.itoa(buf[:], else_index) })
         fmt.fprintfln(file, "  je .if_%i_%s ; skip else scope when false/zero", if_index, child_index + 1 < len(node.children) ? else_with_index : "end")
 
-        generate_scope(file, node.children[child_index], ctx)
+        generate_statement(file, node.children[child_index], ctx)
         child_index += 1
     }
 
@@ -205,7 +221,7 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         fmt.fprintfln(file, ".if_%i_else_%i:", if_index, else_index)
         else_index += 1
 
-        generate_scope(file, node.children[child_index], ctx)
+        generate_statement(file, node.children[child_index], ctx)
         child_index += 1
     }
 
@@ -217,65 +233,60 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     for_index := ctx.for_index
     ctx.for_index += 1
 
-    if node.children[0].type == .DECLARATION
+    child_index := 0
+    child_node := node.children[child_index]
+    child_index += 1
+
+    if child_node.type == .DECLARATION
     {
-        // TODO should be scoped to for loop
-        declaration_node := node.children[0]
-        generate_declaration(file, declaration_node, ctx)
+        generate_declaration(file, child_node, ctx)
 
-        fmt.fprintfln(file, ".for_%i:", for_index)
-
-        expression_node := node.children[1]
-        expression_dest := register(8, ctx.data_sizes[expression_node.data_type.name])
-        generate_expression(file, expression_node, ctx, expression_dest)
-        fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
-        fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
-    }
-    else
-    {
-        fmt.fprintfln(file, ".for_%i:", for_index)
-
-        expression_node := node.children[0]
-        expression_dest := register(8, ctx.data_sizes[expression_node.data_type.name])
-        generate_expression(file, expression_node, ctx, expression_dest)
-        fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
-        fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
+        child_node = node.children[child_index]
+        child_index += 1
     }
 
-    scope_node := node.children[len(node.children) - 1]
-    generate_scope(file, scope_node, ctx)
+    fmt.fprintfln(file, ".for_%i:", for_index)
 
-    if node.children[0].type == .DECLARATION
+    expression_dest := register(8, ctx.data_sizes[child_node.data_type.name])
+    generate_expression(file, child_node, ctx, expression_dest)
+    fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
+    fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
+
+    child_node = node.children[child_index]
+    child_index += 1
+
+    statement_node := node.children[len(node.children) - 1]
+    generate_statement(file, statement_node, ctx)
+
+    if child_node.type == .ASSIGNMENT
     {
-        assignment_node := node.children[2]
-        generate_assignment(file, assignment_node, ctx)
+        generate_assignment(file, child_node, ctx)
     }
 
     fmt.fprintfln(file, "  jmp .for_%i ; back to top", for_index)
-
     fmt.fprintfln(file, ".for_%i_end:", for_index)
 }
 
-generate_scope :: proc(file: os.Handle, node: ast_node, parent_ctx: ^gen_context, include_end_label := false)
+generate_scope :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, include_end_label := false)
 {
     fmt.fprintln(file, "; scope start")
 
-    scope_ctx := copy_gen_context(parent_ctx^, true)
+    scope_ctx := copy_gen_context(ctx^, true)
 
     for child_node in node.children
     {
         generate_statement(file, child_node, &scope_ctx)
     }
 
-    parent_ctx.if_index = scope_ctx.if_index
-    parent_ctx.for_index = scope_ctx.for_index
+    ctx.if_index = scope_ctx.if_index
+    ctx.for_index = scope_ctx.for_index
 
     if include_end_label
     {
         fmt.fprintln(file, ".end:")
     }
 
-    scope_stack_size := scope_ctx.stack_size - parent_ctx.stack_size
+    scope_stack_size := scope_ctx.stack_size - ctx.stack_size
     if scope_stack_size > 0
     {
         fmt.fprintln(file, "  ; close scope")

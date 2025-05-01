@@ -83,28 +83,28 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     return
 }
 
-type_check_procedure :: proc(node: ^ast_node, parent_ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_procedure :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
     child_index := 0
     name_node := node.children[child_index]
     child_index += 1
 
-    scope_ctx := copy_type_checking_context(parent_ctx^)
-    scope_ctx.procedure = scope_ctx.procedures[name_node.value]
+    procedure_ctx := copy_type_checking_context(ctx^)
+    procedure_ctx.procedure = procedure_ctx.procedures[name_node.value]
 
     for child_index + 1 < len(node.children)
     {
         param_node := node.children[child_index]
         child_index += 1
 
-        scope_ctx.variable_data_types[param_node.value] = param_node.data_type
+        procedure_ctx.variable_data_types[param_node.value] = param_node.data_type
     }
 
-    scope_node := &node.children[child_index]
+    statement_node := &node.children[child_index]
     child_index += 1
 
-    scope_ok := type_check_scope(scope_node, &scope_ctx, true)
-    if !scope_ok
+    statement_ok := type_check_statement(statement_node, &procedure_ctx)
+    if !statement_ok
     {
         ok = false
     }
@@ -149,11 +149,11 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
         ok = false
     }
 
-    scope_node := &node.children[child_index]
+    statement_node := &node.children[child_index]
     child_index += 1
 
-    scope_ok := type_check_scope(scope_node, ctx)
-    if !scope_ok
+    statement_ok := type_check_statement(statement_node, ctx)
+    if !statement_ok
     {
         ok = false
     }
@@ -167,8 +167,8 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
         }
         child_index += 1
 
-        else_if_scope_ok := type_check_scope(&node.children[child_index], ctx)
-        if !else_if_scope_ok
+        else_if_statement_ok := type_check_statement(&node.children[child_index], ctx)
+        if !else_if_statement_ok
         {
             ok = false
         }
@@ -177,8 +177,8 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
 
     if child_index < len(node.children)
     {
-        else_scope_ok := type_check_scope(&node.children[child_index], ctx)
-        if !else_scope_ok
+        else_statement_ok := type_check_statement(&node.children[child_index], ctx)
+        if !else_statement_ok
         {
             ok = false
         }
@@ -190,56 +190,57 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
 
 type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    if node.children[0].type == .DECLARATION
+    for_ctx := copy_type_checking_context(ctx^, true)
+
+    child_index := 0
+    child_node := &node.children[child_index]
+    child_index += 1
+
+    if child_node.type == .DECLARATION
     {
-        // TODO should be scoped to for loop
-        declaration_node := &node.children[0]
-        declaration_ok := type_check_declaration(declaration_node, ctx)
+        declaration_ok := type_check_declaration(child_node, &for_ctx)
         if !declaration_ok
         {
             ok = false
         }
 
-        expression_node := &node.children[1]
-        expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
-        if !expression_ok
-        {
-            ok = false
-        }
-    }
-    else
-    {
-        expression_node := &node.children[0]
-        expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
-        if !expression_ok
-        {
-            ok = false
-        }
+        child_node = &node.children[child_index]
+        child_index += 1
     }
 
-    scope_node := &node.children[len(node.children) - 1]
-    scope_ok := type_check_scope(scope_node, ctx)
-    if !scope_ok
+    expression_ok := type_check_expression(child_node, &for_ctx, { "bool", 1, false })
+    if !expression_ok
     {
         ok = false
     }
 
-    if node.children[0].type == .DECLARATION
+    child_node = &node.children[child_index]
+    child_index += 1
+
+    if child_node.type == .ASSIGNMENT
     {
-        assignment_node := &node.children[2]
-        assignment_ok := type_check_assignment(assignment_node, ctx)
+        assignment_ok := type_check_assignment(child_node, &for_ctx)
         if !assignment_ok
         {
             ok = false
         }
+
+        child_node = &node.children[child_index]
+        child_index += 1
+    }
+
+    statement_ok := type_check_statement(child_node, &for_ctx)
+    if !statement_ok
+    {
+        ok = false
     }
 
     return
 }
 
-type_check_scope :: proc(node: ^ast_node, parent_ctx: ^type_checking_context, include_end_label := false) -> (ok: bool = true)
+type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    scope_ctx := copy_type_checking_context(parent_ctx^, true)
+    scope_ctx := copy_type_checking_context(ctx^, true)
 
     for &child_node in node.children
     {
