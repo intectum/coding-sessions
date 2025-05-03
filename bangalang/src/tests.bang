@@ -205,7 +205,6 @@ assert(for_dea_sum == 55, "TEST: For *declaration/expression/assignment*")
 for_dea_sum_single: i64 = 0
 for (for_value: i64 = 10, for_value > 0, for_value = for_value - 1)
     for_dea_sum_single = for_dea_sum_single + for_value
-
 assert(for_dea_sum_single == 55, "TEST: For *declaration/expression/assignment single statement*")
 
 // This should be valid (not a duplicate identifier)

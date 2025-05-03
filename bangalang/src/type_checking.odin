@@ -9,7 +9,8 @@ import slice "core:slice"
 procedure :: struct
 {
     param_data_types: [dynamic]data_type,
-    return_data_type: data_type
+    return_data_type: data_type,
+    directive: string
 }
 
 type_checking_context :: struct
@@ -33,6 +34,17 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     exit: procedure
     append(&exit.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["exit"] = exit
+
+    glfwInit := procedure { return_data_type = { "i32", 1, false }, directive = "#extern" }
+    ctx.procedures["glfwInit"] = glfwInit
+
+    glfwCreateWindow := procedure { return_data_type = { "i8", 1, true }, directive = "#extern" }
+    append(&glfwCreateWindow.param_data_types, data_type { "i32", 1, false })
+    append(&glfwCreateWindow.param_data_types, data_type { "i32", 1, false })
+    append(&glfwCreateWindow.param_data_types, data_type { "cstring", 1, false })
+    append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
+    append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
+    ctx.procedures["glfwCreateWindow"] = glfwCreateWindow
 
     for node in nodes
     {
@@ -534,6 +546,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         }
     case .STRING:
         node.data_type = { "string", 1, false }
+    case .CSTRING:
+        node.data_type = { "cstring", 1, false }
     case .NUMBER:
         node.data_type = { "number", 1, false }
     case .BOOLEAN:
@@ -583,6 +597,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
         }
     }
 
+    node.directive = procedure.directive
     node.data_type = procedure.return_data_type
 
     return

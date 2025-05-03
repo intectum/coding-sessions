@@ -1,30 +1,7 @@
-array: i32[8]
-array[5] = 4
-array[3] = array[5]
+//glfwInit := #extern proc() -> i32
+//glfwCreateWindow := #extern proc(width: i32, height: i32, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 
-//return increment_fourth_element(^array)[3]
+glfwInit()
 
-//inc_arr := increment_fourth_element(^array)
-//return inc_arr[3]
-
-return pow(array[3], 3)
-
-increment_fourth_element := proc(arr: ^i32[8]) -> i32[8]
-{
-    arr[3] = arr[3] + 1
-    return arr^
-}
-
-// Raises num to the power of exp
-pow := proc(num: i32, exp: i64) -> i32
-{
-    result := num
-
-    for (exp > 1)
-    {
-        result = result * num
-        exp = exp - 1
-    }
-
-    return result
-}
+nullptr: ^i8
+glfwCreateWindow(1920, 1080, c"Bangalang", nullptr, nullptr)

@@ -30,6 +30,7 @@ ast_node_type :: enum
     CALL,
     IDENTIFIER,
     STRING,
+    CSTRING,
     NUMBER,
     BOOLEAN
 }
@@ -46,6 +47,7 @@ ast_node :: struct
 {
     type: ast_node_type,
     value: string,
+    directive: string,
     data_type: data_type,
     data_index: int,
     children: [dynamic]ast_node,
@@ -406,6 +408,9 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
     case .STRING:
         node.type = .STRING
         node.value = next_token(stream, []token_type { .STRING }).value
+    case .CSTRING:
+        node.type = .CSTRING
+        node.value = next_token(stream, []token_type { .CSTRING }).value
     case .NUMBER:
         node.type = .NUMBER
         node.value = next_token(stream, []token_type { .NUMBER }).value
@@ -532,7 +537,7 @@ parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, { "", 1, false }, 0, {}, token.line_number, token.column_number }
+    node = ast_node { .IDENTIFIER, token.value, "", { "", 1, false }, 0, {}, token.line_number, token.column_number }
 
     return
 }

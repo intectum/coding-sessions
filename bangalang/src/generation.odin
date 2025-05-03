@@ -22,6 +22,8 @@ location :: struct
 gen_context :: struct
 {
     data_sizes: map[string]int,
+    data_section_strings: [dynamic]string,
+    data_section_cstrings: [dynamic]string,
 
     in_proc: bool,
 
@@ -33,7 +35,8 @@ gen_context :: struct
 }
 
 address_size :: 8
-data_section_strings: [dynamic]string
+extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
+extern_param_registers_numbered: []int = { 8, 9 }
 
 generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 {
@@ -52,11 +55,12 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     ctx: gen_context
 
     ctx.data_sizes["bool"] = 1
+    ctx.data_sizes["cstring"] = address_size
     ctx.data_sizes["i8"] = 1
     ctx.data_sizes["i16"] = 2
     ctx.data_sizes["i32"] = 4
     ctx.data_sizes["i64"] = 8
-    ctx.data_sizes["string"] = 16
+    ctx.data_sizes["string"] = 8 + address_size
 
     for node in nodes
     {
@@ -85,6 +89,9 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
+    fmt.fprintln(file, "extern glfwInit")
+    fmt.fprintln(file, "extern glfwCreateWindow")
+
     for node in nodes
     {
         if node.type == .PROCEDURE
@@ -94,9 +101,13 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     }
 
     fmt.fprintln(file, "section .data")
-    for data_section_string, index in data_section_strings
+    for data_section_string, index in ctx.data_section_strings
     {
         fmt.fprintfln(file, "  string_%i: db %s", index, data_section_string)
+    }
+    for data_section_cstring, index in ctx.data_section_cstrings
+    {
+        fmt.fprintfln(file, "  cstring_%i: db %s, 0", index, data_section_cstring[1:])
     }
 }
 
@@ -132,15 +143,10 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     procedure_body_ctx := copy_gen_context(procedure_ctx, true)
     generate_statement(file, statement_node, &procedure_body_ctx, true)
 
-    ctx.if_index = procedure_body_ctx.if_index
-    ctx.for_index = procedure_body_ctx.for_index
+    close_gen_context(file, &procedure_ctx, &procedure_body_ctx, "procedure body", true)
 
-    procedure_body_stack_size := procedure_body_ctx.stack_size - procedure_ctx.stack_size
-    if procedure_body_stack_size > 0
-    {
-        fmt.fprintln(file, "  ; close procedure body")
-        deallocate(file, procedure_body_stack_size, &procedure_body_ctx)
-    }
+    procedure_ctx.stack_size = ctx.stack_size
+    close_gen_context(file, ctx, &procedure_ctx, "procedure", false)
 
     fmt.fprintln(file, "  ret ; return")
 }
@@ -230,8 +236,10 @@ generate_if :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
 generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 {
-    for_index := ctx.for_index
-    ctx.for_index += 1
+    for_ctx := copy_gen_context(ctx^, true)
+
+    for_index := for_ctx.for_index
+    for_ctx.for_index += 1
 
     child_index := 0
     child_node := node.children[child_index]
@@ -239,7 +247,7 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     if child_node.type == .DECLARATION
     {
-        generate_declaration(file, child_node, ctx)
+        generate_declaration(file, child_node, &for_ctx)
 
         child_node = node.children[child_index]
         child_index += 1
@@ -247,8 +255,8 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     fmt.fprintfln(file, ".for_%i:", for_index)
 
-    expression_dest := register(8, ctx.data_sizes[child_node.data_type.name])
-    generate_expression(file, child_node, ctx, expression_dest)
+    expression_dest := register(8, for_ctx.data_sizes[child_node.data_type.name])
+    generate_expression(file, child_node, &for_ctx, expression_dest)
     fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
     fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
 
@@ -256,15 +264,17 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     child_index += 1
 
     statement_node := node.children[len(node.children) - 1]
-    generate_statement(file, statement_node, ctx)
+    generate_statement(file, statement_node, &for_ctx)
 
     if child_node.type == .ASSIGNMENT
     {
-        generate_assignment(file, child_node, ctx)
+        generate_assignment(file, child_node, &for_ctx)
     }
 
     fmt.fprintfln(file, "  jmp .for_%i ; back to top", for_index)
     fmt.fprintfln(file, ".for_%i_end:", for_index)
+
+    close_gen_context(file, ctx, &for_ctx, "for", true)
 }
 
 generate_scope :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, include_end_label := false)
@@ -278,20 +288,12 @@ generate_scope :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, inclu
         generate_statement(file, child_node, &scope_ctx)
     }
 
-    ctx.if_index = scope_ctx.if_index
-    ctx.for_index = scope_ctx.for_index
-
     if include_end_label
     {
         fmt.fprintln(file, ".end:")
     }
 
-    scope_stack_size := scope_ctx.stack_size - ctx.stack_size
-    if scope_stack_size > 0
-    {
-        fmt.fprintln(file, "  ; close scope")
-        deallocate(file, scope_stack_size, &scope_ctx)
-    }
+    close_gen_context(file, ctx, &scope_ctx, "scope", true)
 
     fmt.fprintln(file, "; scope end")
 }
@@ -302,9 +304,9 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     lhs_node := node.children[0]
 
-    data_size := byte_size_of(lhs_node.data_type, ctx^)
+    byte_size := byte_size_of(lhs_node.data_type, ctx^)
 
-    allocate(file, data_size, ctx)
+    allocate(file, byte_size, ctx)
     ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
     if len(node.children) > 1
@@ -312,6 +314,13 @@ generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         rhs_node := node.children[1]
 
         generate_expression(file, rhs_node, ctx, memory("rsp", 0))
+    }
+    else
+    {
+        fmt.fprintfln(file, "  lea rdi, %s ; zero: dest", operand(memory("rsp", 0)))
+        fmt.fprintfln(file, "  mov rcx, %i ; zero: count", byte_size)
+        fmt.fprintln(file, "  mov rax, 0 ; zero: value")
+        fmt.fprintln(file, "  rep stosb ; zero")
     }
 }
 
@@ -352,12 +361,7 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
     expression_ctx := copy_gen_context(ctx^, true)
     dest_1 := generate_expression_1(file, node, &expression_ctx, register_num)
 
-    expression_stack_size := expression_ctx.stack_size - ctx.stack_size
-    if expression_stack_size > 0
-    {
-        fmt.fprintln(file, "  ; close expression")
-        deallocate(file, expression_stack_size, &expression_ctx)
-    }
+    close_gen_context(file, ctx, &expression_ctx, "expression", true)
 
     copy(file, dest_1, dest, byte_size_of(node.data_type, expression_ctx))
 }
@@ -467,10 +471,22 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
         copy(file, immediate(len(node.value) - 2), memory("rsp", 0), 8)
 
         buf: [8]byte
-        string_name := strings.concatenate({ "string_", strconv.itoa(buf[:], len(data_section_strings)) })
+        string_name := strings.concatenate({ "string_", strconv.itoa(buf[:], len(ctx.data_section_strings)) })
         copy(file, immediate(string_name), memory("rsp", 8), address_size)
 
-        append(&data_section_strings, node.value)
+        append(&ctx.data_section_strings, node.value)
+
+        dest := register(register_num, address_size)
+        copy(file, register("sp", address_size), dest, address_size)
+        return memory(operand(dest), 0)
+    case .CSTRING:
+        allocate(file, ctx.data_sizes[node.data_type.name], ctx)
+
+        buf: [8]byte
+        string_name := strings.concatenate({ "cstring_", strconv.itoa(buf[:], len(ctx.data_section_cstrings)) })
+        copy(file, immediate(string_name), memory("rsp", 0), address_size)
+
+        append(&ctx.data_section_cstrings, node.value)
 
         dest := register(register_num, address_size)
         copy(file, register("sp", address_size), dest, address_size)
@@ -490,33 +506,68 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     name_node := node.children[child_index]
     child_index += 1
 
-    call_stack_size := 0
-    return_byte_size := byte_size_of(node.data_type, ctx^)
-    allocate(file, return_byte_size, ctx)
-    if deallocate_return
+    if node.directive == "#extern"
     {
-        call_stack_size += return_byte_size
-    }
+        for child_index < len(node.children)
+        {
+            param_index := child_index - 1
+            param_node := node.children[child_index]
+            child_index += 1
 
-    for child_index < len(node.children)
+            param_byte_size := byte_size_of(param_node.data_type, ctx^)
+
+            if param_index < 4
+            {
+                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_byte_size))
+            }
+            else if param_index < 6
+            {
+                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_byte_size))
+            }
+            else
+            {
+                assert(false, "Pass by stack not yet supported when calling c")
+            }
+        }
+
+        if ctx.stack_size % 16 != 0
+        {
+            fmt.fprintln(file, "  and rsp, -16")
+        }
+        fmt.fprintfln(file, "  call %s ; call extern procedure", name_node.value)
+
+        return register("ax", byte_size_of(node.data_type, ctx^))
+    }
+    else
     {
-        param_node := node.children[child_index]
-        child_index += 1
+        call_stack_size := 0
+        return_byte_size := byte_size_of(node.data_type, ctx^)
+        allocate(file, return_byte_size, ctx)
+        if deallocate_return
+        {
+            call_stack_size += return_byte_size
+        }
 
-        param_byte_size := byte_size_of(param_node.data_type, ctx^)
-        allocate(file, param_byte_size, ctx)
-        call_stack_size += param_byte_size
+        for child_index < len(node.children)
+        {
+            param_node := node.children[child_index]
+            child_index += 1
 
-        generate_expression(file, param_node, ctx, memory("rsp", 0))
+            param_byte_size := byte_size_of(param_node.data_type, ctx^)
+            allocate(file, param_byte_size, ctx)
+            call_stack_size += param_byte_size
+
+            generate_expression(file, param_node, ctx, memory("rsp", 0))
+        }
+
+        fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
+
+        deallocate(file, call_stack_size, ctx)
+
+        dest := register(register_num, address_size)
+        copy(file, register("sp", address_size), dest, address_size)
+        return memory(operand(dest), 0)
     }
-
-    fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
-
-    deallocate(file, call_stack_size, ctx)
-
-    dest := register(register_num, address_size)
-    copy(file, register("sp", address_size), dest, address_size)
-    return memory(operand(dest), 0)
 }
 
 copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, size: int, comment: string = "") -> location
@@ -580,6 +631,8 @@ copy_gen_context := proc(ctx: gen_context, inline := false) -> gen_context
 {
     ctx_copy: gen_context
     ctx_copy.data_sizes = ctx.data_sizes
+    ctx_copy.data_section_strings = ctx.data_section_strings
+    ctx_copy.data_section_cstrings = ctx.data_section_cstrings
     ctx_copy.in_proc = ctx.in_proc
     ctx_copy.stack_size = ctx.stack_size
 
@@ -595,6 +648,25 @@ copy_gen_context := proc(ctx: gen_context, inline := false) -> gen_context
     }
 
     return ctx_copy
+}
+
+close_gen_context :: proc(file: os.Handle, parent_ctx: ^gen_context, ctx: ^gen_context, name: string, inline: bool)
+{
+    parent_ctx.data_section_strings = ctx.data_section_strings
+    parent_ctx.data_section_cstrings = ctx.data_section_cstrings
+
+    if inline
+    {
+        parent_ctx.if_index = ctx.if_index
+        parent_ctx.for_index = ctx.for_index
+    }
+
+    stack_size := ctx.stack_size - parent_ctx.stack_size
+    if stack_size > 0
+    {
+        fmt.fprintfln(file, "  ; close %s", name)
+        deallocate(file, stack_size, ctx)
+    }
 }
 
 immediate :: proc

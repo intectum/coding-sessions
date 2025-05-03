@@ -32,6 +32,7 @@ token_type :: enum
   DATA_TYPE,
   IDENTIFIER,
   STRING,
+  CSTRING,
   NUMBER,
   BOOLEAN,
   END_OF_FILE
@@ -39,7 +40,7 @@ token_type :: enum
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
 
-data_types: []string = { "bool", "i8", "i16", "i32", "i64", "string" }
+data_types: []string = { "bool", "cstring", "i8", "i16", "i32", "i64", "string" }
 
 token :: struct
 {
@@ -290,6 +291,14 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
       read_string(&stream)
 
       append(&tokens, token { .STRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+    }
+    else if peek_runes(&stream, 2) == "c\""
+    {
+      initial_stream := stream
+      next_rune(&stream)
+      read_string(&stream)
+
+      append(&tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
     }
     else if (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9')
     {
