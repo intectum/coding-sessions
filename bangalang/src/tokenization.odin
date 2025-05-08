@@ -40,7 +40,7 @@ token_type :: enum
 
 keywords: []string = { "else", "for", "if", "proc", "return" }
 
-data_types: []string = { "bool", "cstring", "i8", "i16", "i32", "i64", "string" }
+data_types: []string = { "bool", "cint", "cstring", "f32", "f64", "i8", "i16", "i32", "i64", "string" }
 
 token :: struct
 {
@@ -300,13 +300,18 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
 
       append(&tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
     }
-    else if (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9')
+    else if peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
     {
       initial_stream := stream
       next_rune(&stream)
 
-      for peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
+      period_found := false
+      for (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9') || (!period_found && peek_rune(&stream) == '.')
       {
+        if peek_rune(&stream) == '.'
+        {
+          period_found = true
+        }
         next_rune(&stream)
       }
 

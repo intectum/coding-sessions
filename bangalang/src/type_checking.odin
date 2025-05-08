@@ -2,9 +2,9 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strings"
 import "core:strconv"
-import slice "core:slice"
 
 procedure :: struct
 {
@@ -21,7 +21,9 @@ type_checking_context :: struct
     variable_data_types: map[string]data_type
 }
 
-numerical_data_types: []string = { "i8", "i16", "i32", "i64", "number" }
+numerical_data_types: []string = { "cint", "f32", "f64", "i8", "i16", "i32", "i64", "number" }
+float_data_types: []string = { "f32", "f64" }
+signed_integer_data_types: []string = { "cint", "i8", "i16", "i32", "i64" }
 
 type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 {
@@ -35,12 +37,12 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     append(&exit.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["exit"] = exit
 
-    glfwInit := procedure { return_data_type = { "i32", 1, false }, directive = "#extern" }
+    glfwInit := procedure { return_data_type = { "cint", 1, false }, directive = "#extern" }
     ctx.procedures["glfwInit"] = glfwInit
 
     glfwCreateWindow := procedure { return_data_type = { "i8", 1, true }, directive = "#extern" }
-    append(&glfwCreateWindow.param_data_types, data_type { "i32", 1, false })
-    append(&glfwCreateWindow.param_data_types, data_type { "i32", 1, false })
+    append(&glfwCreateWindow.param_data_types, data_type { "cint", 1, false })
+    append(&glfwCreateWindow.param_data_types, data_type { "cint", 1, false })
     append(&glfwCreateWindow.param_data_types, data_type { "cstring", 1, false })
     append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
     append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
@@ -415,13 +417,19 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
         ok = false
     }
 
-    if node.type == .EQUAL || node.type == .NOT_EQUAL || node.type == .LESS_THAN || node.type == .GREATER_THAN || node.type == .LESS_THAN_OR_EQUAL || node.type == .GREATER_THAN_OR_EQUAL
+    _, comparison_operator := slice.linear_search(comparison_operators, node.type)
+    if comparison_operator
     {
         node.data_type = { "bool", 1, false }
         if data_type.name == "number"
         {
-            propagate_data_type(lhs_node, { "i64", 1, false })
-            propagate_data_type(rhs_node, { "i64", 1, false })
+            propagate_data_type(lhs_node, { "f64", 1, false })
+            propagate_data_type(rhs_node, { "f64", 1, false })
+        }
+        else
+        {
+            propagate_data_type(lhs_node, data_type)
+            propagate_data_type(rhs_node, data_type)
         }
     }
     else
@@ -740,6 +748,11 @@ data_type_name :: proc(data_type: data_type) -> string
 
 propagate_data_type :: proc(node: ^ast_node, data_type: data_type)
 {
+    if node.data_type.name != "number"
+    {
+        return
+    }
+
     node.data_type = data_type
     for &child_node in node.children
     {

@@ -1,7 +1,10 @@
-//glfwInit := #extern proc() -> i32
-//glfwCreateWindow := #extern proc(width: i32, height: i32, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
+//glfwInit := #extern proc() -> cint
+//glfwCreateWindow := #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 
 glfwInit()
 
 nullptr: ^i8
 glfwCreateWindow(1920, 1080, c"Bangalang", nullptr, nullptr)
+
+float: f32 = 1.1
+return float == 1.1

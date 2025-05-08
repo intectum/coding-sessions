@@ -55,6 +55,8 @@ ast_node :: struct
     column_number: int
 }
 
+comparison_operators: []ast_node_type = { .EQUAL, .NOT_EQUAL, .LESS_THAN, .GREATER_THAN, .LESS_THAN_OR_EQUAL, .GREATER_THAN_OR_EQUAL }
+
 parse_program :: proc(stream: ^token_stream) -> (nodes: [dynamic]ast_node)
 {
     for stream.next_index < len(stream.tokens)
