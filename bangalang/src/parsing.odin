@@ -62,7 +62,7 @@ parse_program :: proc(stream: ^token_stream) -> (nodes: [dynamic]ast_node)
     for stream.next_index < len(stream.tokens)
     {
         // TODO this is way too manual checking...
-        if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .COLON && peek_token(stream, 2).type == .EQUALS && peek_token(stream, 3).value == "proc"
+        if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .COLON && (peek_token(stream, 2).value == "#extern" || peek_token(stream, 2).value == "proc")
         {
             append(&nodes, parse_procedure(stream))
         }
@@ -85,7 +85,12 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     append(&node.children, lhs_node)
 
     next_token(stream, []token_type { .COLON })
-    next_token(stream, []token_type { .EQUALS })
+
+    if peek_token(stream).type == .DIRECTIVE
+    {
+        node.directive = next_token(stream, []token_type { .DIRECTIVE }).value
+    }
+
     next_token(stream, token_type.KEYWORD, "proc")
     next_token(stream, []token_type { .OPENING_BRACKET })
 
@@ -107,12 +112,21 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     }
 
     next_token(stream, []token_type { .CLOSING_BRACKET })
-    next_token(stream, []token_type { .ARROW })
 
-    parse_type(stream, &node)
+    if peek_token(stream).type == .ARROW
+    {
+        next_token(stream, []token_type { .ARROW })
 
-    statement_node := parse_statement(stream)
-    append(&node.children, statement_node)
+        parse_type(stream, &node)
+    }
+
+    if peek_token(stream).type == .EQUALS
+    {
+        next_token(stream, []token_type { .EQUALS })
+
+        statement_node := parse_statement(stream)
+        append(&node.children, statement_node)
+    }
 
     return
 }

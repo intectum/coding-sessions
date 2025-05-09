@@ -36,7 +36,7 @@ build :: proc(src_path: string, bin_path: string)
   }
 
   // TODO don't hardcode this stuff...
-  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", bin_path, " -lglfw" })
+  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", bin_path, " -lglfw -lGL -lGLU" })
   ld_code := exec(ld_command)
   if ld_code > 0
   {

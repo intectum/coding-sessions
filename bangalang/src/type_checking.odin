@@ -33,34 +33,28 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     append(&print.param_data_types, data_type { "string", 1, false })
     ctx.procedures["print"] = print
 
+    printb: procedure
+    append(&printb.param_data_types, data_type { "i8", 1000000, true })
+    append(&printb.param_data_types, data_type { "i64", 1, false })
+    ctx.procedures["printb"] = printb
+
     exit: procedure
     append(&exit.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["exit"] = exit
-
-    glfwInit := procedure { return_data_type = { "cint", 1, false }, directive = "#extern" }
-    ctx.procedures["glfwInit"] = glfwInit
-
-    glfwCreateWindow := procedure { return_data_type = { "i8", 1, true }, directive = "#extern" }
-    append(&glfwCreateWindow.param_data_types, data_type { "cint", 1, false })
-    append(&glfwCreateWindow.param_data_types, data_type { "cint", 1, false })
-    append(&glfwCreateWindow.param_data_types, data_type { "cstring", 1, false })
-    append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
-    append(&glfwCreateWindow.param_data_types, data_type { "i8", 1, true })
-    ctx.procedures["glfwCreateWindow"] = glfwCreateWindow
 
     for node in nodes
     {
         if node.type == .PROCEDURE
         {
             name: string
-            procedure := procedure { return_data_type = node.data_type }
+            procedure := procedure { return_data_type = node.data_type, directive = node.directive }
             for child_node, index in node.children
             {
                 if index == 0
                 {
                     name = child_node.value
                 }
-                else if index + 1 < len(node.children)
+                else if node.children[index].type == .IDENTIFIER
                 {
                     append(&procedure.param_data_types, child_node.data_type)
                 }
@@ -106,7 +100,7 @@ type_check_procedure :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (o
     procedure_ctx := copy_type_checking_context(ctx^)
     procedure_ctx.procedure = procedure_ctx.procedures[name_node.value]
 
-    for child_index + 1 < len(node.children)
+    for child_index < len(node.children) && node.children[child_index].type == .IDENTIFIER
     {
         param_node := node.children[child_index]
         child_index += 1
@@ -114,13 +108,29 @@ type_check_procedure :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (o
         procedure_ctx.variable_data_types[param_node.value] = param_node.data_type
     }
 
-    statement_node := &node.children[child_index]
-    child_index += 1
-
-    statement_ok := type_check_statement(statement_node, &procedure_ctx)
-    if !statement_ok
+    if node.directive == "#extern" && child_index < len(node.children)
     {
+        fmt.println("Failed to type check procedure")
+        fmt.printfln("#extern procedure '%s' cannot have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
         ok = false
+    }
+    else if node.directive != "#extern" && child_index >= len(node.children)
+    {
+        fmt.println("Failed to type check procedure")
+        fmt.printfln("Procedure '%s' must have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
+        ok = false
+    }
+
+    if child_index < len(node.children)
+    {
+        statement_node := &node.children[child_index]
+        child_index += 1
+
+        statement_ok := type_check_statement(statement_node, &procedure_ctx)
+        if !statement_ok
+        {
+            ok = false
+        }
     }
 
     return

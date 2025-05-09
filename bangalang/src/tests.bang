@@ -210,16 +210,16 @@ assert(for_dea_sum_single == 55, "TEST: For *declaration/expression/assignment s
 // This should be valid (not a duplicate identifier)
 for_value: i64 = 1
 
-proc_1 := proc() -> i8
+proc_1: proc() -> i8 =
 {
     return 1
 }
 assert(proc_1() == 1, "TEST: Proc return")
 
-proc_1_single := proc() -> i8 return 1
+proc_1_single: proc() -> i8 = return 1
 assert(proc_1_single() == 1, "TEST: Proc return single statement")
 
-assert := proc(assertion: bool, message: string) -> bool
+assert: proc(assertion: bool, message: string) =
 {
     if (assertion == false)
     {
@@ -227,6 +227,4 @@ assert := proc(assertion: bool, message: string) -> bool
         print(message)
         exit(1)
     }
-
-    return true
 }

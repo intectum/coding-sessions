@@ -30,6 +30,7 @@ token_type :: enum
   ARROW,
   KEYWORD,
   DATA_TYPE,
+  DIRECTIVE,
   IDENTIFIER,
   STRING,
   CSTRING,
@@ -316,6 +317,19 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
       }
 
       append(&tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+    }
+    else if peek_rune(&stream) == '#'
+    {
+      initial_stream := stream
+      next_rune(&stream)
+
+      for (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_' || (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9')
+      {
+        next_rune(&stream)
+      }
+
+      token := token { .DIRECTIVE, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number }
+      append(&tokens, token)
     }
     else if (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_'
     {
