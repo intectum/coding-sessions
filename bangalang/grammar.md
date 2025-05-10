@@ -10,7 +10,7 @@ declaration\ &\to\ identifier\ \text{":"}\ type?\ (\ \text{"="}\ expression\ )?\
 assignment\ &\to\ variable\ \text{"="}\ expression\\
 return\ &\to\ \text{"return"}\ expression\\
 expression\ &\to\ primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ )\ primary\ )^*\\
-primary\ &\to\ (\ \text{"^"}\ |\ \text{"-"}\ )\ primary\ |\ primary\ (\ \text{"^"}\ |\ \text{"["}\ number\ \text{"]"}\ )\ |\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ string\ |\ cstring\ |\ number\ |\ boolean\\
+primary\ &\to\ (\ \text{"^"}\ |\ \text{"-"}\ )\ primary\ |\ primary\ (\ \text{"^"}\ |\ \text{"["}\ number\ \text{"]"}\ )\ |\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ \text{"nil"}\\
 call\ &\to\ identifier\ \text{"("}\ (\ expression\ (\ \text{","}\ expression\ )^*\ )?\ \text{")"}\\
 variable\ &\to\ identifier\ (\ \text{"["}\ number\ \text{"]"}\ )?\\
 string\ &\to\ \text{"""}\ (\ !\text{"""}\ )^*\ \text{"""}\\\

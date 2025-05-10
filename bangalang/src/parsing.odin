@@ -32,7 +32,8 @@ ast_node_type :: enum
     STRING,
     CSTRING,
     NUMBER,
-    BOOLEAN
+    BOOLEAN,
+    NIL
 }
 
 data_type :: struct
@@ -433,6 +434,9 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
     case .BOOLEAN:
         node.type = .BOOLEAN
         node.value = next_token(stream, []token_type { .BOOLEAN }).value
+    case .NIL:
+        node.type = .NIL
+        node.value = next_token(stream, []token_type { .NIL }).value
     case:
         token := peek_token(stream)
         fmt.println("Failed to parse primary")
@@ -529,6 +533,13 @@ parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
 
 parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 {
+    boundless := false
+    if peek_token(stream).type == .DIRECTIVE
+    {
+        next_token(stream, []token_type { .DIRECTIVE })
+        boundless = true
+    }
+
     if peek_token(stream).type == .HAT
     {
         next_token(stream, []token_type { .HAT })
@@ -537,7 +548,7 @@ parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 
     node.data_type.name = next_token(stream, []token_type { .DATA_TYPE }).value
 
-    node.data_type.length = 1
+    node.data_type.length = boundless && node.data_type.is_reference ? 0 : 1
     if peek_token(stream).type == .OPENING_SQUARE_BRACKET
     {
         next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })

@@ -34,7 +34,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     ctx.procedures["print"] = print
 
     printb: procedure
-    append(&printb.param_data_types, data_type { "i8", 1000000, true })
+    append(&printb.param_data_types, data_type { "i8", 0, true })
     append(&printb.param_data_types, data_type { "i64", 1, false })
     ctx.procedures["printb"] = printb
 
@@ -449,21 +449,31 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
         rhs_node.data_type = data_type
     }
 
-    _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
-    if data_type.length > 1
+    if data_type.length > 1 || data_type.is_reference
     {
         fmt.println("Failed to type check expression")
         fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-        ok = false
-    }
-    else if data_type.name == "bool" && node.type != .EQUAL && node.type != .NOT_EQUAL
-    {
-        fmt.println("Failed to type check expression")
-        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-        ok = false
+        return false
     }
 
-    return
+    _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
+    if data_type.name == "bool"
+    {
+        if node.type != .EQUAL && node.type != .NOT_EQUAL
+        {
+            fmt.println("Failed to type check expression")
+            fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+            return false
+        }
+    }
+    else if !numerical_data_type
+    {
+        fmt.println("Failed to type check expression")
+        fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
+        return false
+    }
+
+    return true
 }
 
 type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
@@ -570,6 +580,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         node.data_type = { "number", 1, false }
     case .BOOLEAN:
         node.data_type = { "bool", 1, false }
+    case .NIL:
+        node.data_type = { "nil", 1, false }
     case:
         ok = type_check_expression_1(node, ctx)
     }
@@ -655,7 +667,7 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
         node.data_type.length = 1
     }
 
-    if ok && node.data_index >= identifier_node_copy.data_type.length
+    if ok && identifier_node.data_type.length != 0 && node.data_index >= identifier_node_copy.data_type.length
     {
         fmt.println("Failed to type check variable")
         fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier_node_copy.value, node.line_number, node.column_number)
@@ -690,18 +702,18 @@ coerce_type :: proc(data_types: []data_type) -> (data_type, bool)
     coerced_data_type := data_types[0]
     for data_type in data_types[1:]
     {
-        if data_type.name == ""
+        if data_type.name == "" || data_type.name == "nil"
         {
             continue
         }
 
-        if coerced_data_type.name == ""
+        if coerced_data_type.name == "" || coerced_data_type.name == "nil"
         {
             coerced_data_type = data_type
             continue
         }
 
-        if data_type.length != coerced_data_type.length
+        if data_type.length != 0 && coerced_data_type.length != 0 && data_type.length != coerced_data_type.length
         {
             return {}, false
         }

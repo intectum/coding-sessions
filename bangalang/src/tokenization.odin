@@ -36,6 +36,7 @@ token_type :: enum
   CSTRING,
   NUMBER,
   BOOLEAN,
+  NIL,
   END_OF_FILE
 }
 
@@ -345,6 +346,10 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
       if token.value == "false" || token.value == "true"
       {
         token.type = .BOOLEAN
+      }
+      else if token.value == "nil"
+      {
+        token.type = .NIL
       }
       else
       {
