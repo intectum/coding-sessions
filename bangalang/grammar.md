@@ -17,7 +17,7 @@ string\ &\to\ \text{"""}\ (\ !\text{"""}\ )^*\ \text{"""}\\\
 cstring\ &\to\ \text{"c""}\ (\ !\text{"""}\ )^*\ \text{"""}\\\
 number\ &\to\ digit+\ (\ \text{"."}\ digit*\ )?\\
 boolean\ &\to\ \text{"false"}\ |\ \text{"true"}\\
-type\ &\to\ \text{"^"}?\ data\_type\ (\ \text{"["}\ number\ \text{"]"}\ )?\\
+type\ &\to\ \text{"#boundless"}?\ \text{"^"}?\ data\_type\ (\ \text{"["}\ number\ \text{"]"}\ )?\\
 data\_type\ &\to\ \text{"bool"}\ |\ \text{"cint"}\ |\ \text{"cstring"}\ |\ \text{"f32"}\ |\ \text{"f64"}\ |\ \text{"i8"}\ |\ \text{"i16"}\ |\ \text{"i32"}\ |\ \text{"i64"}\ |\ \text{"string"}\\
 digit\ &\to\ \text{"0"}\ |\ \text{"1"}\ |\ \text{"2"}\ |\ \text{"3"}\ |\ \text{"4"}\ |\ \text{"5"}\ |\ \text{"6"}\ |\ \text{"7"}\ |\ \text{"8"}\ |\ \text{"9"}\\
 \end{align}

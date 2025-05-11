@@ -6,19 +6,10 @@ import "core:slice"
 import "core:strings"
 import "core:strconv"
 
-procedure :: struct
-{
-    param_data_types: [dynamic]data_type,
-    return_data_type: data_type,
-    directive: string
-}
-
 type_checking_context :: struct
 {
-    procedures: map[string]procedure,
-    procedure: procedure,
-
-    variable_data_types: map[string]data_type
+    identifier_data_types: map[string]data_type,
+    procedure_data_type: data_type
 }
 
 numerical_data_types: []string = { "cint", "f32", "f64", "i8", "i16", "i32", "i64", "number" }
@@ -29,38 +20,39 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 {
     ctx: type_checking_context
 
-    print: procedure
-    append(&print.param_data_types, data_type { "string", 1, false })
-    ctx.procedures["print"] = print
+    print := data_type { name = "procedure", length = 1 }
+    append(&print.children, data_type { name = "parameters", length = 1 })
+    append(&print.children[0].children, data_type { name = "string", length = 1 })
+    ctx.identifier_data_types["print"] = print
 
-    printb: procedure
-    append(&printb.param_data_types, data_type { "i8", 0, true })
-    append(&printb.param_data_types, data_type { "i64", 1, false })
-    ctx.procedures["printb"] = printb
+    printb := data_type { name = "procedure", length = 1 }
+    append(&printb.children, data_type { name = "parameters", length = 1 })
+    append(&printb.children[0].children, data_type { name = "i8", directive = "#boundless", is_reference = true })
+    append(&printb.children[0].children, data_type { name = "i64", length = 1 })
+    ctx.identifier_data_types["printb"] = printb
 
-    exit: procedure
-    append(&exit.param_data_types, data_type { "i64", 1, false })
-    ctx.procedures["exit"] = exit
+    clone := data_type { name = "procedure", length = 1 }
+    append(&clone.children, data_type { name = "parameters", length = 1 })
+    append(&clone.children[0].children, data_type { name = "procedure", length = 1 })
+    append(&clone.children[0].children[0].children, data_type { name = "parameters", length = 1 })
+    append(&clone.children, data_type { name = "i64", length = 1 })
+    ctx.identifier_data_types["clone"] = clone
+
+    exit := data_type { name = "procedure", length = 1 }
+    append(&exit.children, data_type { name = "parameters", length = 1 })
+    append(&exit.children[0].children, data_type { name = "i64", length = 1 })
+    ctx.identifier_data_types["exit"] = exit
+
+    wait4 := data_type { name = "procedure", length = 1 }
+    append(&wait4.children, data_type { name = "parameters", length = 1 })
+    append(&wait4.children[0].children, data_type { name = "i64", length = 1 })
+    ctx.identifier_data_types["wait4"] = wait4
 
     for node in nodes
     {
         if node.type == .PROCEDURE
         {
-            name: string
-            procedure := procedure { return_data_type = node.data_type, directive = node.directive }
-            for child_node, index in node.children
-            {
-                if index == 0
-                {
-                    name = child_node.value
-                }
-                else if node.children[index].type == .IDENTIFIER
-                {
-                    append(&procedure.param_data_types, child_node.data_type)
-                }
-            }
-
-            ctx.procedures[name] = procedure
+            ctx.identifier_data_types[node.children[0].value] = node.data_type
         }
     }
 
@@ -93,39 +85,33 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 
 type_check_procedure :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    child_index := 0
-    name_node := node.children[child_index]
-    child_index += 1
+    name_node := node.children[0]
 
     procedure_ctx := copy_type_checking_context(ctx^)
-    procedure_ctx.procedure = procedure_ctx.procedures[name_node.value]
+    procedure_ctx.procedure_data_type = node.data_type
 
-    for child_index < len(node.children) && node.children[child_index].type == .IDENTIFIER
+    params_data_type := node.data_type.children[0]
+    for param_data_type in params_data_type.children
     {
-        param_node := node.children[child_index]
-        child_index += 1
-
-        procedure_ctx.variable_data_types[param_node.value] = param_node.data_type
+        procedure_ctx.identifier_data_types[param_data_type.identifier] = param_data_type
     }
 
-    if node.directive == "#extern" && child_index < len(node.children)
+    if node.data_type.directive == "#extern" && len(node.children) == 2
     {
         fmt.println("Failed to type check procedure")
         fmt.printfln("#extern procedure '%s' cannot have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
         ok = false
     }
-    else if node.directive != "#extern" && child_index >= len(node.children)
+    else if node.data_type.directive != "#extern" && len(node.children) == 1
     {
         fmt.println("Failed to type check procedure")
         fmt.printfln("Procedure '%s' must have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
         ok = false
     }
 
-    if child_index < len(node.children)
+    if len(node.children) == 2
     {
-        statement_node := &node.children[child_index]
-        child_index += 1
-
+        statement_node := &node.children[1]
         statement_ok := type_check_statement(statement_node, &procedure_ctx)
         if !statement_ok
         {
@@ -167,7 +153,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
     expression_node := &node.children[child_index]
     child_index += 1
 
-    expression_ok := type_check_expression(expression_node, ctx, { "bool", 1, false })
+    expression_ok := type_check_expression(expression_node, ctx, { name = "bool", length = 1 })
     if !expression_ok
     {
         ok = false
@@ -184,7 +170,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool
 
     for child_index + 1 < len(node.children)
     {
-        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { "bool", 1, false })
+        else_if_expression_ok := type_check_expression(&node.children[child_index], ctx, { name = "bool", length = 1 })
         if !else_if_expression_ok
         {
             ok = false
@@ -232,7 +218,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: boo
         child_index += 1
     }
 
-    expression_ok := type_check_expression(child_node, &for_ctx, { "bool", 1, false })
+    expression_ok := type_check_expression(child_node, &for_ctx, { name = "bool", length = 1 })
     if !expression_ok
     {
         ok = false
@@ -282,7 +268,7 @@ type_check_declaration :: proc(node: ^ast_node, ctx: ^type_checking_context) -> 
 {
     lhs_node := &node.children[0]
 
-    if lhs_node.value in ctx.variable_data_types
+    if lhs_node.value in ctx.identifier_data_types
     {
         fmt.println("Failed to type check declaration")
         fmt.printfln("Duplicate identifier '%s' at line %i, column %i", lhs_node.value, lhs_node.line_number, lhs_node.column_number)
@@ -301,7 +287,7 @@ type_check_declaration :: proc(node: ^ast_node, ctx: ^type_checking_context) -> 
 
         if lhs_node.data_type.name == ""
         {
-            lhs_node.data_type = rhs_node.data_type
+            lhs_node.data_type = resolve_data_type(rhs_node.data_type)
         }
     }
 
@@ -312,7 +298,7 @@ type_check_declaration :: proc(node: ^ast_node, ctx: ^type_checking_context) -> 
         ok = false
     }
 
-    ctx.variable_data_types[lhs_node.value] = lhs_node.data_type
+    ctx.identifier_data_types[lhs_node.value] = lhs_node.data_type
 
     return
 }
@@ -341,7 +327,14 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: 
 {
     expression_node := &node.children[0]
 
-    expression_ok := type_check_expression(expression_node, ctx, ctx.procedure.return_data_type)
+    if len(ctx.procedure_data_type.children) == 1
+    {
+        fmt.println("Failed to type check expression")
+        fmt.printfln("Procedure has no return type at line %i, column %i", node.line_number, node.column_number)
+        ok = false
+    }
+
+    expression_ok := type_check_expression(expression_node, ctx, ctx.procedure_data_type.children[1])
     if !expression_ok
     {
         ok = false
@@ -358,31 +351,18 @@ type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expe
         ok = false
     }
 
-    data_types := []data_type { node.data_type, expected_data_type }
-    data_type, coerce_ok := coerce_type(data_types)
+    node_resolved_data_type := resolve_data_type(node.data_type)
+    expected_resolved_data_type := resolve_data_type(expected_data_type)
+    data_type, coerce_ok := coerce_type(node_resolved_data_type, expected_resolved_data_type)
     if !coerce_ok
     {
-        data_type_names: [dynamic]string
-        for data_type, index in data_types
-        {
-            if data_type.name != ""
-            {
-                append(&data_type_names, data_type_name(data_type))
-            }
-        }
+        data_type_names: []string = { data_type_name(node_resolved_data_type), data_type_name(expected_resolved_data_type) }
         fmt.println("Failed to type check expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
         ok = false
     }
 
-    if node.data_type.name == "number"
-    {
-        propagate_data_type(node, data_type)
-    }
-    else
-    {
-        node.data_type = data_type
-    }
+    propagate_data_type(node, data_type)
 
     return
 }
@@ -410,18 +390,12 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
         ok = false
     }
 
-    data_types := []data_type { lhs_node.data_type, rhs_node.data_type }
-    data_type, coerce_ok := coerce_type(data_types)
+    lhs_resolved_data_type := resolve_data_type(lhs_node.data_type)
+    rhs_resolved_data_type := resolve_data_type(rhs_node.data_type)
+    data_type, coerce_ok := coerce_type(lhs_resolved_data_type, rhs_resolved_data_type)
     if !coerce_ok
     {
-        data_type_names: [dynamic]string
-        for data_type, index in data_types
-        {
-            if data_type.name != ""
-            {
-                append(&data_type_names, data_type_name(data_type))
-            }
-        }
+        data_type_names: []string = { data_type_name(lhs_resolved_data_type), data_type_name(rhs_resolved_data_type) }
         fmt.println("Failed to type check expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
         ok = false
@@ -430,11 +404,11 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
     _, comparison_operator := slice.linear_search(comparison_operators, node.type)
     if comparison_operator
     {
-        node.data_type = { "bool", 1, false }
+        node.data_type = { name = "bool", length = 1 }
         if data_type.name == "number"
         {
-            propagate_data_type(lhs_node, { "f64", 1, false })
-            propagate_data_type(rhs_node, { "f64", 1, false })
+            propagate_data_type(lhs_node, { name = "f64", length = 1 })
+            propagate_data_type(rhs_node, { name = "f64", length = 1 })
         }
         else
         {
@@ -445,8 +419,8 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
     else
     {
         node.data_type = data_type
-        lhs_node.data_type = data_type
-        rhs_node.data_type = data_type
+        propagate_data_type(lhs_node, data_type)
+        propagate_data_type(rhs_node, data_type)
     }
 
     if data_type.length > 1 || data_type.is_reference
@@ -564,24 +538,24 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
     case .CALL:
         ok = type_check_call(node, ctx)
     case .IDENTIFIER:
-        node.data_type = ctx.variable_data_types[node.value]
+        node.data_type = ctx.identifier_data_types[node.value]
 
-        if !(node.value in ctx.variable_data_types)
+        if !(node.value in ctx.identifier_data_types)
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Undeclared identifier '%s' at line %i, column %i", node.value, node.line_number, node.column_number)
             ok = false
         }
     case .STRING:
-        node.data_type = { "string", 1, false }
+        node.data_type = { name = "string", length = 1 }
     case .CSTRING:
-        node.data_type = { "cstring", 1, false }
+        node.data_type = { name = "cstring", length = 1 }
     case .NUMBER:
-        node.data_type = { "number", 1, false }
+        node.data_type = { name = "number", length = 1 }
     case .BOOLEAN:
-        node.data_type = { "bool", 1, false }
+        node.data_type = { name = "bool", length = 1 }
     case .NIL:
-        node.data_type = { "nil", 1, false }
+        node.data_type = { name = "nil", length = 1 }
     case:
         ok = type_check_expression_1(node, ctx)
     }
@@ -595,27 +569,28 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
     name_node := node.children[child_index]
     child_index += 1
 
-    if !(name_node.value in ctx.procedures)
+    if !(name_node.value in ctx.identifier_data_types)
     {
         fmt.println("Failed to type check call")
         fmt.printfln("Undeclared identifier '%s' at line %i, column %i", name_node.value, name_node.line_number, name_node.column_number)
         ok = false
     }
 
-    procedure := ctx.procedures[name_node.value]
+    procedure_data_type := ctx.identifier_data_types[name_node.value]
 
-    if len(procedure.param_data_types) != len(node.children) - 1
+    params_data_type := procedure_data_type.children[0]
+    if len(params_data_type.children) != len(node.children) - 1
     {
         fmt.println("Failed to type check call")
         fmt.printfln("Wrong number of parameters at line %i, column %i", node.line_number, node.column_number)
-        fmt.printfln("Expected: %i", len(procedure.param_data_types))
+        fmt.printfln("Expected: %i", len(params_data_type.children))
         fmt.printfln("Found: %i", len(node.children) - 1)
         ok = false
     }
 
     for child_index < len(node.children)
     {
-        param_data_type := procedure.param_data_types[child_index - 1]
+        param_data_type := params_data_type.children[child_index - 1]
 
         param_node := &node.children[child_index]
         child_index += 1
@@ -627,8 +602,8 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
         }
     }
 
-    node.directive = procedure.directive
-    node.data_type = procedure.return_data_type
+    node.data_type = procedure_data_type
+    node.data_type.name = "call"
 
     return
 }
@@ -637,14 +612,14 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 {
     identifier_node := node.type == .INDEX ? &node.children[0] : node
 
-    if !(identifier_node.value in ctx.variable_data_types)
+    if !(identifier_node.value in ctx.identifier_data_types)
     {
         fmt.println("Failed to type check variable")
         fmt.printfln("Undeclared identifier '%s' at line %i, column %i", identifier_node.value, node.line_number, node.column_number)
         ok = false
     }
 
-    identifier_node.data_type = ctx.variable_data_types[identifier_node.value]
+    identifier_node.data_type = ctx.identifier_data_types[identifier_node.value]
     identifier_node_copy := identifier_node^
 
     if node.type == .INDEX
@@ -667,7 +642,7 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
         node.data_type.length = 1
     }
 
-    if ok && identifier_node.data_type.length != 0 && node.data_index >= identifier_node_copy.data_type.length
+    if ok && identifier_node.data_type.directive != "#boundless" && node.data_index >= identifier_node_copy.data_type.length
     {
         fmt.println("Failed to type check variable")
         fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier_node_copy.value, node.line_number, node.column_number)
@@ -680,74 +655,77 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 copy_type_checking_context := proc(ctx: type_checking_context, inline := false) -> type_checking_context
 {
     ctx_copy: type_checking_context
-    for key in ctx.procedures
+    for key in ctx.identifier_data_types
     {
-        ctx_copy.procedures[key] = ctx.procedures[key]
-    }
-    ctx_copy.procedure = ctx.procedure
-
-    if inline
-    {
-        for key in ctx.variable_data_types
+        if inline || ctx.identifier_data_types[key].name == "procedure"
         {
-            ctx_copy.variable_data_types[key] = ctx.variable_data_types[key]
+            ctx_copy.identifier_data_types[key] = ctx.identifier_data_types[key]
         }
     }
+    ctx_copy.procedure_data_type = ctx.procedure_data_type
 
     return ctx_copy
 }
 
-coerce_type :: proc(data_types: []data_type) -> (data_type, bool)
+coerce_type :: proc(a: data_type, b: data_type) -> (data_type, bool)
 {
-    coerced_data_type := data_types[0]
-    for data_type in data_types[1:]
+    if a.name == "" || a.name == "nil"
     {
-        if data_type.name == "" || data_type.name == "nil"
-        {
-            continue
-        }
-
-        if coerced_data_type.name == "" || coerced_data_type.name == "nil"
-        {
-            coerced_data_type = data_type
-            continue
-        }
-
-        if data_type.length != 0 && coerced_data_type.length != 0 && data_type.length != coerced_data_type.length
-        {
-            return {}, false
-        }
-
-        if data_type.is_reference != coerced_data_type.is_reference
-        {
-            return {}, false
-        }
-
-        if data_type.name != coerced_data_type.name
-        {
-            _, coerced_numerical_data_type := slice.linear_search(numerical_data_types, coerced_data_type.name)
-            if data_type.name == "number" && coerced_numerical_data_type
-            {
-                continue
-            }
-
-            _, numerical_data_type := slice.linear_search(numerical_data_types, data_type.name)
-            if coerced_data_type.name == "number" && numerical_data_type
-            {
-                coerced_data_type = data_type
-                continue
-            }
-
-            return {}, false
-        }
+        return b, true
     }
 
-    if coerced_data_type.name != ""
+    if b.name == "" || b.name == "nil"
     {
-        return coerced_data_type, true
+        return a, true
     }
 
-    return {}, false
+    if a.directive != "#boundless" && b.directive != "#boundless" && a.length != b.length
+    {
+        return {}, false
+    }
+
+    if a.is_reference != b.is_reference
+    {
+        return {}, false
+    }
+
+    _, a_numerical_data_type := slice.linear_search(numerical_data_types, a.name)
+    if b.name == "number" && !a_numerical_data_type
+    {
+        return {}, false
+    }
+
+    _, b_numerical_data_type := slice.linear_search(numerical_data_types, b.name)
+    if a.name == "number" && !b_numerical_data_type
+    {
+        return {}, false
+    }
+
+    if a.name != "number" && b.name != "number" && a.name != b.name
+    {
+        return {}, false
+    }
+
+    if len(a.children) != len(b.children)
+    {
+        return {}, false
+    }
+
+    child_data_types: [dynamic]data_type
+    for child_index := 0; child_index < len(a.children); child_index += 1
+    {
+        child_data_type, child_coerce_ok := coerce_type(a.children[child_index], b.children[child_index])
+        if !child_coerce_ok
+        {
+            return {}, false
+        }
+
+        append(&child_data_types, child_data_type)
+    }
+
+    final_data_type := a.name == "number" ? b : a
+    final_data_type.children = child_data_types
+    return final_data_type, true
 }
 
 data_type_name :: proc(data_type: data_type) -> string
@@ -759,6 +737,11 @@ data_type_name :: proc(data_type: data_type) -> string
         name = strings.concatenate({ "^", name })
     }
 
+    if data_type.directive != ""
+    {
+        name = strings.concatenate({ data_type.directive, " ", name })
+    }
+
     if data_type.length > 1
     {
         buf: [8]byte
@@ -766,6 +749,16 @@ data_type_name :: proc(data_type: data_type) -> string
     }
 
     return name
+}
+
+resolve_data_type :: proc(the_data_type: data_type) -> data_type
+{
+    if the_data_type.name == "call" && len(the_data_type.children) == 2
+    {
+        return the_data_type.children[1]
+    }
+
+    return the_data_type
 }
 
 propagate_data_type :: proc(node: ^ast_node, data_type: data_type)

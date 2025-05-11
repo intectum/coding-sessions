@@ -1,3 +1,4 @@
+/*
 glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
@@ -74,6 +75,8 @@ glUseProgram(program_name) check_opengl_error()
 glEnableVertexAttribArray(0) check_opengl_error()
 glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nil) check_opengl_error()
 
+//clone(my_proc)
+
 for (glfwWindowShouldClose(window) == 0)
 {
     glfwPollEvents()
@@ -133,6 +136,7 @@ check_opengl_error: proc() =
         printb(gluErrorString(error), 100)
     }
 }
+*/
 
 assert: proc(assertion: bool, message: string) =
 {
@@ -143,3 +147,12 @@ assert: proc(assertion: bool, message: string) =
         exit(1)
     }
 }
+
+hello_thread: proc() =
+{
+    print("Hello, thread!")
+    exit(0)
+}
+
+child_pid := clone(hello_thread)
+wait4(child_pid)

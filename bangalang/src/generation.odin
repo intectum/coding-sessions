@@ -38,7 +38,7 @@ gen_context :: struct
 }
 
 address_size :: 8
-unknown_reference: data_type = { "", 1, true }
+unknown_reference: data_type = { name = "", length = 1, is_reference = true }
 extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
 extern_param_registers_numbered: []int = { -2, -1 }
 
@@ -67,6 +67,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     ctx.data_sizes["i16"] = 2
     ctx.data_sizes["i32"] = 4
     ctx.data_sizes["i64"] = 8
+    ctx.data_sizes["procedure"] = address_size
     ctx.data_sizes["string"] = 8 + address_size
 
     for node in nodes
@@ -91,9 +92,33 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
+    fmt.fprintln(file, "clone:")
+    fmt.fprintln(file, "  mov rbx, [rsp + 8] ; copy")
+    fmt.fprintln(file, "  mov rax, 56 ; syscall: clone")
+    fmt.fprintln(file, "  mov rdi, 0x00000011 ; arg0: flags (CLONE_VM | SIGCHLD)")
+    fmt.fprintln(file, "  mov rsi, thread_stack + 4096 ; arg1: stack pointer (top of stack)")
+    fmt.fprintln(file, "  mov rdx, 0 ; arg2: parent TID ptr (not used)")
+    fmt.fprintln(file, "  mov r10, 0 ; arg3: child TID ptr (not used)")
+    fmt.fprintln(file, "  mov r8, 0 ; arg4: TLS (not used)")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  cmp rax, 0 ; check if child/zero")
+    fmt.fprintln(file, "  jne .end ; skip procedure for parent")
+    fmt.fprintln(file, "  call rbx ; call procedure")
+    fmt.fprintln(file, ".end:")
+    fmt.fprintln(file, "  ret ; return")
+
     fmt.fprintln(file, "exit:")
     fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
     fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: exit_code")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  ret ; return")
+
+    fmt.fprintln(file, "wait4:")
+    fmt.fprintln(file, "  mov rax, 61 ; syscall: wait4")
+    fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: child_pid")
+    fmt.fprintln(file, "  mov rsi, 0 ; arg1: status (not used)")
+    fmt.fprintln(file, "  mov rdx, 0 ; arg2: options (0)")
+    fmt.fprintln(file, "  mov r10, 0 ; arg3: RUSAGE (not used)")
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
@@ -104,6 +129,9 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
             generate_procedure(file, node, &ctx)
         }
     }
+
+    fmt.fprintln(file, "section .bss")
+    fmt.fprintln(file, "  thread_stack: resb 4096")
 
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
@@ -144,7 +172,7 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 {
     name_node := node.children[0]
 
-    if node.directive == "#extern"
+    if node.data_type.directive == "#extern"
     {
         fmt.fprintfln(file, "extern %s", name_node.value)
         return
@@ -154,12 +182,13 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     procedure_ctx.in_proc = true
 
     offset := 0
-    for param_index := len(node.children) - 2; param_index > 0; param_index -= 1
+    params_data_type := node.data_type.children[0]
+    for param_index := len(params_data_type.children) - 1; param_index >= 0; param_index -= 1
     {
-        param_node := node.children[param_index]
+        param_data_type := params_data_type.children[param_index]
 
-        procedure_ctx.stack_variable_offsets[param_node.value] = offset
-        offset -= byte_size_of(param_node.data_type, &procedure_ctx)
+        procedure_ctx.stack_variable_offsets[param_data_type.identifier] = offset
+        offset -= byte_size_of(param_data_type, &procedure_ctx)
     }
 
     procedure_ctx.stack_variable_offsets["[return]"] = offset
@@ -169,7 +198,7 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     // Account for the instruction pointer pushed to the stack by 'call'
     procedure_ctx.stack_size += address_size
 
-    statement_node := node.children[len(node.children) - 1]
+    statement_node := node.children[1]
     generate_statement(file, statement_node, &procedure_ctx, true)
 
     procedure_ctx.stack_size -= address_size
@@ -410,7 +439,7 @@ generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context
     lhs_node := node.children[0]
     rhs_node := node.children[1]
 
-    operand_data_type := lhs_node.data_type
+    operand_data_type := resolve_data_type(lhs_node.data_type)
     result_data_type := node.data_type
 
     lhs_register_num := register_num / 2 * 2 + 2
@@ -607,6 +636,11 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
     case .CALL:
         return generate_call(file, node, ctx, register_num, false)
     case .IDENTIFIER:
+        if node.data_type.name == "procedure"
+        {
+            return immediate(node.value)
+        }
+
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
 
         if contains_allocations
@@ -661,17 +695,19 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 {
     name_node := node.children[0]
 
+    params_data_type := node.data_type.children[0]
+    return_data_type := len(node.data_type.children) == 2 ? node.data_type.children[1] : {}
+
     call_stack_size := 0
-    if node.directive != "#extern"
+    return_only_call_stack_size := 0
+    if node.data_type.directive != "#extern"
     {
-        if node.data_type.name != ""
+        for param_data_type in params_data_type.children
         {
-            call_stack_size += byte_size_of(node.data_type, ctx)
+            call_stack_size += byte_size_of(param_data_type, ctx)
         }
-        for param_node in node.children[1:]
-        {
-            call_stack_size += byte_size_of(param_node.data_type, ctx)
-        }
+        call_stack_size += byte_size_of(return_data_type, ctx)
+        return_only_call_stack_size += byte_size_of(return_data_type, ctx)
     }
 
     misalignment := (ctx.stack_size + call_stack_size) % 16
@@ -679,21 +715,24 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     {
         misalignment = 16 - misalignment
         call_stack_size += misalignment
+        return_only_call_stack_size += misalignment
     }
 
     allocate(file, call_stack_size, ctx)
 
-    if node.directive == "#extern"
+    if node.data_type.directive == "#extern"
     {
-        for param_node, param_index in node.children[1:]
+        for param_data_type, param_index in params_data_type.children
         {
+            param_node := node.children[param_index + 1]
+
             if param_index < 4
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_node.data_type, ctx))
+                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_data_type, ctx))
             }
             else if param_index < 6
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_node.data_type, ctx))
+                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_data_type, ctx))
             }
             else
             {
@@ -703,33 +742,41 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     }
     else
     {
-        return_only_call_stack_size := misalignment + byte_size_of(node.data_type, ctx)
-
         offset := call_stack_size - return_only_call_stack_size
-        for param_node in node.children[1:]
+        for param_data_type, param_index in params_data_type.children
         {
+            param_node := node.children[param_index + 1]
+
+            offset -= byte_size_of(param_data_type, ctx)
             generate_expression(file, param_node, ctx, memory("rsp", offset))
-            offset -= byte_size_of(param_node.data_type, ctx)
         }
 
         if !deallocate_return
         {
-            call_stack_size -= misalignment + byte_size_of(node.data_type, ctx)
+            call_stack_size -= return_only_call_stack_size
         }
     }
 
-    fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
+    if name_node.value in ctx.stack_variable_offsets
+    {
+        variable_position := ctx.stack_size - ctx.stack_variable_offsets[name_node.value]
+        fmt.fprintfln(file, "  call %s ; call procedure", operand(memory("rsp", variable_position)))
+    }
+    else
+    {
+        fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
+    }
 
     deallocate(file, call_stack_size, ctx)
 
-    if node.data_type.name == ""
+    if return_data_type.name == ""
     {
         return {}
     }
 
-    if node.directive == "#extern"
+    if node.data_type.directive == "#extern"
     {
-        return register("ax", node.data_type, ctx)
+        return register("ax", return_data_type, ctx)
     }
     else
     {
@@ -862,7 +909,7 @@ close_gen_context :: proc(file: os.Handle, parent_ctx: ^gen_context, ctx: ^gen_c
 
 contains_allocations :: proc(node: ast_node) -> bool
 {
-    if node.type == .CALL && node.directive != "#extern"
+    if node.type == .CALL && node.data_type.directive != "#extern"
     {
         return true
     }

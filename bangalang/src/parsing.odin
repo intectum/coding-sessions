@@ -39,16 +39,17 @@ ast_node_type :: enum
 data_type :: struct
 {
     name: string,
+    identifier: string,
+    directive: string,
     length: int,
-
-    is_reference: bool
+    is_reference: bool,
+    children: [dynamic]data_type
 }
 
 ast_node :: struct
 {
     type: ast_node_type,
     value: string,
-    directive: string,
     data_type: data_type,
     data_index: int,
     children: [dynamic]ast_node,
@@ -82,44 +83,12 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    lhs_node := parse_identifier(stream)
-    append(&node.children, lhs_node)
+    name_node := parse_identifier(stream)
+    append(&node.children, name_node)
 
     next_token(stream, []token_type { .COLON })
 
-    if peek_token(stream).type == .DIRECTIVE
-    {
-        node.directive = next_token(stream, []token_type { .DIRECTIVE }).value
-    }
-
-    next_token(stream, token_type.KEYWORD, "proc")
-    next_token(stream, []token_type { .OPENING_BRACKET })
-
-    for peek_token(stream).type != .CLOSING_BRACKET
-    {
-        param_node := parse_identifier(stream)
-
-        next_token(stream, []token_type { .COLON })
-
-        parse_type(stream, &param_node)
-
-        append(&node.children, param_node)
-
-        // TODO allows comma at end of params
-        if peek_token(stream).type != .CLOSING_BRACKET
-        {
-            next_token(stream, []token_type { .COMMA })
-        }
-    }
-
-    next_token(stream, []token_type { .CLOSING_BRACKET })
-
-    if peek_token(stream).type == .ARROW
-    {
-        next_token(stream, []token_type { .ARROW })
-
-        parse_type(stream, &node)
-    }
+    node.data_type = parse_type(stream)
 
     if peek_token(stream).type == .EQUALS
     {
@@ -301,9 +270,10 @@ parse_declaration :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, []token_type { .COLON })
 
-    if peek_token(stream).type == .DATA_TYPE || peek_token(stream).type == .HAT
+    // TODO this is way too manual checking...
+    if peek_token(stream).type == .DATA_TYPE || peek_token(stream).type == .HAT || peek_token(stream).type == .DIRECTIVE
     {
-        parse_type(stream, &lhs_node)
+        lhs_node.data_type = parse_type(stream)
     }
 
     append(&node.children, lhs_node)
@@ -531,29 +501,69 @@ parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
     return
 }
 
-parse_type :: proc(stream: ^token_stream, node: ^ast_node)
+parse_type :: proc(stream: ^token_stream) -> (the_data_type: data_type)
 {
-    boundless := false
     if peek_token(stream).type == .DIRECTIVE
     {
-        next_token(stream, []token_type { .DIRECTIVE })
-        boundless = true
+        the_data_type.directive = next_token(stream, []token_type { .DIRECTIVE }).value
     }
 
     if peek_token(stream).type == .HAT
     {
         next_token(stream, []token_type { .HAT })
-        node.data_type.is_reference = true
+        the_data_type.is_reference = true
     }
 
-    node.data_type.name = next_token(stream, []token_type { .DATA_TYPE }).value
+    if peek_token(stream).type == .DATA_TYPE
+    {
+        the_data_type.name = next_token(stream, []token_type { .DATA_TYPE }).value
+    }
+    else
+    {
+        next_token(stream, token_type.KEYWORD, "proc")
+        the_data_type.name = "procedure"
 
-    node.data_type.length = boundless && node.data_type.is_reference ? 0 : 1
+        next_token(stream, []token_type { .OPENING_BRACKET })
+
+        params_data_type := data_type { name = "parameters", length = 1 }
+
+        for peek_token(stream).type != .CLOSING_BRACKET
+        {
+            param_identifier := next_token(stream, []token_type { .IDENTIFIER }).value
+
+            next_token(stream, []token_type { .COLON })
+
+            param_data_type := parse_type(stream)
+            param_data_type.identifier = param_identifier
+
+            append(&params_data_type.children, param_data_type)
+
+            // TODO allows comma at end of params
+            if peek_token(stream).type != .CLOSING_BRACKET
+            {
+                next_token(stream, []token_type { .COMMA })
+            }
+        }
+
+        append(&the_data_type.children, params_data_type)
+
+        next_token(stream, []token_type { .CLOSING_BRACKET })
+
+        if peek_token(stream).type == .ARROW
+        {
+            next_token(stream, []token_type { .ARROW })
+
+            return_data_type := parse_type(stream)
+            append(&the_data_type.children, return_data_type)
+        }
+    }
+
+    the_data_type.length = 1
     if peek_token(stream).type == .OPENING_SQUARE_BRACKET
     {
         next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
 
-        node.data_type.length = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
+        the_data_type.length = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
 
         next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
     }
@@ -564,7 +574,12 @@ parse_type :: proc(stream: ^token_stream, node: ^ast_node)
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
     token := next_token(stream, []token_type { .IDENTIFIER })
-    node = ast_node { .IDENTIFIER, token.value, "", { "", 1, false }, 0, {}, token.line_number, token.column_number }
+    node = ast_node {
+        type = .IDENTIFIER,
+        value = token.value,
+        line_number = token.line_number,
+        column_number = token.column_number
+    }
 
     return
 }
