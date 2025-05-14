@@ -122,6 +122,24 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
+    fmt.fprintln(file, "gettimeofday:")
+    fmt.fprintln(file, "  mov rax, 96 ; syscall: gettimeofday")
+    fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: exit_code")
+    fmt.fprintln(file, "  mov rsi, 0 ; arg1: timezone")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  ret ; return")
+
+    fmt.fprintln(file, "panic_out_of_bounds:")
+    fmt.fprintln(file, "  mov rax, 1 ; syscall: print")
+    fmt.fprintln(file, "  mov rdi, 1 ; arg0: fd (stdout)")
+    fmt.fprintln(file, "  mov rsi, panic_out_of_bounds_message ; arg1: buffer")
+    fmt.fprintln(file, "  mov rdx, 26 ; arg2: count")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
+    fmt.fprintln(file, "  mov rdi, 1 ; arg0: exit_code")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  ret ; return")
+
     for node in nodes
     {
         if node.type == .PROCEDURE
@@ -136,6 +154,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
     fmt.fprintln(file, "  f64_sign_mask: dq 0x8000000000000000")
+    fmt.fprintln(file, "  panic_out_of_bounds_message: dd \"Panic! Index out of bounds\"")
     for data_section_f32, index in ctx.data_section_f32s
     {
         final_f32 := data_section_f32
@@ -416,22 +435,23 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
 
     close_gen_context(file, ctx, &expression_ctx, "expression", true)
 
+    resolved_data_type := resolve_data_type(node.data_type)
     if node.type == .NIL && dest.type == .MEMORY
     {
         fmt.fprintfln(file, "  lea rdi, %s ; nil: dest", operand(dest))
-        fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(node.data_type, &expression_ctx))
+        fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(resolved_data_type, &expression_ctx))
         fmt.fprintln(file, "  mov rax, 0 ; nil: value")
         fmt.fprintln(file, "  rep stosb ; nil")
     }
     else
     {
-        copy(file, dest_1, dest, node.data_type, &expression_ctx, node.type == .NIL ? "nil" : "")
+        copy(file, dest_1, dest, resolved_data_type, &expression_ctx, node.type == .NIL ? "nil" : "")
     }
 }
 
 generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
-    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
+    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE && node.type != .MODULO
     {
         return generate_primary(file, node, ctx, register_num, contains_allocations)
     }
@@ -585,13 +605,14 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ast_node, lhs_
     case .MULTIPLY:
         result_location = copy_to_register(file, lhs_location, register_num, result_data_type, ctx)
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), operand(rhs_location))
-    case .DIVIDE:
-    // dividend / divisor
+    case .DIVIDE, .MODULO:
+        // dividend / divisor
         rhs_register_location := copy_to_non_immediate(file, rhs_location, register_num, result_data_type, ctx)
+        output_register := register(node.type == .DIVIDE ? "ax" : "dx", result_data_type, ctx)
         fmt.fprintfln(file, "  mov %s, 0 ; divide: assign zero to dividend high part", operand(register("dx", result_data_type, ctx)))
         fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", result_data_type, ctx)), operand(lhs_location))
         fmt.fprintfln(file, "  idiv %s ; divide", operand(rhs_register_location))
-        fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(result_location), operand(register("ax", result_data_type, ctx)))
+        fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(result_location), operand(output_register))
     case:
         assert(false, "Failed to generate expression")
     }
@@ -630,9 +651,32 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
         register_dest := copy_to_register(file, primary_dest, register_num, unknown_reference, ctx, "dereference")
         return memory(operand(register_dest), 0)
     case .INDEX:
-        primary_dest := generate_primary(file, node.children[0], ctx, register_num, contains_allocations)
-        primary_dest.offset += node.data_index * ctx.data_sizes[node.data_type.name]
-        return primary_dest
+        primary_location := generate_primary(file, node.children[0], ctx, register_num, contains_allocations)
+
+        if node.children[1].type == .NUMBER
+        {
+            primary_location.offset += strconv.atoi(node.children[1].value) * ctx.data_sizes[node.data_type.name]
+            return primary_location
+        }
+
+        expression_location := register(register_num + 1, node.children[1].data_type, ctx)
+        generate_expression(file, node.children[1], ctx, expression_location, register_num + 1)
+
+        if node.data_type.directive != "#boundless"
+        {
+            fmt.fprintfln(file, "  cmp %s, %s ; compare", operand(expression_location), operand(immediate(node.children[0].data_type.length)))
+            fmt.fprintln(file, "  jge panic_out_of_bounds ; panic!")
+        }
+
+        fmt.fprintfln(file, "  cmp %s, 0 ; compare", operand(expression_location))
+        fmt.fprintln(file, "  jl panic_out_of_bounds ; panic!")
+
+        address_location := register(register_num, unknown_reference, ctx)
+        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(address_location), operand(primary_location))
+        fmt.fprintfln(file, "  imul %s, %s ; multiply by data size", operand(expression_location), operand(immediate(byte_size_of(node.data_type, ctx))))
+        fmt.fprintfln(file, "  add %s, %s ; offset", operand(address_location), operand(expression_location))
+
+        return memory(operand(address_location), 0)
     case .CALL:
         return generate_call(file, node, ctx, register_num, false)
     case .IDENTIFIER:
@@ -696,7 +740,7 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
     name_node := node.children[0]
 
     params_data_type := node.data_type.children[0]
-    return_data_type := len(node.data_type.children) == 2 ? node.data_type.children[1] : {}
+    return_data_type := len(node.data_type.children) == 2 ? &node.data_type.children[1] : nil
 
     call_stack_size := 0
     return_only_call_stack_size := 0
@@ -706,8 +750,11 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
         {
             call_stack_size += byte_size_of(param_data_type, ctx)
         }
-        call_stack_size += byte_size_of(return_data_type, ctx)
-        return_only_call_stack_size += byte_size_of(return_data_type, ctx)
+        if return_data_type != nil
+        {
+            call_stack_size += byte_size_of(return_data_type^, ctx)
+            return_only_call_stack_size += byte_size_of(return_data_type^, ctx)
+        }
     }
 
     misalignment := (ctx.stack_size + call_stack_size) % 16
@@ -728,11 +775,11 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 
             if param_index < 4
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_data_type, ctx))
+                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_data_type, ctx), register_num)
             }
             else if param_index < 6
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_data_type, ctx))
+                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_data_type, ctx), register_num)
             }
             else
             {
@@ -748,7 +795,7 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
             param_node := node.children[param_index + 1]
 
             offset -= byte_size_of(param_data_type, ctx)
-            generate_expression(file, param_node, ctx, memory("rsp", offset))
+            generate_expression(file, param_node, ctx, memory("rsp", offset), register_num)
         }
 
         if !deallocate_return
@@ -769,14 +816,14 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 
     deallocate(file, call_stack_size, ctx)
 
-    if return_data_type.name == ""
+    if return_data_type == nil
     {
         return {}
     }
 
     if node.data_type.directive == "#extern"
     {
-        return register("ax", return_data_type, ctx)
+        return register("ax", return_data_type^, ctx)
     }
     else
     {
@@ -1076,6 +1123,8 @@ byte_size_of :: proc(data_type: data_type, ctx: ^gen_context) -> int
     {
         return address_size
     }
+
+    assert(data_type.name in ctx.data_sizes, "Unsupported byte size")
 
     return ctx.data_sizes[data_type.name] * data_type.length
 }

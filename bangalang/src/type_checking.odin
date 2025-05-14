@@ -48,6 +48,11 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
     append(&wait4.children[0].children, data_type { name = "i64", length = 1 })
     ctx.identifier_data_types["wait4"] = wait4
 
+    gettimeofday := data_type { name = "procedure", length = 1 }
+    append(&gettimeofday.children, data_type { name = "parameters", length = 1 })
+    append(&gettimeofday.children[0].children, data_type { name = "i64", is_reference = true, length = 2 })
+    ctx.identifier_data_types["gettimeofday"] = gettimeofday
+
     for node in nodes
     {
         if node.type == .PROCEDURE
@@ -362,16 +367,23 @@ type_check_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expe
         ok = false
     }
 
-    propagate_data_type(node, data_type)
+    upgrade_data_type(node, data_type)
 
     return
 }
 
 type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
 {
-    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE
+    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE && node.type != .MODULO
     {
+        directive := node.data_type.directive
         ok = type_check_primary(node, ctx)
+
+        if node.data_type.directive == ""
+        {
+            node.data_type.directive = directive
+        }
+
         return
     }
 
@@ -407,20 +419,20 @@ type_check_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) ->
         node.data_type = { name = "bool", length = 1 }
         if data_type.name == "number"
         {
-            propagate_data_type(lhs_node, { name = "f64", length = 1 })
-            propagate_data_type(rhs_node, { name = "f64", length = 1 })
+            upgrade_data_type(lhs_node, { name = "f64", length = 1 })
+            upgrade_data_type(rhs_node, { name = "f64", length = 1 })
         }
         else
         {
-            propagate_data_type(lhs_node, data_type)
-            propagate_data_type(rhs_node, data_type)
+            upgrade_data_type(lhs_node, data_type)
+            upgrade_data_type(rhs_node, data_type)
         }
     }
     else
     {
         node.data_type = data_type
-        propagate_data_type(lhs_node, data_type)
-        propagate_data_type(rhs_node, data_type)
+        upgrade_data_type(lhs_node, data_type)
+        upgrade_data_type(rhs_node, data_type)
     }
 
     if data_type.length > 1 || data_type.is_reference
@@ -529,10 +541,16 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         node.data_type = node.children[0].data_type
         node.data_type.length = 1
 
-        if node.data_index >= node.children[0].data_type.length
+        expression_ok := type_check_expression(&node.children[1], ctx, { name = "i64", length = 1 })
+        if !expression_ok
+        {
+            ok = false
+        }
+
+        if node.data_type.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= node.children[0].data_type.length
         {
             fmt.println("Failed to type check primary")
-            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier, node.line_number, node.column_number)
+            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", strconv.atoi(node.children[1].value), identifier, node.line_number, node.column_number)
             ok = false
         }
     case .CALL:
@@ -608,7 +626,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
     return
 }
 
-type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     identifier_node := node.type == .INDEX ? &node.children[0] : node
 
@@ -616,7 +634,7 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
     {
         fmt.println("Failed to type check variable")
         fmt.printfln("Undeclared identifier '%s' at line %i, column %i", identifier_node.value, node.line_number, node.column_number)
-        ok = false
+        return false
     }
 
     identifier_node.data_type = ctx.identifier_data_types[identifier_node.value]
@@ -640,16 +658,22 @@ type_check_variable :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok
 
         node.data_type = identifier_node.data_type
         node.data_type.length = 1
+
+        expression_ok := type_check_expression(&node.children[1], ctx, { name = "i64", length = 1 })
+        if !expression_ok
+        {
+            return false
+        }
+
+        if node.data_type.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= node.children[0].data_type.length
+        {
+            fmt.println("Failed to type check primary")
+            fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", strconv.atoi(node.children[1].value), identifier_node_copy.value, node.line_number, node.column_number)
+            return false
+        }
     }
 
-    if ok && identifier_node.data_type.directive != "#boundless" && node.data_index >= identifier_node_copy.data_type.length
-    {
-        fmt.println("Failed to type check variable")
-        fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", node.data_index, identifier_node_copy.value, node.line_number, node.column_number)
-        ok = false
-    }
-
-    return
+    return true
 }
 
 copy_type_checking_context := proc(ctx: type_checking_context, inline := false) -> type_checking_context
@@ -669,12 +693,12 @@ copy_type_checking_context := proc(ctx: type_checking_context, inline := false) 
 
 coerce_type :: proc(a: data_type, b: data_type) -> (data_type, bool)
 {
-    if a.name == "" || a.name == "nil"
+    if a.name == "" || a.name == "nil" || a.directive == "#untyped"
     {
         return b, true
     }
 
-    if b.name == "" || b.name == "nil"
+    if b.name == "" || b.name == "nil" || a.directive == "#untyped"
     {
         return a, true
     }
@@ -761,9 +785,9 @@ resolve_data_type :: proc(the_data_type: data_type) -> data_type
     return the_data_type
 }
 
-propagate_data_type :: proc(node: ^ast_node, data_type: data_type)
+upgrade_data_type :: proc(node: ^ast_node, data_type: data_type)
 {
-    if node.data_type.name != "number"
+    if node.data_type.name != "nil" && node.data_type.name != "number" && node.data_type.directive != "#untyped"
     {
         return
     }
@@ -771,6 +795,6 @@ propagate_data_type :: proc(node: ^ast_node, data_type: data_type)
     node.data_type = data_type
     for &child_node in node.children
     {
-        propagate_data_type(&child_node, data_type)
+        upgrade_data_type(&child_node, data_type)
     }
 }

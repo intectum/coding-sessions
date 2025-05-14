@@ -9,10 +9,10 @@ scope\ &\to\ \text{"\{"}\ statement^*\ \text{"\}"}\\
 declaration\ &\to\ identifier\ \text{":"}\ type?\ (\ \text{"="}\ expression\ )?\\
 assignment\ &\to\ variable\ \text{"="}\ expression\\
 return\ &\to\ \text{"return"}\ expression\\
-expression\ &\to\ primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ )\ primary\ )^*\\
-primary\ &\to\ (\ \text{"^"}\ |\ \text{"-"}\ )\ primary\ |\ primary\ (\ \text{"^"}\ |\ \text{"["}\ number\ \text{"]"}\ )\ |\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ \text{"nil"}\\
+expression\ &\to\ primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ primary\ )^*\\
+primary\ &\to\ (\ \text{"#untyped"}\ |\ \text{"^"}\ |\ \text{"-"}\ )\ primary\ |\ primary\ (\ \text{"^"}\ |\ \text{"["}\ expression\ \text{"]"}\ )\ |\ \text{"("}\ expression\ \text{")"}\ |\ call\ |\ identifier\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ \text{"nil"}\\
 call\ &\to\ identifier\ \text{"("}\ (\ expression\ (\ \text{","}\ expression\ )^*\ )?\ \text{")"}\\
-variable\ &\to\ identifier\ (\ \text{"["}\ number\ \text{"]"}\ )?\\
+variable\ &\to\ identifier\ (\ \text{"["}\ expression\ \text{"]"}\ )?\\
 string\ &\to\ \text{"""}\ (\ !\text{"""}\ )^*\ \text{"""}\\\
 cstring\ &\to\ \text{"c""}\ (\ !\text{"""}\ )^*\ \text{"""}\\\
 number\ &\to\ digit+\ (\ \text{"."}\ digit*\ )?\\

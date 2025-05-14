@@ -1,10 +1,10 @@
-/*
 glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
 glfwWindowShouldClose: #extern proc(window: ^i8) -> cint
 glfwPollEvents: #extern proc()
 glfwSwapBuffers: #extern proc(window: ^i8)
+glfwSwapInterval: #extern proc(interval: cint)
 
 GL_ARRAY_BUFFER: i32 = 34962
 GL_COLOR_BUFFER_BIT: i32 = 16384
@@ -39,6 +39,7 @@ gluErrorString: #extern proc(error: i32) -> #boundless ^i8
 glfwInit()
 window := glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
 glfwMakeContextCurrent(window)
+glfwSwapInterval(0)
 
 vertex_shader_src := c"#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
 vertex_shader_src_len: i32 = 86
@@ -50,42 +51,82 @@ fragment_shader_name := compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, 
 
 program_name := link_shaders(vertex_shader_name, fragment_shader_name)
 
+triangle_count_i32: i32 = 65536
+triangle_count_i64: i64 = 65536
+triangle_count_1d: f32 = 256
+triangle_size: f32 = 2 / triangle_count_1d
+
 buffer_name: i32
-buffer_size: i64 = 3 * 3 * 4
+buffer_size: i64 = triangle_count_i64 * 3 * 3 * 4
 buffer_access_hints: i32 = 194
 glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
 buffer_data := glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
 
-buffer_data[0] = 0.0
-buffer_data[1] = 0.5
-buffer_data[2] = 0.0
-
-buffer_data[3] = -0.5
-buffer_data[4] = -0.5
-buffer_data[5] = 0.0
-
-buffer_data[6] = 0.5
-buffer_data[7] = -0.5
-buffer_data[8] = 0.0
-
 glUseProgram(program_name) check_opengl_error()
 
 glEnableVertexAttribArray(0) check_opengl_error()
 glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nil) check_opengl_error()
 
-//clone(my_proc)
+fps_timeval: i64[2]
+gettimeofday(^fps_timeval)
+fps_time := fps_timeval[0] * 1000000 + fps_timeval[1]
+frame_count: i64
 
 for (glfwWindowShouldClose(window) == 0)
 {
     glfwPollEvents()
     glfwSwapBuffers(window)
 
-    // TODO rotate triangle
+    float_index: i64
+    for (x: f32 = -1, x < 0.9999, x = x + triangle_size)
+    {
+        for (y: f32 = -1, y < 0.9999, y = y + triangle_size)
+        {
+            buffer_data[float_index] = x + triangle_size * 0.5
+            float_index = float_index + 1
+            buffer_data[float_index] = y + triangle_size
+            float_index = float_index + 1
+            buffer_data[float_index] = 0
+            float_index = float_index + 1
+
+            buffer_data[float_index] = x
+            float_index = float_index + 1
+            buffer_data[float_index] = y
+            float_index = float_index + 1
+            buffer_data[float_index] = 0
+            float_index = float_index + 1
+
+            buffer_data[float_index] = x + triangle_size
+            float_index = float_index + 1
+            buffer_data[float_index] = y
+            float_index = float_index + 1
+            buffer_data[float_index] = 0
+            float_index = float_index + 1
+        }
+    }
 
     glClear(GL_COLOR_BUFFER_BIT) check_opengl_error()
-    glDrawArrays(GL_TRIANGLES, 0, 3) check_opengl_error()
+    glDrawArrays(GL_TRIANGLES, 0, triangle_count_i32 * 3) check_opengl_error()
+
+    timeval: i64[2]
+    gettimeofday(^timeval)
+    time := timeval[0] * 1000000 + timeval[1]
+    if (time > fps_time + 1000000)
+    {
+        fps_string_bytes: i8[100]
+        fps_string_len := itoa(frame_count, ^fps_string_bytes)
+
+        print("FPS: ")
+        printb(^fps_string_bytes, fps_string_len)
+        print("\n")
+
+        frame_count = 0
+        fps_time = time
+    }
+
+    frame_count = frame_count + 1
 }
 
 compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
@@ -136,7 +177,6 @@ check_opengl_error: proc() =
         printb(gluErrorString(error), 100)
     }
 }
-*/
 
 assert: proc(assertion: bool, message: string) =
 {
@@ -148,11 +188,25 @@ assert: proc(assertion: bool, message: string) =
     }
 }
 
-hello_thread: proc() =
-{
-    print("Hello, thread!")
-    exit(0)
-}
+i8_cast: proc(value: i64) -> i8 = return #untyped value
 
-child_pid := clone(hello_thread)
-wait4(child_pid)
+itoa: proc(value: i64, string_bytes: #boundless ^i8) -> i64 =
+{
+    length: i64 = 0
+    string_bytes_reversed: i8[100]
+
+    for (value > 0)
+    {
+        string_bytes_reversed[length] = i8_cast(value % 10) + 48 // '0'
+
+        value = value / 10
+        length = length + 1
+    }
+
+    for (index: i64, index < length, index = index + 1)
+    {
+        string_bytes[index] = string_bytes_reversed[length - 1 - index]
+    }
+
+    return length
+}

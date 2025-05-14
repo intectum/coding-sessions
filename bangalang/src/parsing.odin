@@ -23,6 +23,7 @@ ast_node_type :: enum
     SUBTRACT,
     MULTIPLY,
     DIVIDE,
+    MODULO,
     REFERENCE,
     DEREFERENCE,
     NEGATE,
@@ -51,7 +52,6 @@ ast_node :: struct
     type: ast_node_type,
     value: string,
     data_type: data_type,
-    data_index: int,
     children: [dynamic]ast_node,
     line_number: int,
     column_number: int
@@ -363,6 +363,11 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
 
     #partial switch peek_token(stream).type
     {
+    case .DIRECTIVE:
+        directive := next_token(stream, []token_type { .DIRECTIVE }).value
+
+        node = parse_primary(stream)
+        node.data_type.directive = directive
     case .HAT:
         next_token(stream, []token_type { .HAT })
 
@@ -435,12 +440,14 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
 
         node = {
             type = .INDEX,
-            data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value),
             line_number = child_node.line_number,
             column_number = child_node.column_number
         }
 
         append(&node.children, child_node)
+
+        expression_node := parse_expression(stream)
+        append(&node.children, expression_node)
 
         next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
     }
@@ -488,12 +495,14 @@ parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
 
         node = {
             type = .INDEX,
-            data_index = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value),
             line_number = child_node.line_number,
             column_number = child_node.column_number
         }
 
         append(&node.children, child_node)
+
+        expression_node := parse_expression(stream)
+        append(&node.children, expression_node)
 
         next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
     }
@@ -588,7 +597,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH, .PERCENT:
         return true
     case:
         return false
@@ -603,7 +612,7 @@ binary_operator_precedence :: proc(token: token) -> int
         return 1
     case .PLUS, .MINUS:
         return 2
-    case .ASTERISK, .BACKSLASH:
+    case .ASTERISK, .BACKSLASH, .PERCENT:
         return 3
     case:
         fmt.println("Failed to determine binary operator precedence")
@@ -636,6 +645,8 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
         return .MULTIPLY
     case .BACKSLASH:
         return .DIVIDE
+    case .PERCENT:
+        return .MODULO
     case:
         fmt.println("Failed to find ast node type")
         fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)

@@ -25,6 +25,7 @@ token_type :: enum
   MINUS,
   ASTERISK,
   BACKSLASH,
+  PERCENT,
   COMMA,
   HAT,
   ARROW,
@@ -221,6 +222,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
   fixed_token_types["-"] = .MINUS
   fixed_token_types["*"] = .ASTERISK
   fixed_token_types["/"] = .BACKSLASH
+  fixed_token_types["%"] = .PERCENT
   fixed_token_types[","] = .COMMA
   fixed_token_types["^"] = .HAT
   fixed_token_types["->"] = .ARROW
