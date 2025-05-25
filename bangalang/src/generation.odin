@@ -236,12 +236,10 @@ generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, i
         generate_for(file, node, ctx)
     case .SCOPE:
         generate_scope(file, node, ctx, include_end_label)
-    case .DECLARATION:
-        generate_declaration(file, node, ctx)
-    case .ASSIGNMENT:
-        generate_assignment(file, node, ctx)
     case .RETURN:
         generate_return(file, node, ctx)
+    case .ASSIGNMENT:
+        generate_assignment(file, node, ctx)
     case .CALL:
         fmt.fprintln(file, "  ; call")
         generate_call(file, node, ctx, 0, true)
@@ -320,9 +318,9 @@ generate_for :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     child_node := node.children[child_index]
     child_index += 1
 
-    if child_node.type == .DECLARATION
+    if child_node.type == .ASSIGNMENT
     {
-        generate_declaration(file, child_node, &for_ctx)
+        generate_assignment(file, child_node, &for_ctx)
 
         child_node = node.children[child_index]
         child_index += 1
@@ -373,40 +371,6 @@ generate_scope :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, inclu
     fmt.fprintln(file, "; scope end")
 }
 
-generate_declaration :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
-{
-    fmt.fprintln(file, "  ; declare")
-
-    lhs_node := node.children[0]
-
-    byte_size := byte_size_of(lhs_node.data_type, ctx)
-
-    allocate(file, byte_size, ctx)
-    ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
-
-    if len(node.children) > 1
-    {
-        rhs_node := node.children[1]
-
-        generate_expression(file, rhs_node, ctx, memory("rsp", 0))
-    }
-    else
-    {
-        generate_expression(file, { type = .NIL, data_type = lhs_node.data_type }, ctx, memory("rsp", 0))
-    }
-}
-
-generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
-{
-    fmt.fprintln(file, "  ; assign")
-
-    lhs_node := node.children[0]
-    rhs_node := node.children[1]
-
-    dest := generate_primary(file, lhs_node, ctx, 0, false)
-    generate_expression(file, rhs_node, ctx, dest, 1)
-}
-
 generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 {
     fmt.fprintln(file, "  ; return")
@@ -425,6 +389,24 @@ generate_return :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
         copy(file, immediate(60), register("ax", expression_node.data_type, ctx), expression_node.data_type, ctx)
         fmt.fprintln(file, "  syscall ; call kernel")
     }
+}
+
+generate_assignment :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
+{
+    fmt.fprintln(file, "  ; assign")
+
+    lhs_node := node.children[0]
+
+    if !(lhs_node.value in ctx.stack_variable_offsets) && len(lhs_node.children) == 0
+    {
+        allocate(file, byte_size_of(lhs_node.data_type, ctx), ctx)
+        ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
+    }
+
+    dest := generate_primary(file, lhs_node, ctx, 0, false)
+
+    rhs_node := len(node.children) == 2 ? node.children[1] : { type = .NIL, data_type = lhs_node.data_type }
+    generate_expression(file, rhs_node, ctx, dest, 1)
 }
 
 generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, dest: location, register_num: int = 0)
@@ -685,8 +667,24 @@ generate_primary :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, reg
             return immediate(node.value)
         }
 
-        variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
+        if len(node.children) == 1
+        {
+            primary_location := generate_primary(file, node.children[0], ctx, register_num, contains_allocations)
 
+            for member_data_type in node.children[0].data_type.children
+            {
+                if member_data_type.identifier == node.value
+                {
+                    break
+                }
+
+                primary_location.offset += byte_size_of(member_data_type, ctx)
+            }
+
+            return primary_location
+        }
+
+        variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
         if contains_allocations
         {
             return copy_stack_address(file, ctx, variable_position, register_num)
@@ -1122,6 +1120,17 @@ byte_size_of :: proc(data_type: data_type, ctx: ^gen_context) -> int
     if data_type.is_reference
     {
         return address_size
+    }
+
+    if data_type.name == "struct"
+    {
+        byte_size := 0
+        for member_data_type in data_type.children
+        {
+            byte_size += byte_size_of(member_data_type, ctx)
+        }
+
+        return byte_size
     }
 
     assert(data_type.name in ctx.data_sizes, "Unsupported byte size")

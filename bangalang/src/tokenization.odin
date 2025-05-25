@@ -26,6 +26,7 @@ token_type :: enum
   ASTERISK,
   BACKSLASH,
   PERCENT,
+  PERIOD,
   COMMA,
   HAT,
   ARROW,
@@ -41,7 +42,7 @@ token_type :: enum
   END_OF_FILE
 }
 
-keywords: []string = { "else", "for", "if", "proc", "return" }
+keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
 
 data_types: []string = { "bool", "cint", "cstring", "f32", "f64", "i8", "i16", "i32", "i64", "string" }
 
@@ -136,24 +137,10 @@ peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
   return stream.tokens[stream.next_index + offset]
 }
 
-next_token :: proc
-{
-  next_token_any,
-  next_token_of_type_and_value,
-  next_token_of_types
-}
-
-next_token_any :: proc(stream: ^token_stream) -> token
+next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> token
 {
   next_token := peek_token(stream)
   stream.next_index += 1
-
-  return next_token
-}
-
-next_token_of_type_and_value :: proc(stream: ^token_stream, type: token_type, value: string) -> token
-{
-  next_token := next_token_any(stream)
 
   if next_token.type != type
   {
@@ -163,36 +150,11 @@ next_token_of_type_and_value :: proc(stream: ^token_stream, type: token_type, va
     os.exit(1)
   }
 
-  if next_token.value != value
+  if value != "" && next_token.value != value
   {
     fmt.printfln("Invalid token at line %i, column %i", next_token.line_number, next_token.column_number)
     fmt.printfln("Expected: %s", value)
     fmt.printfln("Found: %s", next_token.value)
-    os.exit(1)
-  }
-
-  return next_token
-}
-
-next_token_of_types :: proc(stream: ^token_stream, types: []token_type) -> token
-{
-  next_token := next_token_any(stream)
-
-  type_found := false
-  for type in types
-  {
-    if type == next_token.type
-    {
-      type_found = true
-      break
-    }
-  }
-
-  if !type_found
-  {
-    fmt.printfln("Invalid token at line %i, column %i", next_token.line_number, next_token.column_number)
-    fmt.printfln("Expected type: %s", types)
-    fmt.printfln("Found type: %s", next_token.type)
     os.exit(1)
   }
 
@@ -223,6 +185,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
   fixed_token_types["*"] = .ASTERISK
   fixed_token_types["/"] = .BACKSLASH
   fixed_token_types["%"] = .PERCENT
+  fixed_token_types["."] = .PERIOD
   fixed_token_types[","] = .COMMA
   fixed_token_types["^"] = .HAT
   fixed_token_types["->"] = .ARROW

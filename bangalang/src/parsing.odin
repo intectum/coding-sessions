@@ -10,7 +10,6 @@ ast_node_type :: enum
     IF,
     FOR,
     SCOPE,
-    DECLARATION,
     ASSIGNMENT,
     RETURN,
     EQUAL,
@@ -86,13 +85,13 @@ parse_procedure :: proc(stream: ^token_stream) -> (node: ast_node)
     name_node := parse_identifier(stream)
     append(&node.children, name_node)
 
-    next_token(stream, []token_type { .COLON })
+    next_token(stream, .COLON)
 
     node.data_type = parse_type(stream)
 
     if peek_token(stream).type == .EQUALS
     {
-        next_token(stream, []token_type { .EQUALS })
+        next_token(stream, .EQUALS)
 
         statement_node := parse_statement(stream)
         append(&node.children, statement_node)
@@ -108,19 +107,10 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node)
     case .IDENTIFIER:
         #partial switch peek_token(stream, 1).type
         {
-        case .COLON:
-            node = parse_declaration(stream)
-        case .EQUALS:
-            node = parse_assignment(stream)
         case .OPENING_BRACKET:
             node = parse_call(stream)
-        case .OPENING_SQUARE_BRACKET:
-            node = parse_assignment(stream)
         case:
-            token := peek_token(stream, 1)
-            fmt.println("Failed to parse statement")
-            fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
-            os.exit(1)
+            node = parse_assignment(stream)
         }
     case .KEYWORD:
         if peek_token(stream).value == "for"
@@ -162,12 +152,12 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, token_type.KEYWORD, "if")
 
-    next_token(stream, []token_type { .OPENING_BRACKET })
+    next_token(stream, .OPENING_BRACKET)
 
-    expression_node := parse_expression(stream)
+    expression_node := parse_rhs_expression(stream)
     append(&node.children, expression_node)
 
-    next_token(stream, []token_type { .CLOSING_BRACKET })
+    next_token(stream, .CLOSING_BRACKET)
 
     statement_node := parse_statement(stream)
     append(&node.children, statement_node)
@@ -177,12 +167,12 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node)
         next_token(stream, token_type.KEYWORD, "else")
         next_token(stream, token_type.KEYWORD, "if")
 
-        next_token(stream, []token_type { .OPENING_BRACKET })
+        next_token(stream, .OPENING_BRACKET)
 
-        else_if_expression_node := parse_expression(stream)
+        else_if_expression_node := parse_rhs_expression(stream)
         append(&node.children, else_if_expression_node)
 
-        next_token(stream, []token_type { .CLOSING_BRACKET })
+        next_token(stream, .CLOSING_BRACKET)
 
         else_if_statement_node := parse_statement(stream)
         append(&node.children, else_if_statement_node)
@@ -207,29 +197,29 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node)
 
     next_token(stream, token_type.KEYWORD, "for")
 
-    next_token(stream, []token_type { .OPENING_BRACKET })
+    next_token(stream, .OPENING_BRACKET)
 
     // TODO this is way too manual checking...
     if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .COLON
     {
-        declaration_node := parse_declaration(stream)
-        append(&node.children, declaration_node)
+        pre_assignment_node := parse_assignment(stream)
+        append(&node.children, pre_assignment_node)
 
-        next_token(stream, []token_type { .COMMA })
+        next_token(stream, .COMMA)
     }
 
-    expression_node := parse_expression(stream)
+    expression_node := parse_rhs_expression(stream)
     append(&node.children, expression_node)
 
     if peek_token(stream).type == .COMMA
     {
-        next_token(stream, []token_type { .COMMA })
+        next_token(stream, .COMMA)
 
-        assignment_node := parse_assignment(stream)
-        append(&node.children, assignment_node)
+        post_assignment_node := parse_assignment(stream)
+        append(&node.children, post_assignment_node)
     }
 
-    next_token(stream, []token_type { .CLOSING_BRACKET })
+    next_token(stream, .CLOSING_BRACKET)
 
     statement_node := parse_statement(stream)
     append(&node.children, statement_node)
@@ -243,13 +233,13 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node)
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    next_token(stream, []token_type { .OPENING_SQUIGGLY_BRACKET })
+    next_token(stream, .OPENING_SQUIGGLY_BRACKET)
 
     for stream.next_index < len(stream.tokens)
     {
         if peek_token(stream).type == .CLOSING_SQUIGGLY_BRACKET
         {
-            next_token(stream, []token_type { .CLOSING_SQUIGGLY_BRACKET })
+            next_token(stream, .CLOSING_SQUIGGLY_BRACKET)
             return
         }
 
@@ -260,31 +250,16 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node)
     os.exit(1)
 }
 
-parse_declaration :: proc(stream: ^token_stream) -> (node: ast_node)
+parse_return :: proc(stream: ^token_stream) -> (node: ast_node)
 {
-    node.type = .DECLARATION
+    node.type = .RETURN
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    lhs_node := parse_identifier(stream)
+    next_token(stream, token_type.KEYWORD, "return")
 
-    next_token(stream, []token_type { .COLON })
-
-    // TODO this is way too manual checking...
-    if peek_token(stream).type == .DATA_TYPE || peek_token(stream).type == .HAT || peek_token(stream).type == .DIRECTIVE
-    {
-        lhs_node.data_type = parse_type(stream)
-    }
-
-    append(&node.children, lhs_node)
-
-    if peek_token(stream).type == .EQUALS
-    {
-        next_token(stream, []token_type { .EQUALS })
-
-        rhs_node := parse_expression(stream)
-        append(&node.children, rhs_node)
-    }
+    expression_node := parse_rhs_expression(stream)
+    append(&node.children, expression_node)
 
     return
 }
@@ -295,38 +270,41 @@ parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node)
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    lhs_node := parse_variable(stream)
+    lhs_node := parse_lhs_expression(stream)
     append(&node.children, lhs_node)
 
-    next_token(stream, []token_type { .EQUALS })
+    if peek_token(stream).type == .EQUALS
+    {
+        next_token(stream, .EQUALS)
 
-    rhs_node := parse_expression(stream)
-    append(&node.children, rhs_node)
+        rhs_node := parse_rhs_expression(stream)
+        append(&node.children, rhs_node)
+    }
 
     return
 }
 
-parse_return :: proc(stream: ^token_stream) -> (node: ast_node)
+parse_lhs_expression :: proc(stream: ^token_stream) -> (node: ast_node)
 {
-    node.type = .RETURN
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node = parse_primary(stream, true)
 
-    next_token(stream, token_type.KEYWORD, "return")
+    if peek_token(stream).type == .COLON
+    {
+        next_token(stream, .COLON)
 
-    expression_node := parse_expression(stream)
-    append(&node.children, expression_node)
+        node.data_type = parse_type(stream)
+    }
 
     return
 }
 
 // Based on https://en.wikipedia.org/wiki/Operator-precedence_parser#Pseudocode
-parse_expression :: proc(stream: ^token_stream) -> (node: ast_node)
+parse_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_node)
 {
-    return parse_expression_1(stream, parse_primary(stream), 0)
+    return parse_rhs_expression_1(stream, parse_primary(stream, false), 0)
 }
 
-parse_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precedence: int) -> (final_lhs: ast_node)
+parse_rhs_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precedence: int) -> (final_lhs: ast_node)
 {
     final_lhs = lhs
 
@@ -334,13 +312,13 @@ parse_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precedence:
     for is_binary_operator(lookahead) && binary_operator_precedence(lookahead) >= min_precedence
     {
         op := lookahead
-        next_token(stream)
-        rhs := parse_primary(stream)
+        next_token(stream, op.type)
+        rhs := parse_primary(stream, false)
         lookahead = peek_token(stream)
         for is_binary_operator(lookahead) && binary_operator_precedence(lookahead) > binary_operator_precedence(op)
         {
             // NOTE: Need to re-check pseudo code for min_precedence if adding support for right-associative operators
-            rhs = parse_expression_1(stream, rhs, binary_operator_precedence(op) + 1)
+            rhs = parse_rhs_expression_1(stream, rhs, binary_operator_precedence(op) + 1)
             lookahead = peek_token(stream)
         }
 
@@ -356,73 +334,80 @@ parse_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precedence:
     return
 }
 
-parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
+parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node)
 {
     node.line_number = peek_token(stream).line_number
     node.column_number = peek_token(stream).column_number
 
-    #partial switch peek_token(stream).type
+    if lhs
     {
-    case .DIRECTIVE:
-        directive := next_token(stream, []token_type { .DIRECTIVE }).value
-
-        node = parse_primary(stream)
-        node.data_type.directive = directive
-    case .HAT:
-        next_token(stream, []token_type { .HAT })
-
-        node.type = .REFERENCE
-
-        primary_node := parse_primary(stream)
-        append(&node.children, primary_node)
-    case .MINUS:
-        next_token(stream, []token_type { .MINUS })
-
-        node.type = .NEGATE
-
-        primary_node := parse_primary(stream)
-        append(&node.children, primary_node)
-    case .OPENING_BRACKET:
-        next_token(stream, []token_type { .OPENING_BRACKET })
-
-        node = parse_expression(stream)
-
-        next_token(stream, []token_type { .CLOSING_BRACKET })
-    case .IDENTIFIER:
-        if peek_token(stream, 1).type == .OPENING_BRACKET
+        node = parse_identifier(stream)
+    }
+    else
+    {
+        #partial switch peek_token(stream).type
         {
-            node = parse_call(stream)
+        case .DIRECTIVE:
+            directive := next_token(stream, .DIRECTIVE).value
+
+            node = parse_primary(stream, lhs)
+            node.data_type.directive = directive
+        case .HAT:
+            next_token(stream, .HAT)
+
+            node.type = .REFERENCE
+
+            primary_node := parse_primary(stream, lhs)
+            append(&node.children, primary_node)
+        case .MINUS:
+            next_token(stream, .MINUS)
+
+            node.type = .NEGATE
+
+            primary_node := parse_primary(stream, lhs)
+            append(&node.children, primary_node)
+        case .OPENING_BRACKET:
+            next_token(stream, .OPENING_BRACKET)
+
+            node = parse_rhs_expression(stream)
+
+            next_token(stream, .CLOSING_BRACKET)
+        case .IDENTIFIER:
+            if peek_token(stream, 1).type == .OPENING_BRACKET
+            {
+                node = parse_call(stream)
+            }
+            else
+            {
+                node = parse_identifier(stream)
+            }
+        case .STRING:
+            node.type = .STRING
+            node.value = next_token(stream, .STRING).value
+        case .CSTRING:
+            node.type = .CSTRING
+            node.value = next_token(stream, .CSTRING).value
+        case .NUMBER:
+            node.type = .NUMBER
+            node.value = next_token(stream, .NUMBER).value
+        case .BOOLEAN:
+            node.type = .BOOLEAN
+            node.value = next_token(stream, .BOOLEAN).value
+        case .NIL:
+            node.type = .NIL
+            node.value = next_token(stream, .NIL).value
+        case:
+            token := peek_token(stream)
+            fmt.println("Failed to parse primary")
+            fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
+            os.exit(1)
         }
-        else
-        {
-            node = parse_identifier(stream)
-        }
-    case .STRING:
-        node.type = .STRING
-        node.value = next_token(stream, []token_type { .STRING }).value
-    case .CSTRING:
-        node.type = .CSTRING
-        node.value = next_token(stream, []token_type { .CSTRING }).value
-    case .NUMBER:
-        node.type = .NUMBER
-        node.value = next_token(stream, []token_type { .NUMBER }).value
-    case .BOOLEAN:
-        node.type = .BOOLEAN
-        node.value = next_token(stream, []token_type { .BOOLEAN }).value
-    case .NIL:
-        node.type = .NIL
-        node.value = next_token(stream, []token_type { .NIL }).value
-    case:
-        token := peek_token(stream)
-        fmt.println("Failed to parse primary")
-        fmt.printfln("Invalid token '%s' at line %i, column %i", token.value, token.line_number, token.column_number)
-        os.exit(1)
     }
 
     #partial switch peek_token(stream).type
     {
     case .HAT:
-        next_token(stream, []token_type { .HAT })
+        next_token(stream, .HAT)
 
         child_node := node
 
@@ -434,7 +419,7 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
 
         append(&node.children, child_node)
     case .OPENING_SQUARE_BRACKET:
-        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
+        next_token(stream, .OPENING_SQUARE_BRACKET)
 
         child_node := node
 
@@ -446,10 +431,24 @@ parse_primary :: proc(stream: ^token_stream) -> (node: ast_node)
 
         append(&node.children, child_node)
 
-        expression_node := parse_expression(stream)
+        expression_node := parse_rhs_expression(stream)
         append(&node.children, expression_node)
 
-        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
+        next_token(stream, .CLOSING_SQUARE_BRACKET)
+    case .PERIOD:
+        next_token(stream, .PERIOD)
+
+        child_node := node
+
+        node = parse_primary(stream, lhs)
+
+        leaf_node := &node
+        for len(leaf_node.children) == 1
+        {
+            leaf_node = &leaf_node.children[0]
+        }
+
+        append(&leaf_node.children, child_node)
     }
 
     return
@@ -464,48 +463,21 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node)
     name_node := parse_identifier(stream)
     append(&node.children, name_node)
 
-    next_token(stream, []token_type { .OPENING_BRACKET })
+    next_token(stream, .OPENING_BRACKET)
 
     for peek_token(stream).type != .CLOSING_BRACKET
     {
-        param_node := parse_expression(stream)
+        param_node := parse_rhs_expression(stream)
         append(&node.children, param_node)
 
         // TODO allows comma at end of params
         if peek_token(stream).type != .CLOSING_BRACKET
         {
-            next_token(stream, []token_type { .COMMA })
+            next_token(stream, .COMMA)
         }
     }
 
-    next_token(stream, []token_type { .CLOSING_BRACKET })
-
-    return
-}
-
-parse_variable :: proc(stream: ^token_stream) -> (node: ast_node)
-{
-    node = parse_identifier(stream)
-
-    if peek_token(stream).type == .OPENING_SQUARE_BRACKET
-    {
-        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
-
-        child_node := node
-
-        node = {
-            type = .INDEX,
-            line_number = child_node.line_number,
-            column_number = child_node.column_number
-        }
-
-        append(&node.children, child_node)
-
-        expression_node := parse_expression(stream)
-        append(&node.children, expression_node)
-
-        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
-    }
+    next_token(stream, .CLOSING_BRACKET)
 
     return
 }
@@ -514,67 +486,99 @@ parse_type :: proc(stream: ^token_stream) -> (the_data_type: data_type)
 {
     if peek_token(stream).type == .DIRECTIVE
     {
-        the_data_type.directive = next_token(stream, []token_type { .DIRECTIVE }).value
+        the_data_type.directive = next_token(stream, .DIRECTIVE).value
     }
 
     if peek_token(stream).type == .HAT
     {
-        next_token(stream, []token_type { .HAT })
+        next_token(stream, .HAT)
         the_data_type.is_reference = true
     }
 
-    if peek_token(stream).type == .DATA_TYPE
+    #partial switch peek_token(stream).type
     {
-        the_data_type.name = next_token(stream, []token_type { .DATA_TYPE }).value
-    }
-    else
-    {
-        next_token(stream, token_type.KEYWORD, "proc")
-        the_data_type.name = "procedure"
-
-        next_token(stream, []token_type { .OPENING_BRACKET })
-
-        params_data_type := data_type { name = "parameters", length = 1 }
-
-        for peek_token(stream).type != .CLOSING_BRACKET
+    case .DATA_TYPE:
+        the_data_type.name = next_token(stream, .DATA_TYPE).value
+    case .KEYWORD:
+        switch peek_token(stream).value
         {
-            param_identifier := next_token(stream, []token_type { .IDENTIFIER }).value
+        case "proc":
+            next_token(stream, token_type.KEYWORD, "proc")
+            the_data_type.name = "procedure"
 
-            next_token(stream, []token_type { .COLON })
+            next_token(stream, .OPENING_BRACKET)
 
-            param_data_type := parse_type(stream)
-            param_data_type.identifier = param_identifier
+            params_data_type := data_type { name = "parameters", length = 1 }
 
-            append(&params_data_type.children, param_data_type)
-
-            // TODO allows comma at end of params
-            if peek_token(stream).type != .CLOSING_BRACKET
+            for peek_token(stream).type != .CLOSING_BRACKET
             {
-                next_token(stream, []token_type { .COMMA })
+                param_identifier := next_token(stream, .IDENTIFIER).value
+
+                next_token(stream, .COLON)
+
+                param_data_type := parse_type(stream)
+                param_data_type.identifier = param_identifier
+
+                append(&params_data_type.children, param_data_type)
+
+                // TODO allows comma at end of params
+                if peek_token(stream).type != .CLOSING_BRACKET
+                {
+                    next_token(stream, .COMMA)
+                }
             }
+
+            append(&the_data_type.children, params_data_type)
+
+            next_token(stream, .CLOSING_BRACKET)
+
+            if peek_token(stream).type == .ARROW
+            {
+                next_token(stream, .ARROW)
+
+                return_data_type := parse_type(stream)
+                append(&the_data_type.children, return_data_type)
+            }
+        case "struct":
+            next_token(stream, token_type.KEYWORD, "struct")
+            the_data_type.name = "struct"
+
+            next_token(stream, .OPENING_SQUIGGLY_BRACKET)
+
+            for peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
+            {
+                member_identifier := next_token(stream, .IDENTIFIER).value
+
+                next_token(stream, .COLON)
+
+                member_data_type := parse_type(stream)
+                member_data_type.identifier = member_identifier
+
+                append(&the_data_type.children, member_data_type)
+
+                // TODO allows comma at end of params
+                if peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
+                {
+                    next_token(stream, .COMMA)
+                }
+            }
+
+            next_token(stream, .CLOSING_SQUIGGLY_BRACKET)
+        case:
+            assert(false, "Failed to parse type")
         }
-
-        append(&the_data_type.children, params_data_type)
-
-        next_token(stream, []token_type { .CLOSING_BRACKET })
-
-        if peek_token(stream).type == .ARROW
-        {
-            next_token(stream, []token_type { .ARROW })
-
-            return_data_type := parse_type(stream)
-            append(&the_data_type.children, return_data_type)
-        }
+    case:
+        assert(false, "Failed to parse type")
     }
 
     the_data_type.length = 1
     if peek_token(stream).type == .OPENING_SQUARE_BRACKET
     {
-        next_token(stream, []token_type { .OPENING_SQUARE_BRACKET })
+        next_token(stream, .OPENING_SQUARE_BRACKET)
 
-        the_data_type.length = strconv.atoi(next_token(stream, []token_type { .NUMBER }).value)
+        the_data_type.length = strconv.atoi(next_token(stream, .NUMBER).value)
 
-        next_token(stream, []token_type { .CLOSING_SQUARE_BRACKET })
+        next_token(stream, .CLOSING_SQUARE_BRACKET)
     }
 
     return
@@ -582,7 +586,7 @@ parse_type :: proc(stream: ^token_stream) -> (the_data_type: data_type)
 
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node)
 {
-    token := next_token(stream, []token_type { .IDENTIFIER })
+    token := next_token(stream, .IDENTIFIER)
     node = ast_node {
         type = .IDENTIFIER,
         value = token.value,

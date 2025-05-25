@@ -14,11 +14,11 @@
 
 b0: bool = true
 assert(b0 == true, "TEST: Declaration from bool")
-b1 := b0
+b1 = b0
 assert(b1 == true, "TEST: Declaration from bool var")
 i0: i8 = 1
 assert(i0 == 1, "TEST: Declaration from number")
-i1 := i0
+i1 = i0
 assert(i1 == 1, "TEST: Declaration from number var")
 a0: i8[10]
 a0[2] = 42

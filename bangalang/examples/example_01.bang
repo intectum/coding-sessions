@@ -1,3 +1,4 @@
+/*
 glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
@@ -37,19 +38,19 @@ glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized
 gluErrorString: #extern proc(error: i32) -> #boundless ^i8
 
 glfwInit()
-window := glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
+window = glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
 glfwMakeContextCurrent(window)
 glfwSwapInterval(0)
 
-vertex_shader_src := c"#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
+vertex_shader_src = c"#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
 vertex_shader_src_len: i32 = 86
-vertex_shader_name := compile_shader(GL_VERTEX_SHADER, vertex_shader_src, vertex_shader_src_len)
+vertex_shader_name = compile_shader(GL_VERTEX_SHADER, vertex_shader_src, vertex_shader_src_len)
 
-fragment_shader_src := c"#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
+fragment_shader_src = c"#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
 fragment_shader_src_len: i32 = 86
-fragment_shader_name := compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, fragment_shader_src_len)
+fragment_shader_name = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, fragment_shader_src_len)
 
-program_name := link_shaders(vertex_shader_name, fragment_shader_name)
+program_name = link_shaders(vertex_shader_name, fragment_shader_name)
 
 triangle_count_i32: i32 = 65536
 triangle_count_i64: i64 = 65536
@@ -62,7 +63,7 @@ buffer_access_hints: i32 = 194
 glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
-buffer_data := glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
+buffer_data = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
 
 glUseProgram(program_name) check_opengl_error()
 
@@ -71,7 +72,7 @@ glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nil) check_opengl_error()
 
 fps_timeval: i64[2]
 gettimeofday(^fps_timeval)
-fps_time := fps_timeval[0] * 1000000 + fps_timeval[1]
+fps_time = fps_timeval[0] * 1000000 + fps_timeval[1]
 frame_count: i64
 
 for (glfwWindowShouldClose(window) == 0)
@@ -112,11 +113,11 @@ for (glfwWindowShouldClose(window) == 0)
 
     timeval: i64[2]
     gettimeofday(^timeval)
-    time := timeval[0] * 1000000 + timeval[1]
+    time = timeval[0] * 1000000 + timeval[1]
     if (time > fps_time + 1000000)
     {
         fps_string_bytes: i8[100]
-        fps_string_len := itoa(frame_count, ^fps_string_bytes)
+        fps_string_len = itoa(frame_count, ^fps_string_bytes)
 
         print("FPS: ")
         printb(^fps_string_bytes, fps_string_len)
@@ -131,7 +132,7 @@ for (glfwWindowShouldClose(window) == 0)
 
 compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
 {
-    name := glCreateShader(type) check_opengl_error()
+    name = glCreateShader(type) check_opengl_error()
     glShaderSource(name, 1, ^src, ^src_len) check_opengl_error()
     glCompileShader(name) check_opengl_error()
 
@@ -150,7 +151,7 @@ compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
 
 link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
 {
-    name := glCreateProgram() check_opengl_error()
+    name = glCreateProgram() check_opengl_error()
     glAttachShader(name, vertex_shader_name) check_opengl_error()
     glAttachShader(name, fragment_shader_name) check_opengl_error()
     glLinkProgram(name) check_opengl_error()
@@ -170,7 +171,7 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
 
 check_opengl_error: proc() =
 {
-    error := glGetError()
+    error = glGetError()
     GL_NO_ERROR: i32 = 0
     if (error != GL_NO_ERROR)
     {
@@ -210,3 +211,13 @@ itoa: proc(value: i64, string_bytes: #boundless ^i8) -> i64 =
 
     return length
 }
+*/
+
+//foo = struct { member1: i64, member2: i64 }
+
+my_struct: struct { member1: i64, member2: i64 }
+my_struct.member1 = 1
+my_struct.member2 = 2
+my_proc(my_struct)
+
+my_proc: proc(blah: struct { member1: i64, member2: i64 }) = exit(blah.member2)
