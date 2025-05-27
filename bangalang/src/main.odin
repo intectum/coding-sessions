@@ -58,7 +58,14 @@ compile :: proc(src_path: string, asm_path: string)
   tokens := tokenize(src)
 
   stream := token_stream { tokens = tokens[:] }
-  ast_nodes := parse_program(&stream)
+  ast_nodes, parse_ok := parse_program(&stream)
+  if !parse_ok
+  {
+    next_token := peek_token(&stream)
+    fmt.printfln("Failed to parse at line %i, column %i", next_token.line_number, next_token.column_number)
+    fmt.println(stream.error)
+    os.exit(1)
+  }
 
   type_check_ok := type_check_program(ast_nodes)
   if !type_check_ok

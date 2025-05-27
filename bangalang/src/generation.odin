@@ -72,7 +72,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
     for node in nodes
     {
-        if node.type != .PROCEDURE
+        if node.type != .ASSIGNMENT || node.children[0].data_type.name != "procedure"
         {
             generate_statement(file, node, &ctx)
         }
@@ -142,7 +142,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
     for node in nodes
     {
-        if node.type == .PROCEDURE
+        if node.type == .ASSIGNMENT && node.children[0].data_type.name == "procedure"
         {
             generate_procedure(file, node, &ctx)
         }
@@ -189,11 +189,11 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
 generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 {
-    name_node := node.children[0]
+    lhs_node := node.children[0]
 
-    if node.data_type.directive == "#extern"
+    if lhs_node.data_type.directive == "#extern"
     {
-        fmt.fprintfln(file, "extern %s", name_node.value)
+        fmt.fprintfln(file, "extern %s", lhs_node.value)
         return
     }
 
@@ -201,7 +201,7 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
     procedure_ctx.in_proc = true
 
     offset := 0
-    params_data_type := node.data_type.children[0]
+    params_data_type := lhs_node.data_type.children[0]
     for param_index := len(params_data_type.children) - 1; param_index >= 0; param_index -= 1
     {
         param_data_type := params_data_type.children[param_index]
@@ -212,7 +212,7 @@ generate_procedure :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context)
 
     procedure_ctx.stack_variable_offsets["[return]"] = offset
 
-    fmt.fprintfln(file, "%s:", name_node.value)
+    fmt.fprintfln(file, "%s:", lhs_node.value)
 
     // Account for the instruction pointer pushed to the stack by 'call'
     procedure_ctx.stack_size += address_size

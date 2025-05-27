@@ -16,7 +16,7 @@ numerical_data_types: []string = { "cint", "f32", "f64", "i8", "i16", "i32", "i6
 float_data_types: []string = { "f32", "f64" }
 signed_integer_data_types: []string = { "cint", "i8", "i16", "i32", "i64" }
 
-type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
+type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 {
     ctx: type_checking_context
 
@@ -55,150 +55,71 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> (ok: bool = true)
 
     for node in nodes
     {
-        if node.type == .PROCEDURE
+        if node.type == .ASSIGNMENT && node.children[0].data_type.name == "procedure"
         {
-            ctx.identifier_data_types[node.children[0].value] = node.data_type
+            ctx.identifier_data_types[node.children[0].value] = node.children[0].data_type
         }
     }
 
     for &node in nodes
     {
-        if node.type != .PROCEDURE
-        {
-            statement_ok := type_check_statement(&node, &ctx)
-            if !statement_ok
-            {
-                ok = false
-            }
-        }
+        type_check_statement(&node, &ctx) or_return
     }
 
-    for &node in nodes
-    {
-        if node.type == .PROCEDURE
-        {
-            procedure_ok := type_check_procedure(&node, &ctx)
-            if !procedure_ok
-            {
-                ok = false
-            }
-        }
-    }
-
-    return
+    return true
 }
 
-type_check_procedure :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
-{
-    name_node := node.children[0]
-
-    procedure_ctx := copy_type_checking_context(ctx^)
-    procedure_ctx.procedure_data_type = node.data_type
-
-    params_data_type := node.data_type.children[0]
-    for param_data_type in params_data_type.children
-    {
-        procedure_ctx.identifier_data_types[param_data_type.identifier] = param_data_type
-    }
-
-    if node.data_type.directive == "#extern" && len(node.children) == 2
-    {
-        fmt.println("Failed to type check procedure")
-        fmt.printfln("#extern procedure '%s' cannot have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
-        ok = false
-    }
-    else if node.data_type.directive != "#extern" && len(node.children) == 1
-    {
-        fmt.println("Failed to type check procedure")
-        fmt.printfln("Procedure '%s' must have a procedure body at line %i, column %i", name_node.value, node.line_number, node.column_number)
-        ok = false
-    }
-
-    if len(node.children) == 2
-    {
-        statement_node := &node.children[1]
-        statement_ok := type_check_statement(statement_node, &procedure_ctx)
-        if !statement_ok
-        {
-            ok = false
-        }
-    }
-
-    return
-}
-
-type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     #partial switch node.type
     {
     case .IF:
-        ok = type_check_if(node, ctx)
+        return type_check_if(node, ctx)
     case .FOR:
-        ok = type_check_for(node, ctx)
+        return type_check_for(node, ctx)
     case .SCOPE:
-        ok = type_check_scope(node, ctx)
+        return type_check_scope(node, ctx)
     case .RETURN:
-        ok = type_check_return(node, ctx)
+        return type_check_return(node, ctx)
     case .ASSIGNMENT:
-        ok = type_check_assignment(node, ctx)
+        return type_check_assignment(node, ctx)
     case .CALL:
-        ok = type_check_call(node, ctx)
-    case:
-        assert(false, "Failed to type check statement")
+        return type_check_call(node, ctx)
     }
 
-    return
+    assert(false, "Failed to type check statement")
+    return false
 }
 
-type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     child_index := 0
     expression_node := &node.children[child_index]
     child_index += 1
 
-    expression_ok := type_check_rhs_expression(expression_node, ctx, { name = "bool", length = 1 })
-    if !expression_ok
-    {
-        ok = false
-    }
+    type_check_rhs_expression(expression_node, ctx, { name = "bool", length = 1 }) or_return
 
     statement_node := &node.children[child_index]
     child_index += 1
 
-    statement_ok := type_check_statement(statement_node, ctx)
-    if !statement_ok
-    {
-        ok = false
-    }
+    type_check_statement(statement_node, ctx) or_return
 
     for child_index + 1 < len(node.children)
     {
-        else_if_expression_ok := type_check_rhs_expression(&node.children[child_index], ctx, { name = "bool", length = 1 })
-        if !else_if_expression_ok
-        {
-            ok = false
-        }
+        type_check_rhs_expression(&node.children[child_index], ctx, { name = "bool", length = 1 }) or_return
         child_index += 1
 
-        else_if_statement_ok := type_check_statement(&node.children[child_index], ctx)
-        if !else_if_statement_ok
-        {
-            ok = false
-        }
+        type_check_statement(&node.children[child_index], ctx) or_return
         child_index += 1
     }
 
     if child_index < len(node.children)
     {
-        else_statement_ok := type_check_statement(&node.children[child_index], ctx)
-        if !else_statement_ok
-        {
-            ok = false
-        }
+        type_check_statement(&node.children[child_index], ctx) or_return
         child_index += 1
     }
 
-    return
+    return true
 }
 
 type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
@@ -235,23 +156,19 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     return true
 }
 
-type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     scope_ctx := copy_type_checking_context(ctx^, true)
 
     for &child_node in node.children
     {
-        statement_ok := type_check_statement(&child_node, &scope_ctx)
-        if !statement_ok
-        {
-            ok = false
-        }
+        type_check_statement(&child_node, &scope_ctx) or_return
     }
 
-    return
+    return true
 }
 
-type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     expression_node := &node.children[0]
 
@@ -259,16 +176,12 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: 
     {
         fmt.println("Failed to type check right-hand-side expression")
         fmt.printfln("Procedure has no return type at line %i, column %i", node.line_number, node.column_number)
-        ok = false
+        return false
     }
 
-    expression_ok := type_check_rhs_expression(expression_node, ctx, ctx.procedure_data_type.children[1])
-    if !expression_ok
-    {
-        ok = false
-    }
+    type_check_rhs_expression(expression_node, ctx, ctx.procedure_data_type.children[1]) or_return
 
-    return
+    return true
 }
 
 type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
@@ -280,7 +193,49 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
     if len(node.children) == 2
     {
         rhs_node := &node.children[1]
-        type_check_rhs_expression(rhs_node, ctx, lhs_node.data_type) or_return
+
+        if lhs_node.data_type.name == "procedure"
+        {
+            if lhs_node.data_type.directive == "#extern"
+            {
+                fmt.println("Failed to type check assignment")
+                fmt.printfln("#extern procedure '%s' cannot have a procedure body at line %i, column %i", lhs_node.value, lhs_node.line_number, lhs_node.column_number)
+                return false
+            }
+
+            procedure_ctx := copy_type_checking_context(ctx^)
+            procedure_ctx.procedure_data_type = lhs_node.data_type
+
+            params_data_type := lhs_node.data_type.children[0]
+            for param_data_type in params_data_type.children
+            {
+                procedure_ctx.identifier_data_types[param_data_type.identifier] = param_data_type
+            }
+
+            if rhs_node.type != .IF && rhs_node.type != .FOR && rhs_node.type != .SCOPE && rhs_node.type != .RETURN && rhs_node.type != .ASSIGNMENT && rhs_node.type != .CALL
+            {
+                return_node := ast_node {
+                    type = .RETURN,
+                    line_number = rhs_node.line_number,
+                    column_number = rhs_node.column_number
+                }
+                append(&return_node.children, rhs_node^)
+                rhs_node^ = return_node
+            }
+
+            type_check_statement(rhs_node, &procedure_ctx) or_return
+        }
+        else
+        {
+            if rhs_node.type == .IF || rhs_node.type == .FOR || rhs_node.type == .SCOPE || rhs_node.type == .RETURN || rhs_node.type == .ASSIGNMENT
+            {
+                fmt.println("Failed to type check assignment")
+                fmt.printfln("Right-hand-side must be an expression at line %i, column %i", lhs_node.line_number, lhs_node.column_number)
+                return false
+            }
+
+            type_check_rhs_expression(rhs_node, ctx, lhs_node.data_type) or_return
+        }
 
         if lhs_node.data_type.name == ""
         {
@@ -290,7 +245,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
 
     if lhs_node.data_type.name == ""
     {
-        fmt.println("Failed to type check declaration")
+        fmt.println("Failed to type check assignment")
         fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.line_number, lhs_node.column_number)
         return false
     }
@@ -322,13 +277,9 @@ type_check_lhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context) 
     return true
 }
 
-type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> (ok: bool = true)
+type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_data_type: data_type) -> bool
 {
-    expression_1_ok := type_check_rhs_expression_1(node, ctx)
-    if !expression_1_ok
-    {
-        ok = false
-    }
+    type_check_rhs_expression_1(node, ctx) or_return
 
     node_resolved_data_type := resolve_data_type(node.data_type)
     expected_resolved_data_type := resolve_data_type(expected_data_type)
@@ -338,43 +289,34 @@ type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, 
         data_type_names: []string = { data_type_name(node_resolved_data_type), data_type_name(expected_resolved_data_type) }
         fmt.println("Failed to type check right-hand-side expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
-        ok = false
+        return false
     }
 
     upgrade_data_type(node, data_type)
 
-    return
+    return true
 }
 
-type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE && node.type != .MODULO
     {
         directive := node.data_type.directive
-        ok = type_check_primary(node, ctx)
+        type_check_primary(node, ctx) or_return
 
         if node.data_type.directive == ""
         {
             node.data_type.directive = directive
         }
 
-        return
+        return true
     }
 
     lhs_node := &node.children[0]
+    type_check_rhs_expression_1(lhs_node, ctx) or_return
+
     rhs_node := &node.children[1]
-
-    lhs_ok := type_check_rhs_expression_1(lhs_node, ctx)
-    if !lhs_ok
-    {
-        ok = false
-    }
-
-    rhs_ok := type_check_rhs_expression_1(rhs_node, ctx)
-    if !rhs_ok
-    {
-        ok = false
-    }
+    type_check_rhs_expression_1(rhs_node, ctx) or_return
 
     lhs_resolved_data_type := resolve_data_type(lhs_node.data_type)
     rhs_resolved_data_type := resolve_data_type(rhs_node.data_type)
@@ -384,7 +326,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
         data_type_names: []string = { data_type_name(lhs_resolved_data_type), data_type_name(rhs_resolved_data_type) }
         fmt.println("Failed to type check right-hand-side expression")
         fmt.printfln("Incompatible types %s at line %i, column %i", data_type_names, node.line_number, node.column_number)
-        ok = false
+        return false
     }
 
     _, comparison_operator := slice.linear_search(comparison_operators, node.type)
@@ -436,16 +378,12 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
     return true
 }
 
-type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     #partial switch node.type
     {
     case .REFERENCE:
-        primary_ok := type_check_primary(&node.children[0], ctx)
-        if !primary_ok
-        {
-            ok = false
-        }
+        type_check_primary(&node.children[0], ctx) or_return
 
         node.data_type = node.children[0].data_type
         node.data_type.is_reference = true
@@ -454,14 +392,10 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-            ok = false
+            return false
         }
     case .NEGATE:
-        primary_ok := type_check_primary(&node.children[0], ctx)
-        if !primary_ok
-        {
-            ok = false
-        }
+        type_check_primary(&node.children[0], ctx) or_return
 
         node.data_type = node.children[0].data_type
 
@@ -469,14 +403,10 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-            ok = false
+            return false
         }
     case .DEREFERENCE:
-        primary_ok := type_check_primary(&node.children[0], ctx)
-        if !primary_ok
-        {
-            ok = false
-        }
+        type_check_primary(&node.children[0], ctx) or_return
 
         node.data_type = node.children[0].data_type
         node.data_type.is_reference = false
@@ -485,14 +415,10 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Invalid type '%s' at line %i, column %i", data_type_name(node.data_type), node.line_number, node.column_number)
-            ok = false
+            return false
         }
     case .INDEX:
-        primary_ok := type_check_primary(&node.children[0], ctx)
-        if !primary_ok
-        {
-            ok = false
-        }
+        type_check_primary(&node.children[0], ctx) or_return
 
         identifier := node.children[0].value
 
@@ -515,20 +441,16 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
         node.data_type = node.children[0].data_type
         node.data_type.length = 1
 
-        expression_ok := type_check_rhs_expression(&node.children[1], ctx, { name = "i64", length = 1 })
-        if !expression_ok
-        {
-            ok = false
-        }
+        type_check_rhs_expression(&node.children[1], ctx, { name = "i64", length = 1 }) or_return
 
         if node.data_type.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= node.children[0].data_type.length
         {
             fmt.println("Failed to type check primary")
             fmt.printfln("Index %i out of bounds of '%s' at line %i, column %i", strconv.atoi(node.children[1].value), identifier, node.line_number, node.column_number)
-            ok = false
+            return false
         }
     case .CALL:
-        ok = type_check_call(node, ctx)
+        type_check_call(node, ctx) or_return
     case .IDENTIFIER:
         if len(node.children) == 1
         {
@@ -558,13 +480,13 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok:
     case .NIL:
         node.data_type = { name = "nil", length = 1 }
     case:
-        ok = type_check_rhs_expression_1(node, ctx)
+        type_check_rhs_expression_1(node, ctx) or_return
     }
 
-    return
+    return true
 }
 
-type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bool = true)
+type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     child_index := 0
     name_node := node.children[child_index]
@@ -574,7 +496,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
     {
         fmt.println("Failed to type check call")
         fmt.printfln("Undeclared identifier '%s' at line %i, column %i", name_node.value, name_node.line_number, name_node.column_number)
-        ok = false
+        return false
     }
 
     procedure_data_type := ctx.identifier_data_types[name_node.value]
@@ -586,7 +508,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
         fmt.printfln("Wrong number of parameters at line %i, column %i", node.line_number, node.column_number)
         fmt.printfln("Expected: %i", len(params_data_type.children))
         fmt.printfln("Found: %i", len(node.children) - 1)
-        ok = false
+        return false
     }
 
     for child_index < len(node.children)
@@ -596,17 +518,13 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> (ok: bo
         param_node := &node.children[child_index]
         child_index += 1
 
-        param_ok := type_check_rhs_expression(param_node, ctx, param_data_type)
-        if !param_ok
-        {
-            ok = false
-        }
+        type_check_rhs_expression(param_node, ctx, param_data_type) or_return
     }
 
     node.data_type = procedure_data_type
     node.data_type.name = "call"
 
-    return
+    return true
 }
 
 copy_type_checking_context := proc(ctx: type_checking_context, inline := false) -> type_checking_context

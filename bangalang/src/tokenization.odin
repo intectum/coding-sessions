@@ -124,7 +124,8 @@ next_runes :: proc(stream: ^rune_stream, count: int) -> string
 token_stream :: struct
 {
   tokens: []token,
-  next_index: int
+  next_index: int,
+  error: string
 }
 
 peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
@@ -137,28 +138,24 @@ peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
   return stream.tokens[stream.next_index + offset]
 }
 
-next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> token
+next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> (token, bool)
 {
   next_token := peek_token(stream)
   stream.next_index += 1
 
   if next_token.type != type
   {
-    fmt.printfln("Invalid token at line %i, column %i", next_token.line_number, next_token.column_number)
-    fmt.printfln("Expected type: %s", type)
-    fmt.printfln("Found type: %s", next_token.type)
-    os.exit(1)
+    stream.error = fmt.aprintf("Expected type: %s, Found type: %s", type, next_token.type)
+    return {}, false
   }
 
   if value != "" && next_token.value != value
   {
-    fmt.printfln("Invalid token at line %i, column %i", next_token.line_number, next_token.column_number)
-    fmt.printfln("Expected: %s", value)
-    fmt.printfln("Found: %s", next_token.value)
-    os.exit(1)
+    stream.error = fmt.aprintf("Expected: %s, Found: %s", value, next_token.value)
+    return {}, false
   }
 
-  return next_token
+  return next_token, true
 }
 
 tokenize :: proc(src: string) -> (tokens: [dynamic]token)
