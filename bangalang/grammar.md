@@ -1,12 +1,12 @@
 $$
 \begin{align}
-program\ &\to\ (\ procedure\ |\ statement\ )*\\
-statement\ &\to\ if\ |\ for\ |\ scope\ |\ return\ |\ assignment\ |\ call\\
+program\ &\to\ statement*\\
+statement\ &\to\ if\ |\ for\ |\ scope\ |\ return\ |\ assignment\ |\ rhs\_expression\\
 if\ &\to\ \text{"if"}\ \text{"("}\ rhs\_expression\ \text{")"}\ statement\ (\ \text{"else"}\ \text{"if"}\ \text{"("}\ rhs\_expression\ \text{")"}\ statement\ )*\ (\ \text{"else"}\ statement\ )?\\
 for\ &\to\ \text{"for"}\ \text{"("}\ (\ assignment\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ assignment\ )?\ \text{")"}\ statement\\
 scope\ &\to\ \text{"\{"}\ statement*\ \text{"\}"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression\\
-assignment\ &\to\ lhs\_expression\ (\ \text{"="}\ (\ statement\ |\ rhs\_expression\ )\ )?\\
+assignment\ &\to\ lhs\_expression\ (\ \text{"="}\ statement\ )?\\
 lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\

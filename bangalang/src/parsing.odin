@@ -4,59 +4,6 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 
-ast_node_type :: enum
-{
-    IF,
-    FOR,
-    SCOPE,
-    ASSIGNMENT,
-    RETURN,
-    EQUAL,
-    NOT_EQUAL,
-    LESS_THAN,
-    GREATER_THAN,
-    LESS_THAN_OR_EQUAL,
-    GREATER_THAN_OR_EQUAL,
-    ADD,
-    SUBTRACT,
-    MULTIPLY,
-    DIVIDE,
-    MODULO,
-    REFERENCE,
-    DEREFERENCE,
-    NEGATE,
-    INDEX,
-    CALL,
-    IDENTIFIER,
-    STRING,
-    CSTRING,
-    NUMBER,
-    BOOLEAN,
-    NIL
-}
-
-data_type :: struct
-{
-    name: string,
-    identifier: string,
-    directive: string,
-    length: int,
-    is_reference: bool,
-    children: [dynamic]data_type
-}
-
-ast_node :: struct
-{
-    type: ast_node_type,
-    value: string,
-    data_type: data_type,
-    children: [dynamic]ast_node,
-    line_number: int,
-    column_number: int
-}
-
-comparison_operators: []ast_node_type = { .EQUAL, .NOT_EQUAL, .LESS_THAN, .GREATER_THAN, .LESS_THAN_OR_EQUAL, .GREATER_THAN_OR_EQUAL }
-
 parse_program :: proc(stream: ^token_stream) -> (nodes: [dynamic]ast_node, ok: bool)
 {
     for stream.next_index < len(stream.tokens)
@@ -72,47 +19,30 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     #partial switch peek_token(stream).type
     {
-    case .IDENTIFIER:
-        #partial switch peek_token(stream, 1).type
-        {
-        case .OPENING_BRACKET:
-            node = parse_call(stream) or_return
-        case:
-            node = parse_assignment(stream) or_return
-        }
     case .KEYWORD:
-        if peek_token(stream).value == "for"
+        if peek_token(stream).value == "if"
         {
-            node = parse_for(stream) or_return
+            return parse_if(stream)
         }
-        else if peek_token(stream).value == "if"
+        else if peek_token(stream).value == "for"
         {
-            node = parse_if(stream) or_return
+            return parse_for(stream)
         }
         else if peek_token(stream).value == "return"
         {
-            node = parse_return(stream) or_return
-        }
-        else
-        {
-            stream.error = "Failed to parse statement"
-            return {}, false
+            return parse_return(stream)
         }
     case .OPENING_SQUIGGLY_BRACKET:
-        node = parse_scope(stream) or_return
-    case:
-        stream.error = "Failed to parse statement"
-        return {}, false
+        return parse_scope(stream)
     }
 
-    return node, true
+    return parse_assignment_or_rhs_expression(stream)
 }
 
 parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .IF
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.KEYWORD, "if") or_return
 
@@ -156,8 +86,7 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .FOR
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.KEYWORD, "for") or_return
 
@@ -194,8 +123,7 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .SCOPE
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     next_token(stream, .OPENING_SQUIGGLY_BRACKET) or_return
 
@@ -218,8 +146,7 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 parse_return :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .RETURN
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.KEYWORD, "return") or_return
 
@@ -229,11 +156,54 @@ parse_return :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     return node, true
 }
 
+parse_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+{
+    assignment_stream := stream^
+    assignment_node, assignment_ok := parse_assignment(&assignment_stream)
+
+    rhs_expression_stream := stream^
+    rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
+
+    if !assignment_ok && !rhs_expression_ok
+    {
+        if rhs_expression_stream.next_index >= assignment_stream.next_index
+        {
+            stream^ = rhs_expression_stream
+        }
+        else
+        {
+            stream^ = assignment_stream
+        }
+
+        return {}, false
+    }
+
+    if !assignment_ok
+    {
+        stream^ = rhs_expression_stream
+        return rhs_expression_node, true
+    }
+    else if !rhs_expression_ok
+    {
+        stream^ = assignment_stream
+        return assignment_node, true
+    }
+    else if rhs_expression_stream.next_index >= assignment_stream.next_index
+    {
+        stream^ = rhs_expression_stream
+        return rhs_expression_node, true
+    }
+    else
+    {
+        stream^ = assignment_stream
+        return assignment_node, true
+    }
+}
+
 parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .ASSIGNMENT
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     lhs_node := parse_lhs_expression(stream) or_return
     append(&node.children, lhs_node)
@@ -242,38 +212,8 @@ parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     {
         next_token(stream, .EQUALS) or_return
 
-        statement_stream := stream^
-        statement_node, statement_ok := parse_statement(&statement_stream)
-
-        rhs_expression_stream := stream^
-        rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
-
-        if !statement_ok && !rhs_expression_ok
-        {
-            stream.error = "Failed to parse assignment"
-            return {}, false
-        }
-
-        if !statement_ok
-        {
-            stream^ = rhs_expression_stream
-            append(&node.children, rhs_expression_node)
-        }
-        else if !rhs_expression_ok
-        {
-            stream^ = statement_stream
-            append(&node.children, statement_node)
-        }
-        else if rhs_expression_stream.next_index >= statement_stream.next_index
-        {
-            stream^ = rhs_expression_stream
-            append(&node.children, rhs_expression_node)
-        }
-        else
-        {
-            stream^ = statement_stream
-            append(&node.children, statement_node)
-        }
+        statement_node := parse_statement(stream) or_return
+        append(&node.children, statement_node)
     }
 
     return node, true
@@ -319,8 +259,7 @@ parse_rhs_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precede
         }
 
         new_lhs := ast_node { type = to_ast_node_type(op) }
-        new_lhs.line_number = op.line_number
-        new_lhs.column_number = op.column_number
+        new_lhs.file_info = op.file_info
 
         append(&new_lhs.children, final_lhs)
         append(&new_lhs.children, rhs)
@@ -332,8 +271,7 @@ parse_rhs_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precede
 
 parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: bool)
 {
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     if lhs
     {
@@ -407,8 +345,7 @@ parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: 
 
         node = {
             type = .DEREFERENCE,
-            line_number = child_node.line_number,
-            column_number = child_node.column_number
+            file_info = child_node.file_info
         }
 
         append(&node.children, child_node)
@@ -419,8 +356,7 @@ parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: 
 
         node = {
             type = .INDEX,
-            line_number = child_node.line_number,
-            column_number = child_node.column_number
+            file_info = child_node.file_info
         }
 
         append(&node.children, child_node)
@@ -451,8 +387,7 @@ parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: 
 parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .CALL
-    node.line_number = peek_token(stream).line_number
-    node.column_number = peek_token(stream).column_number
+    node.file_info = peek_token(stream).file_info
 
     name_node := parse_identifier(stream) or_return
     append(&node.children, name_node)
@@ -584,8 +519,7 @@ parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     node = ast_node {
         type = .IDENTIFIER,
         value = token.value,
-        line_number = token.line_number,
-        column_number = token.column_number
+        file_info = token.file_info
     }
 
     return node, true

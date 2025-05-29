@@ -1,0 +1,60 @@
+write: proc(file_descriptor: i64, message: string) =
+{
+    message_i64: i64[2] = #untyped message
+
+    syscall(1, file_descriptor, message_i64[1], message_i64[0], 0, 0, 0)
+}
+
+print: proc(message: string) = write(1, message)
+println: proc(message: string) =
+{
+    write(1, message)
+    write(1, "\n")
+}
+
+writeb: proc(file_descriptor: i64, message: #boundless ^i8, length: i64) =
+    syscall(1, file_descriptor, #untyped message, length, 0, 0, 0)
+
+printb: proc(message: #boundless ^i8, length: i64) = writeb(1, message, length)
+printbln: proc(message: #boundless ^i8, length: i64) =
+{
+    writeb(1, message, length)
+    write(1, "\n")
+}
+
+exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
+
+gettimeofday: proc(timeval: ^i64[2]) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
+
+assert: proc(assertion: bool, message: string) =
+{
+    if (assertion == false)
+    {
+        print("Assertion failed: ")
+        print(message)
+        exit(1)
+    }
+}
+
+i8_cast: proc(value: i64) -> i8 = return #untyped value
+
+itoa: proc(value: i64, string_bytes: #boundless ^i8) -> i64 =
+{
+    length: i64 = 0
+    string_bytes_reversed: i8[100]
+
+    for (value > 0)
+    {
+        string_bytes_reversed[length] = i8_cast(value % 10) + 48 // '0'
+
+        value = value / 10
+        length = length + 1
+    }
+
+    for (index: i64, index < length, index = index + 1)
+    {
+        string_bytes[index] = string_bytes_reversed[length - 1 - index]
+    }
+
+    return length
+}

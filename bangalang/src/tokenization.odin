@@ -5,162 +5,21 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-token_type :: enum
+file_info :: struct
 {
-  OPENING_BRACKET,
-  CLOSING_BRACKET,
-  OPENING_ANGLE_BRACKET,
-  OPENING_ANGLE_BRACKET_EQUALS,
-  CLOSING_ANGLE_BRACKET,
-  CLOSING_ANGLE_BRACKET_EQUALS,
-  OPENING_SQUARE_BRACKET,
-  CLOSING_SQUARE_BRACKET,
-  OPENING_SQUIGGLY_BRACKET,
-  CLOSING_SQUIGGLY_BRACKET,
-  COLON,
-  EQUALS,
-  EQUALS_EQUALS,
-  EXCLAMATION_EQUALS,
-  PLUS,
-  MINUS,
-  ASTERISK,
-  BACKSLASH,
-  PERCENT,
-  PERIOD,
-  COMMA,
-  HAT,
-  ARROW,
-  KEYWORD,
-  DATA_TYPE,
-  DIRECTIVE,
-  IDENTIFIER,
-  STRING,
-  CSTRING,
-  NUMBER,
-  BOOLEAN,
-  NIL,
-  END_OF_FILE
-}
-
-keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
-
-data_types: []string = { "bool", "cint", "cstring", "f32", "f64", "i8", "i16", "i32", "i64", "string" }
-
-token :: struct
-{
-  type: token_type,
-  value: string,
+  name: string,
   line_number: int,
   column_number: int
 }
 
-rune_stream :: struct
+file_error :: proc(message: string, file_info: file_info)
 {
-  src: string,
-  next_index: int,
-  line_number: int,
-  column_number: int
+  fmt.printfln("%s file %s at line %i, column %i", message, file_info.name, file_info.line_number, file_info.column_number)
 }
 
-peek_rune :: proc(stream: ^rune_stream) -> rune
+tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
 {
-  if stream.next_index >= len(stream.src)
-  {
-    return 0
-  }
-
-  return rune(stream.src[stream.next_index])
-}
-
-peek_runes :: proc(stream: ^rune_stream, count: int) -> string
-{
-  if stream.next_index + count > len(stream.src)
-  {
-    return ""
-  }
-
-  return stream.src[stream.next_index:stream.next_index + count]
-}
-
-next_rune :: proc(stream: ^rune_stream) -> rune
-{
-  next_rune := peek_rune(stream)
-  stream.next_index += 1
-
-  if next_rune == '\n'
-  {
-    stream.line_number += 1
-    stream.column_number = 1
-  }
-  else
-  {
-    stream.column_number += 1
-  }
-
-  return next_rune
-}
-
-next_runes :: proc(stream: ^rune_stream, count: int) -> string
-{
-  next_runes := peek_runes(stream, count)
-  stream.next_index += count
-
-  for next_rune in next_runes
-  {
-    if next_rune == '\n'
-    {
-      stream.line_number += 1
-      stream.column_number = 1
-    }
-    else
-    {
-      stream.column_number += 1
-    }
-  }
-
-  return next_runes
-}
-
-token_stream :: struct
-{
-  tokens: []token,
-  next_index: int,
-  error: string
-}
-
-peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
-{
-  if stream.next_index + offset >= len(stream.tokens)
-  {
-    return { type = .END_OF_FILE }
-  }
-
-  return stream.tokens[stream.next_index + offset]
-}
-
-next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> (token, bool)
-{
-  next_token := peek_token(stream)
-  stream.next_index += 1
-
-  if next_token.type != type
-  {
-    stream.error = fmt.aprintf("Expected type: %s, Found type: %s", type, next_token.type)
-    return {}, false
-  }
-
-  if value != "" && next_token.value != value
-  {
-    stream.error = fmt.aprintf("Expected: %s, Found: %s", value, next_token.value)
-    return {}, false
-  }
-
-  return next_token, true
-}
-
-tokenize :: proc(src: string) -> (tokens: [dynamic]token)
-{
-  stream := rune_stream { src, 0, 1, 1 }
+  stream := src_stream { src, 0, { name, 1, 1 } }
 
   fixed_token_types: map[string]token_type
   fixed_token_types["("] = .OPENING_BRACKET
@@ -193,26 +52,26 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
     {
       next_rune(&stream)
     }
-    else if peek_runes(&stream, 2) == "//"
+    else if peek_string(&stream, 2) == "//"
     {
       read_single_line_comment(&stream)
     }
-    else if peek_runes(&stream, 2) == "/*"
+    else if peek_string(&stream, 2) == "/*"
     {
-      next_runes(&stream, 2)
+      next_string(&stream, 2)
 
       nested_count := 0
       for peek_rune(&stream) != 0
       {
-        if peek_runes(&stream, 2) == "/*"
+        if peek_string(&stream, 2) == "/*"
         {
-          next_runes(&stream, 2)
+          next_string(&stream, 2)
 
           nested_count += 1
         }
-        else if peek_runes(&stream, 2) == "*/"
+        else if peek_string(&stream, 2) == "*/"
         {
-          next_runes(&stream, 2)
+          next_string(&stream, 2)
 
           if nested_count > 0
           {
@@ -223,7 +82,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
             break
           }
         }
-        else if peek_runes(&stream, 2) == "//"
+        else if peek_string(&stream, 2) == "//"
         {
           read_single_line_comment(&stream)
         }
@@ -237,32 +96,32 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         }
       }
     }
-    else if peek_runes(&stream, 2) in fixed_token_types
+    else if peek_string(&stream, 2) in fixed_token_types
     {
-      value := peek_runes(&stream, 2)
-      append(&tokens, token { fixed_token_types[value], value, stream.line_number, stream.column_number })
-      next_runes(&stream, 2)
+      value := peek_string(&stream, 2)
+      append(tokens, token { fixed_token_types[value], value, stream.file_info })
+      next_string(&stream, 2)
     }
-    else if peek_runes(&stream, 1) in fixed_token_types
+    else if peek_string(&stream, 1) in fixed_token_types
     {
-      value := peek_runes(&stream, 1)
-      append(&tokens, token { fixed_token_types[value], value, stream.line_number, stream.column_number })
-      next_runes(&stream, 1)
+      value := peek_string(&stream, 1)
+      append(tokens, token { fixed_token_types[value], value, stream.file_info })
+      next_string(&stream, 1)
     }
     else if peek_rune(&stream) == '"'
     {
       initial_stream := stream
       read_string(&stream)
 
-      append(&tokens, token { .STRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+      append(tokens, token { .STRING, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
-    else if peek_runes(&stream, 2) == "c\""
+    else if peek_string(&stream, 2) == "c\""
     {
       initial_stream := stream
       next_rune(&stream)
       read_string(&stream)
 
-      append(&tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+      append(tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
     {
@@ -279,7 +138,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         next_rune(&stream)
       }
 
-      append(&tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number })
+      append(tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_rune(&stream) == '#'
     {
@@ -291,8 +150,8 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         next_rune(&stream)
       }
 
-      token := token { .DIRECTIVE, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number }
-      append(&tokens, token)
+      token := token { .DIRECTIVE, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
+      append(tokens, token)
     }
     else if (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_'
     {
@@ -304,7 +163,7 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
         next_rune(&stream)
       }
 
-      token := token { .IDENTIFIER, src[initial_stream.next_index:stream.next_index], initial_stream.line_number, initial_stream.column_number }
+      token := token { .IDENTIFIER, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
       if token.value == "false" || token.value == "true"
       {
         token.type = .BOOLEAN
@@ -329,11 +188,11 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
           }
         }
       }
-      append(&tokens, token)
+      append(tokens, token)
     }
     else
     {
-      fmt.printfln("Invalid token at line %i, column %i", stream.line_number, stream.column_number)
+      fmt.printfln("Invalid token at line %i, column %i", stream.file_info)
       os.exit(1)
     }
   }
@@ -341,9 +200,9 @@ tokenize :: proc(src: string) -> (tokens: [dynamic]token)
   return
 }
 
-read_single_line_comment :: proc(stream: ^rune_stream)
+read_single_line_comment :: proc(stream: ^src_stream)
 {
-  next_runes(stream, 2)
+  next_string(stream, 2)
 
   for peek_rune(stream) != '\n'
   {
@@ -351,7 +210,7 @@ read_single_line_comment :: proc(stream: ^rune_stream)
   }
 }
 
-read_string :: proc(stream: ^rune_stream)
+read_string :: proc(stream: ^src_stream)
 {
   initial_stream := stream
   next_rune(stream)
@@ -363,7 +222,7 @@ read_string :: proc(stream: ^rune_stream)
 
   if peek_rune(stream) == 0
   {
-    fmt.printfln("Unclosed string at line %i, column %i", initial_stream.line_number, initial_stream.column_number)
+    file_error("Unclosed string in", initial_stream.file_info)
     os.exit(1)
   }
 

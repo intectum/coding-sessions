@@ -47,22 +47,32 @@ build :: proc(src_path: string, bin_path: string)
 
 compile :: proc(src_path: string, asm_path: string)
 {
-  src_data, read_ok := os.read_entire_file(src_path)
-  if !read_ok
+  tokens: [dynamic]token
+
+  stdlib_data, stdlib_ok := os.read_entire_file("src/stdlib.bang")
+  if !stdlib_ok
+  {
+    fmt.println("Failed to read stdlib file")
+    os.exit(1)
+  }
+
+  tokenize("src/stdlib.bang", string(stdlib_data), &tokens)
+
+  src_data, src_ok := os.read_entire_file(src_path)
+  if !src_ok
   {
     fmt.println("Failed to read src file")
     os.exit(1)
   }
 
-  src := string(src_data)
-  tokens := tokenize(src)
+  tokenize(src_path, string(src_data), &tokens)
 
   stream := token_stream { tokens = tokens[:] }
   ast_nodes, parse_ok := parse_program(&stream)
   if !parse_ok
   {
     next_token := peek_token(&stream)
-    fmt.printfln("Failed to parse at line %i, column %i", next_token.line_number, next_token.column_number)
+    file_error("Failed to parse", next_token.file_info)
     fmt.println(stream.error)
     os.exit(1)
   }

@@ -8,9 +8,10 @@ import "core:strconv"
 
 location_type :: enum
 {
-    IMMEDIATE,
-    MEMORY,
-    REGISTER
+    none,
+    immediate,
+    memory,
+    register
 }
 
 location :: struct
@@ -40,7 +41,9 @@ gen_context :: struct
 address_size :: 8
 unknown_reference: data_type = { name = "", length = 1, is_reference = true }
 extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
-extern_param_registers_numbered: []int = { -2, -1 }
+extern_param_registers_numbered: []int = { -3, -2 }
+syscall_param_registers_named: []string = { "ax", "di", "si", "dx" }
+syscall_param_registers_numbered: []int = { -1, -3, -2 }
 
 generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 {
@@ -83,15 +86,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  mov rdi, 0 ; arg0: exit_code")
     fmt.fprintln(file, "  syscall ; call kernel")
 
-    fmt.fprintln(file, "print:")
-    fmt.fprintln(file, "printb:")
-    fmt.fprintln(file, "  mov rax, 1 ; syscall: print")
-    fmt.fprintln(file, "  mov rdi, 1 ; arg0: fd (stdout)")
-    fmt.fprintln(file, "  mov rsi, [rsp + 16] ; arg1: buffer")
-    fmt.fprintln(file, "  mov rdx, [rsp + 8] ; arg2: count")
-    fmt.fprintln(file, "  syscall ; call kernel")
-    fmt.fprintln(file, "  ret ; return")
-
     fmt.fprintln(file, "clone:")
     fmt.fprintln(file, "  mov rbx, [rsp + 8] ; copy")
     fmt.fprintln(file, "  mov rax, 56 ; syscall: clone")
@@ -105,28 +99,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  jne .end ; skip procedure for parent")
     fmt.fprintln(file, "  call rbx ; call procedure")
     fmt.fprintln(file, ".end:")
-    fmt.fprintln(file, "  ret ; return")
-
-    fmt.fprintln(file, "exit:")
-    fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
-    fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: exit_code")
-    fmt.fprintln(file, "  syscall ; call kernel")
-    fmt.fprintln(file, "  ret ; return")
-
-    fmt.fprintln(file, "wait4:")
-    fmt.fprintln(file, "  mov rax, 61 ; syscall: wait4")
-    fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: child_pid")
-    fmt.fprintln(file, "  mov rsi, 0 ; arg1: status (not used)")
-    fmt.fprintln(file, "  mov rdx, 0 ; arg2: options (0)")
-    fmt.fprintln(file, "  mov r10, 0 ; arg3: RUSAGE (not used)")
-    fmt.fprintln(file, "  syscall ; call kernel")
-    fmt.fprintln(file, "  ret ; return")
-
-    fmt.fprintln(file, "gettimeofday:")
-    fmt.fprintln(file, "  mov rax, 96 ; syscall: gettimeofday")
-    fmt.fprintln(file, "  mov rdi, [rsp + 8] ; arg0: exit_code")
-    fmt.fprintln(file, "  mov rsi, 0 ; arg1: timezone")
-    fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
     fmt.fprintln(file, "panic_out_of_bounds:")
@@ -240,13 +212,8 @@ generate_statement :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, i
         generate_return(file, node, ctx)
     case .ASSIGNMENT:
         generate_assignment(file, node, ctx)
-    case .CALL:
-        fmt.fprintln(file, "  ; call")
-        generate_call(file, node, ctx, 0, true)
     case:
-        fmt.println("Failed to generate statement")
-        fmt.printfln("Invalid node at line %i, column %i", node.line_number, node.column_number)
-        os.exit(1)
+        generate_expression(file, node, ctx, {}, 0)
     }
 
     if node.type != .SCOPE && include_end_label
@@ -417,8 +384,13 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
 
     close_gen_context(file, ctx, &expression_ctx, "expression", true)
 
+    if dest.type == .none
+    {
+        return
+    }
+
     resolved_data_type := resolve_data_type(node.data_type)
-    if node.type == .NIL && dest.type == .MEMORY
+    if node.type == .NIL && dest.type == .memory
     {
         fmt.fprintfln(file, "  lea rdi, %s ; nil: dest", operand(dest))
         fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(resolved_data_type, &expression_ctx))
@@ -433,7 +405,8 @@ generate_expression :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, 
 
 generate_expression_1 :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
-    if node.type != .EQUAL && node.type != .NOT_EQUAL && node.type != .LESS_THAN && node.type != .GREATER_THAN && node.type != .LESS_THAN_OR_EQUAL && node.type != .GREATER_THAN_OR_EQUAL && node.type != .ADD && node.type != .SUBTRACT && node.type != .MULTIPLY && node.type != .DIVIDE && node.type != .MODULO
+    _, binary_operator := slice.linear_search(binary_operators, node.type)
+    if binary_operator
     {
         return generate_primary(file, node, ctx, register_num, contains_allocations)
     }
@@ -771,13 +744,16 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
         {
             param_node := node.children[param_index + 1]
 
-            if param_index < 4
+            param_registers_named := name_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
+            param_registers_numbered := name_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
+
+            if param_index < len(param_registers_named)
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_named[param_index], param_data_type, ctx), register_num)
+                generate_expression(file, param_node, ctx, register(param_registers_named[param_index], param_data_type, ctx), register_num)
             }
-            else if param_index < 6
+            else if param_index < len(param_registers_named) + len(param_registers_numbered)
             {
-                generate_expression(file, param_node, ctx, register(extern_param_registers_numbered[param_index - 4], param_data_type, ctx), register_num)
+                generate_expression(file, param_node, ctx, register(param_registers_numbered[param_index - len(param_registers_named)], param_data_type, ctx), register_num)
             }
             else
             {
@@ -802,7 +778,11 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
         }
     }
 
-    if name_node.value in ctx.stack_variable_offsets
+    if name_node.value == "syscall"
+    {
+        fmt.fprintln(file, "  syscall ; call kernal")
+    }
+    else if name_node.value in ctx.stack_variable_offsets
     {
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[name_node.value]
         fmt.fprintfln(file, "  call %s ; call procedure", operand(memory("rsp", variable_position)))
@@ -831,7 +811,7 @@ generate_call :: proc(file: os.Handle, node: ast_node, ctx: ^gen_context, regist
 
 copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, data_type: data_type, ctx: ^gen_context, comment: string = "") -> location
 {
-    if src.type != .IMMEDIATE
+    if src.type != .immediate
     {
         return src
     }
@@ -844,7 +824,7 @@ copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, data_
 // TODO review, could change to copy_to_non_immediate in some places
 copy_to_register :: proc(file: os.Handle, src: location, number: int, data_type: data_type, ctx: ^gen_context, comment: string = "") -> location
 {
-    if src.type == .REGISTER
+    if src.type == .register
     {
         return src
     }
@@ -863,7 +843,7 @@ copy_stack_address :: proc(file: os.Handle, ctx: ^gen_context, offset: int, regi
 
 copy :: proc(file: os.Handle, src: location, dest: location, data_type: data_type, ctx: ^gen_context, comment: string = "")
 {
-    assert(dest.type != .IMMEDIATE, "Cannot copy to immediate")
+    assert(dest.type != .immediate, "Cannot copy to immediate")
 
     final_comment := "copy"
     if comment != ""
@@ -879,7 +859,7 @@ copy :: proc(file: os.Handle, src: location, dest: location, data_type: data_typ
     _, float_data_type := slice.linear_search(float_data_types, data_type.name)
     byte_size := byte_size_of(data_type, ctx)
 
-    if src.type == .REGISTER || dest.type == .REGISTER
+    if src.type == .register || dest.type == .register
     {
         if float_data_type && !data_type.is_reference
         {
@@ -890,7 +870,7 @@ copy :: proc(file: os.Handle, src: location, dest: location, data_type: data_typ
             fmt.fprintfln(file, "  mov %s, %s ; %s", operand(dest), operand(src), final_comment)
         }
     }
-    else if src.type == .IMMEDIATE
+    else if src.type == .immediate
     {
         assert(!float_data_type, "Cannot copy float from immediate")
 
@@ -979,17 +959,17 @@ immediate :: proc
 immediate_int :: proc(value: int) -> location
 {
     buf: [8]byte
-    return { .IMMEDIATE, strings.clone(strconv.itoa(buf[:], value)), 0 }
+    return { .immediate, strings.clone(strconv.itoa(buf[:], value)), 0 }
 }
 
 immediate_string :: proc(value: string) -> location
 {
-    return { .IMMEDIATE, value, 0 }
+    return { .immediate, value, 0 }
 }
 
 memory :: proc(address: string, offset: int) -> location
 {
-    return { .MEMORY, address, offset  }
+    return { .memory, address, offset  }
 }
 
 register :: proc
@@ -1013,18 +993,18 @@ register_named :: proc(name: string, data_type: data_type, ctx: ^gen_context) ->
         if strings.ends_with(name, "x")
         {
             first_char, _ := strings.substring(name, 0, 1)
-            return { .REGISTER, strings.concatenate({ first_char, "l" }), 0 }
+            return { .register, strings.concatenate({ first_char, "l" }), 0 }
         }
         else
         {
-            return { .REGISTER, strings.concatenate({ name, "l" }), 0 }
+            return { .register, strings.concatenate({ name, "l" }), 0 }
         }
     case 2:
-        return { .REGISTER, name, 0 }
+        return { .register, name, 0 }
     case 4:
-        return { .REGISTER, strings.concatenate({ "e", name }), 0 }
+        return { .register, strings.concatenate({ "e", name }), 0 }
     case 8:
-        return { .REGISTER, strings.concatenate({ "r", name }), 0 }
+        return { .register, strings.concatenate({ "r", name }), 0 }
     }
 
     assert(false, "Unsupported register size")
@@ -1039,22 +1019,22 @@ register_numbered :: proc(number: int, data_type: data_type, ctx: ^gen_context) 
         buf: [2]byte
         number_string := strconv.itoa(buf[:], number)
 
-        return { .REGISTER, strings.concatenate({ "xmm", number_string }), 0 }
+        return { .register, strings.concatenate({ "xmm", number_string }), 0 }
     }
 
     buf: [2]byte
-    number_string := strconv.itoa(buf[:], number + 10)
+    number_string := strconv.itoa(buf[:], number + 11)
 
     switch byte_size_of(data_type, ctx)
     {
     case 1:
-        return { .REGISTER, strings.concatenate({ "r", number_string, "b" }), 0 }
+        return { .register, strings.concatenate({ "r", number_string, "b" }), 0 }
     case 2:
-        return { .REGISTER, strings.concatenate({ "r", number_string, "w" }), 0 }
+        return { .register, strings.concatenate({ "r", number_string, "w" }), 0 }
     case 4:
-        return { .REGISTER, strings.concatenate({ "r", number_string, "d" }), 0 }
+        return { .register, strings.concatenate({ "r", number_string, "d" }), 0 }
     case 8:
-        return { .REGISTER, strings.concatenate({ "r", number_string }), 0 }
+        return { .register, strings.concatenate({ "r", number_string }), 0 }
     }
 
     assert(false, "Unsupported register size")
@@ -1065,9 +1045,12 @@ operand :: proc(location: location) -> string
 {
     switch location.type
     {
-    case .IMMEDIATE:
+    case .none:
+        assert(false, "Unsupported operand")
+        return ""
+    case .immediate:
         return location.value
-    case .MEMORY:
+    case .memory:
         if location.offset == 0
         {
             return strings.concatenate({ "[", location.value, "]" })
@@ -1075,7 +1058,7 @@ operand :: proc(location: location) -> string
 
         buf: [8]byte
         return strings.concatenate({ "[", location.value, " + ", strconv.itoa(buf[:], location.offset), "]" })
-    case .REGISTER:
+    case .register:
         return location.value
     }
 
