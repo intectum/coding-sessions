@@ -35,7 +35,6 @@ token_type :: enum
   HAT,
   ARROW,
   KEYWORD,
-  DATA_TYPE,
   DIRECTIVE,
   IDENTIFIER,
   STRING,
@@ -47,7 +46,6 @@ token_type :: enum
 }
 
 keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
-data_types: []string = { "bool", "cint", "cstring", "f32", "f64", "i8", "i16", "i32", "i64", "string" }
 
 token_stream :: struct
 {

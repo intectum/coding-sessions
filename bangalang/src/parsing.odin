@@ -227,7 +227,8 @@ parse_lhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool
     {
         next_token(stream, .COLON) or_return
 
-        node.data_type = parse_type(stream) or_return
+        type_node := parse_primary(stream, false) or_return
+        append(&node.children, type_node)
     }
 
     return node, true
@@ -285,7 +286,7 @@ parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: 
             directive := (next_token(stream, .DIRECTIVE) or_return).value
 
             node = parse_primary(stream, lhs) or_return
-            node.data_type.directive = directive
+            node.directive = directive
         case .HAT:
             next_token(stream, .HAT) or_return
 
@@ -314,6 +315,17 @@ parse_primary :: proc(stream: ^token_stream, lhs: bool) -> (node: ast_node, ok: 
             else
             {
                 node = parse_identifier(stream) or_return
+            }
+        case .KEYWORD:
+            switch peek_token(stream).value
+            {
+            case "struct":
+                node = parse_struct_type(stream) or_return
+            case "proc":
+                node = parse_procedure_type(stream) or_return
+            case:
+                stream.error = "Failed to parse primary"
+                return {}, false
             }
         case .STRING:
             node.type = .STRING
@@ -411,106 +423,82 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     return node, true
 }
 
-parse_type :: proc(stream: ^token_stream) -> (the_data_type: data_type, ok: bool)
+parse_struct_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    if peek_token(stream).type == .DIRECTIVE
-    {
-        the_data_type.directive = (next_token(stream, .DIRECTIVE) or_return).value
-    }
+    node.type = .TYPE
+    node.value = "struct"
+    node.file_info = peek_token(stream).file_info
 
-    if peek_token(stream).type == .HAT
-    {
-        next_token(stream, .HAT) or_return
-        the_data_type.is_reference = true
-    }
+    next_token(stream, token_type.KEYWORD, "struct") or_return
 
-    #partial switch peek_token(stream).type
+    next_token(stream, .OPENING_SQUIGGLY_BRACKET) or_return
+
+    for peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
     {
-    case .DATA_TYPE:
-        the_data_type.name = (next_token(stream, .DATA_TYPE) or_return).value
-    case .KEYWORD:
-        switch peek_token(stream).value
+        member_node := parse_identifier(stream) or_return
+
+        next_token(stream, .COLON) or_return
+
+        member_type_node := parse_primary(stream, false) or_return
+        append(&member_node.children, member_type_node)
+
+        append(&node.children, member_node)
+
+        // TODO allows comma at end of params
+        if peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
         {
-        case "proc":
-            next_token(stream, token_type.KEYWORD, "proc") or_return
-            the_data_type.name = "procedure"
-
-            next_token(stream, .OPENING_BRACKET) or_return
-
-            params_data_type := data_type { name = "parameters", length = 1 }
-
-            for peek_token(stream).type != .CLOSING_BRACKET
-            {
-                param_identifier := (next_token(stream, .IDENTIFIER) or_return).value
-
-                next_token(stream, .COLON) or_return
-
-                param_data_type := parse_type(stream) or_return
-                param_data_type.identifier = param_identifier
-
-                append(&params_data_type.children, param_data_type)
-
-                // TODO allows comma at end of params
-                if peek_token(stream).type != .CLOSING_BRACKET
-                {
-                    next_token(stream, .COMMA) or_return
-                }
-            }
-
-            append(&the_data_type.children, params_data_type)
-
-            next_token(stream, .CLOSING_BRACKET) or_return
-
-            if peek_token(stream).type == .ARROW
-            {
-                next_token(stream, .ARROW) or_return
-
-                return_data_type := parse_type(stream) or_return
-                append(&the_data_type.children, return_data_type)
-            }
-        case "struct":
-            next_token(stream, token_type.KEYWORD, "struct") or_return
-            the_data_type.name = "struct"
-
-            next_token(stream, .OPENING_SQUIGGLY_BRACKET) or_return
-
-            for peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
-            {
-                member_identifier := (next_token(stream, .IDENTIFIER) or_return).value
-
-                next_token(stream, .COLON) or_return
-
-                member_data_type := parse_type(stream) or_return
-                member_data_type.identifier = member_identifier
-
-                append(&the_data_type.children, member_data_type)
-
-                // TODO allows comma at end of params
-                if peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
-                {
-                    next_token(stream, .COMMA) or_return
-                }
-            }
-
-            next_token(stream, .CLOSING_SQUIGGLY_BRACKET) or_return
-        case:
-            assert(false, "Failed to parse type")
+            next_token(stream, .COMMA) or_return
         }
-    case:
-        assert(false, "Failed to parse type")
     }
 
-    the_data_type.length = 1
-    if peek_token(stream).type == .OPENING_SQUARE_BRACKET
+    next_token(stream, .CLOSING_SQUIGGLY_BRACKET) or_return
+
+    return node, true
+}
+
+parse_procedure_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+{
+    node.type = .TYPE
+    node.value = "procedure"
+    node.file_info = peek_token(stream).file_info
+
+    next_token(stream, token_type.KEYWORD, "proc") or_return
+
+    next_token(stream, .OPENING_BRACKET) or_return
+
+    params_type_node := ast_node { type = .TYPE, value = "parameters" }
+
+    for peek_token(stream).type != .CLOSING_BRACKET
     {
-        next_token(stream, .OPENING_SQUARE_BRACKET) or_return
+        param_node := parse_identifier(stream) or_return
 
-        the_data_type.length = strconv.atoi((next_token(stream, .NUMBER) or_return).value)
+        next_token(stream, .COLON) or_return
 
-        next_token(stream, .CLOSING_SQUARE_BRACKET) or_return
+        param_type_node := parse_primary(stream, false) or_return
+        append(&param_node.children, param_type_node)
+
+        append(&params_type_node.children, param_node)
+
+        // TODO allows comma at end of params
+        if peek_token(stream).type != .CLOSING_BRACKET
+        {
+            next_token(stream, .COMMA) or_return
+        }
     }
 
-    return the_data_type, true
+    append(&node.children, params_type_node)
+
+    next_token(stream, .CLOSING_BRACKET) or_return
+
+    if peek_token(stream).type == .ARROW
+    {
+        next_token(stream, .ARROW) or_return
+
+        return_type_node := parse_primary(stream, false) or_return
+        append(&node.children, return_type_node)
+    }
+
+    return node, true
 }
 
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)

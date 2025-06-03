@@ -179,14 +179,6 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         {
           token.type = .KEYWORD
         }
-        else
-        {
-          _, found_data_type := slice.linear_search(data_types, token.value)
-          if found_data_type
-          {
-            token.type = .DATA_TYPE
-          }
-        }
       }
       append(tokens, token)
     }
