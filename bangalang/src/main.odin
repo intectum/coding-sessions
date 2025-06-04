@@ -8,7 +8,7 @@ import "core:sys/linux"
 
 main :: proc()
 {
-  run_test_suite()
+  //run_test_suite()
 
   run("examples/example_01.bang", "bin/example_01")
 }

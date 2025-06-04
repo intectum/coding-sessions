@@ -61,21 +61,33 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     append(&clone.children[0].children, ast_node { type = .TYPE, value = "i64" })
     ctx.identifiers["clone"] = clone
 
-    for node in nodes
+    for &node in nodes
     {
+        resolve_types(&node, &ctx)
+
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
-            if lhs_type_node.value == "procedure"
+            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "procedure")
             {
-                ctx.identifiers[lhs_node.value] = lhs_node^
+                type_check_statement(&node, &ctx) or_return
             }
         }
     }
 
     for &node in nodes
     {
+        if node.type == .ASSIGNMENT
+        {
+            lhs_node := &node.children[0]
+            lhs_type_node := get_type(lhs_node)
+            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "procedure")
+            {
+                continue
+            }
+        }
+
         type_check_statement(&node, &ctx) or_return
     }
 
@@ -97,7 +109,7 @@ type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bo
     case .ASSIGNMENT:
         return type_check_assignment(node, ctx)
     case:
-        return type_check_rhs_expression(node, ctx, {})
+        return type_check_rhs_expression(node, ctx, nil)
     }
 }
 
@@ -206,7 +218,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         rhs_node := &node.children[1]
 
         lhs_type_node := get_type(lhs_node)
-        if lhs_type_node.value == "procedure"
+        if lhs_type_node != nil && lhs_type_node.value == "procedure"
         {
             if lhs_type_node.directive == "#extern"
             {
@@ -245,26 +257,40 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 return false
             }
 
-            type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
+            if !is_type(rhs_node)
+            {
+                type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
+            }
         }
 
         if lhs_type_node == nil
         {
-            append(&lhs_node.children, get_type_result(get_type(rhs_node))^)
+            if is_type(rhs_node)
+            {
+                name := lhs_node.value
+                lhs_node^ = rhs_node^
+                ctx.identifiers[name] = lhs_node^
+            }
+            else
+            {
+                append(&lhs_node.children, get_type_result(get_type(rhs_node))^)
+            }
         }
     }
 
-    if get_type(lhs_node) == nil
+    if !is_type(lhs_node)
     {
-        fmt.println("Failed to type check assignment")
-        fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
-        return false
-    }
+        if get_type(lhs_node) == nil
+        {
+            fmt.println("Failed to type check assignment")
+            fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
+            return false
+        }
 
-    // TODO what about struct member access?
-    if !(lhs_node.value in ctx.identifiers)
-    {
-        ctx.identifiers[lhs_node.value] = lhs_node^
+        if !is_struct_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
+        {
+            ctx.identifiers[lhs_node.value] = lhs_node^
+        }
     }
 
     return true
@@ -314,10 +340,10 @@ type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, 
 type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     _, binary_operator := slice.linear_search(binary_operators, node.type)
-    if binary_operator
+    if !binary_operator
     {
         type_node := get_type(node)
-        directive := type_node != nil ? type_node.directive : ""
+        directive := node.directive != "" ? node.directive : (type_node != nil ? type_node.directive : "")
         type_check_primary(node, ctx) or_return
 
         if directive != ""
@@ -455,7 +481,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
             append(&node.children[0].children, child_type_node.children[0])
 
             // TODO not sure if this best, propagates #boundless
-            get_type(node).directive = child_type_node.directive
+            get_type(&node.children[0]).directive = child_type_node.directive
         }
 
         child_type_node = get_type(&node.children[0])^
@@ -472,7 +498,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 
         type_check_rhs_expression(&node.children[1], ctx, &ctx.identifiers["i64"]) or_return
 
-        if get_type(node).directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= length
+        if child_type_node.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= length
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Index %i out of bounds of '%s' in", strconv.atoi(node.children[1].value), identifier), node.file_info)
@@ -481,7 +507,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     case .CALL:
         type_check_call(node, ctx) or_return
     case .IDENTIFIER:
-        if len(node.children) > 0 && node.children[0].type == .IDENTIFIER
+        if is_struct_member(node)
         {
             child_node := &node.children[0]
             type_check_primary(child_node, ctx)
@@ -606,18 +632,18 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
         return nil, false
     }
 
-    /*if a.type == .REFERENCE
+    if a.type == .REFERENCE
     {
         if a.directive == "#boundless" && b.directive != "#boundless"
         {
-            return {}, false
+            return coerce_type(&a.children[0], &b.children[0].children[0])
         }
 
-        if a.directive != "#boundless" && b.directive != "#boundless" && a.length != b.length
+        if a.directive != "#boundless" && b.directive == "#boundless"
         {
-            return {}, false
+            return coerce_type(&a.children[0].children[0], &b.children[0])
         }
-    }*/
+    }
 
     if a.value != b.value
     {
@@ -728,6 +754,11 @@ get_type_value :: proc(type_node: ^ast_node) -> string
 
 get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
 {
+    if type_node == nil
+    {
+        return nil
+    }
+
     if type_node.value == "call" && len(type_node.children) == 2
     {
         return &type_node.children[1]
@@ -750,4 +781,26 @@ upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
     {
         upgrade_types(&child_node, new_type_node)
     }
+}
+
+resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context)
+{
+    if node.type == .IDENTIFIER && node.value in ctx.identifiers
+    {
+        identifier_node := &ctx.identifiers[node.value]
+        if is_type(identifier_node)
+        {
+            node^ = identifier_node^
+        }
+    }
+
+    for &child_node in node.children
+    {
+        resolve_types(&child_node, ctx)
+    }
+}
+
+is_struct_member :: proc(node: ^ast_node) -> bool
+{
+    return node.type == .IDENTIFIER && len(node.children) > 0 && node.children[0].type == .IDENTIFIER
 }

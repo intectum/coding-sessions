@@ -78,8 +78,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if lhs_type_node.value == "procedure"
+            if !is_type(lhs_node) && get_type(lhs_node).value == "procedure"
             {
                 continue
             }
@@ -124,8 +123,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if lhs_type_node.value == "procedure"
+            if !is_type(lhs_node) && get_type(lhs_node).value == "procedure"
             {
                 generate_procedure(file, &node, &ctx)
             }
@@ -374,12 +372,17 @@ generate_return :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
 generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 {
-    fmt.fprintln(file, "  ; assign")
-
     lhs_node := &node.children[0]
+    if is_type(lhs_node)
+    {
+        return
+    }
+
+    fmt.fprintln(file, "  ; assignment")
+
     lhs_type_node := get_type(lhs_node)
 
-    if !(lhs_node.value in ctx.stack_variable_offsets) && len(lhs_node.children) == 0
+    if !(lhs_node.value in ctx.stack_variable_offsets) && !is_struct_member(lhs_node)
     {
         allocate(file, byte_size_of(lhs_type_node, ctx), ctx)
         ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
@@ -429,7 +432,7 @@ generate_expression :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context,
 generate_expression_1 :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
     _, binary_operator := slice.linear_search(binary_operators, node.type)
-    if binary_operator
+    if !binary_operator
     {
         return generate_primary(file, node, ctx, register_num, contains_allocations)
     }

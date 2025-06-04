@@ -1,4 +1,4 @@
-glfwInit: #extern proc() -> cint
+/*glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
 glfwWindowShouldClose: #extern proc(window: ^i8) -> cint
@@ -176,15 +176,19 @@ check_opengl_error: proc() =
     {
         printb(gluErrorString(error), 100)
     }
-}
+}*/
 
-//foo = struct { member1: i64, member2: i64 }
+vec3 = f32[3]
+bar: vec3
 
-/*my_struct: struct { member1: i64, member2: i64 }
+my_int = i64
+foo = struct { member1: my_int, member2: my_int }
+
+my_struct: foo
 my_struct.member1 = 1
 my_struct.member2 = 2
 exit(my_expr_proc(my_struct))
 my_proc(my_struct)
 
-my_proc: proc(blah: struct { member1: i64, member2: i64 }) = exit(blah.member2)
-my_expr_proc: proc(blah: struct { member1: i64, member2: i64 }) -> i64 = blah.member2 + 2*/
+my_proc: proc(blah: foo) = exit(blah.member2)
+my_expr_proc: proc(blah: foo) -> my_int = blah.member2 + 2

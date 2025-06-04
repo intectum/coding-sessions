@@ -10,7 +10,7 @@ assignment\ &\to\ lhs\_expression\ (\ \text{"="}\ statement\ )?\\
 lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
-rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ call\ |\ identifier\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ \text{"nil"}\\
+rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ call\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ \text{"nil"}\\
 type\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"["}\ number\ \text{"]"}\ )\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\\
 call\ &\to\ identifier\ \text{"("}\ (\ rhs\_expression\ (\ \text{","}\ rhs\_expression\ )*\ )?\ \text{")"}\\
 string\ &\to\ \text{"""}\ (\ !\text{"""}\ )*\ \text{"""}\\
