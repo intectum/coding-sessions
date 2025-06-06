@@ -178,6 +178,11 @@ check_opengl_error: proc() =
     }
 }*/
 
+arr: i64[10]
+arr[7] = 6
+arr_slice = arr[arr[7]:10]
+exit(arr_slice)
+
 vec3 = f32[3]
 bar: vec3
 

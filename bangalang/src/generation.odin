@@ -70,7 +70,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     ctx.data_sizes["i16"] = 2
     ctx.data_sizes["i32"] = 4
     ctx.data_sizes["i64"] = 8
-    ctx.data_sizes["procedure"] = address_size
+    ctx.data_sizes["[procedure]"] = address_size
     ctx.data_sizes["string"] = 8 + address_size
 
     for &node in nodes
@@ -78,7 +78,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            if !is_type(lhs_node) && get_type(lhs_node).value == "procedure"
+            if !is_type(lhs_node) && get_type(lhs_node).value == "[procedure]"
             {
                 continue
             }
@@ -111,7 +111,18 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  mov rax, 1 ; syscall: print")
     fmt.fprintln(file, "  mov rdi, 1 ; arg0: fd (stdout)")
     fmt.fprintln(file, "  mov rsi, panic_out_of_bounds_message ; arg1: buffer")
-    fmt.fprintln(file, "  mov rdx, 26 ; arg2: count")
+    fmt.fprintln(file, "  mov rdx, 27 ; arg2: count")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
+    fmt.fprintln(file, "  mov rdi, 1 ; arg0: exit_code")
+    fmt.fprintln(file, "  syscall ; call kernel")
+    fmt.fprintln(file, "  ret ; return")
+
+    fmt.fprintln(file, "panic_negative_slice_length:")
+    fmt.fprintln(file, "  mov rax, 1 ; syscall: print")
+    fmt.fprintln(file, "  mov rdi, 1 ; arg0: fd (stdout)")
+    fmt.fprintln(file, "  mov rsi, panic_negative_slice_length_message ; arg1: buffer")
+    fmt.fprintln(file, "  mov rdx, 29 ; arg2: count")
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
     fmt.fprintln(file, "  mov rdi, 1 ; arg0: exit_code")
@@ -123,7 +134,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            if !is_type(lhs_node) && get_type(lhs_node).value == "procedure"
+            if !is_type(lhs_node) && get_type(lhs_node).value == "[procedure]"
             {
                 generate_procedure(file, &node, &ctx)
             }
@@ -136,7 +147,8 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
     fmt.fprintln(file, "  f64_sign_mask: dq 0x8000000000000000")
-    fmt.fprintln(file, "  panic_out_of_bounds_message: dd \"Panic! Index out of bounds\"")
+    fmt.fprintln(file, "  panic_out_of_bounds_message: db \"Panic! Index out of bounds\", 10")
+    fmt.fprintln(file, "  panic_negative_slice_length_message: db \"Panic! Negative slice length\", 10")
     for data_section_f32, index in ctx.data_section_f32s
     {
         final_f32 := data_section_f32
@@ -224,6 +236,7 @@ generate_statement :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, 
     case .ASSIGNMENT:
         generate_assignment(file, node, ctx)
     case:
+        fmt.fprintln(file, "  ; expression")
         generate_expression(file, node, ctx, {}, 0)
     }
 
@@ -382,7 +395,7 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     lhs_type_node := get_type(lhs_node)
 
-    if !(lhs_node.value in ctx.stack_variable_offsets) && !is_struct_member(lhs_node)
+    if lhs_node.type == .IDENTIFIER && !is_struct_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
     {
         allocate(file, byte_size_of(lhs_type_node, ctx), ctx)
         ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
@@ -634,40 +647,94 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
         register_dest := copy_to_register(file, primary_dest, register_num, &unknown_reference_type_node, ctx, "dereference")
         return memory(operand(register_dest), 0)
     case .INDEX:
-        primary_location := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
+        child_location := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
 
-        if node.children[1].type == .NUMBER
+        child_type_node := get_type(&node.children[0])
+
+        start_expression_node := &node.children[1]
+        start_expression_type_node := get_type(start_expression_node)
+        start_expression_location := register(register_num + 1, start_expression_type_node, ctx)
+        generate_expression(file, start_expression_node, ctx, start_expression_location, register_num + 1)
+
+        length_location := immediate(1)
+        if child_type_node.value == "[array]"
         {
-            primary_location.offset += strconv.atoi(node.children[1].value) * byte_size_of(type_node, ctx)
-            return primary_location
+            length_location = immediate(child_type_node.children[1].value)
         }
-
-        expression_node := &node.children[1]
-        expression_type_node := get_type(expression_node)
-        expression_location := register(register_num + 1, expression_type_node, ctx)
-        generate_expression(file, expression_node, ctx, expression_location, register_num + 1)
+        else if child_type_node.value == "[slice]"
+        {
+            length_location = child_location
+            length_location.offset += address_size
+        }
 
         if type_node.directive != "#boundless"
         {
-            child_type_node := get_type(&node.children[0])
-            length := child_type_node.type == .INDEX ? strconv.atoi(child_type_node.children[1].value) : 1
-            fmt.fprintfln(file, "  cmp %s, %s ; compare", operand(expression_location), operand(immediate(length)))
+            fmt.fprintfln(file, "  cmp %s, %s ; compare", operand(start_expression_location), operand(length_location))
             fmt.fprintln(file, "  jge panic_out_of_bounds ; panic!")
         }
 
-        fmt.fprintfln(file, "  cmp %s, 0 ; compare", operand(expression_location))
+        fmt.fprintfln(file, "  cmp %s, 0 ; compare", operand(start_expression_location))
         fmt.fprintln(file, "  jl panic_out_of_bounds ; panic!")
 
-        address_location := register(register_num, &unknown_reference_type_node, ctx)
-        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(address_location), operand(primary_location))
-        fmt.fprintfln(file, "  imul %s, %s ; multiply by data size", operand(expression_location), operand(immediate(byte_size_of(type_node, ctx))))
-        fmt.fprintfln(file, "  add %s, %s ; offset", operand(address_location), operand(expression_location))
+        if type_node.value != "[slice]" && node.children[1].type == .NUMBER
+        {
+            data_location := child_location
+            if child_type_node.value == "[slice]"
+            {
+                data_location = copy_to_register(file, data_location, register_num, &unknown_reference_type_node, ctx, "dereference")
+                data_location = memory(operand(data_location), 0)
+            }
 
-        return memory(operand(address_location), 0)
+            data_location.offset += strconv.atoi(start_expression_node.value) * byte_size_of(type_node, ctx)
+            return data_location
+        }
+
+        address_location := register(register_num, &unknown_reference_type_node, ctx)
+        offset_location := register(register_num + 2, &unknown_reference_type_node, ctx)
+        element_type_node := child_type_node.value == "[array]" || child_type_node.value == "[slice]" ? &child_type_node.children[0] : child_type_node
+
+        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(address_location), operand(child_location))
+        fmt.fprintfln(file, "  mov %s, %s ; copy", operand(offset_location), operand(start_expression_location))
+        fmt.fprintfln(file, "  imul %s, %s ; multiply by element size", operand(offset_location), operand(immediate(byte_size_of(element_type_node, ctx))))
+        fmt.fprintfln(file, "  add %s, %s ; offset", operand(address_location), operand(offset_location))
+
+        if type_node.value == "[slice]"
+        {
+            allocate(file, byte_size_of(type_node, ctx), ctx)
+            slice_address_location := memory("rsp", 0)
+            slice_length_location := memory("rsp", address_size)
+
+            copy(file, address_location, slice_address_location, &unknown_reference_type_node, ctx)
+
+            end_expression_node := &node.children[2]
+            end_expression_type_node := get_type(end_expression_node)
+            end_expression_location := register(register_num + 2, end_expression_type_node, ctx)
+            generate_expression(file, end_expression_node, ctx, end_expression_location, register_num + 2)
+
+            if type_node.directive != "#boundless"
+            {
+                fmt.fprintfln(file, "  cmp %s, %s ; compare", operand(end_expression_location), operand(length_location))
+                fmt.fprintln(file, "  jg panic_out_of_bounds ; panic!")
+            }
+
+            fmt.fprintfln(file, "  cmp %s, 0 ; compare", operand(end_expression_location))
+            fmt.fprintln(file, "  jl panic_out_of_bounds ; panic!")
+
+            fmt.fprintfln(file, "  mov %s, %s ; copy", operand(slice_length_location), operand(end_expression_location))
+            fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(slice_length_location), operand(start_expression_location))
+            fmt.fprintfln(file, "  cmp qword %s, 0 ; compare", operand(slice_length_location))
+            fmt.fprintln(file, "  jl panic_negative_slice_length ; panic!")
+
+            return copy_stack_address(file, ctx, 0, register_num)
+        }
+        else
+        {
+            return memory(operand(address_location), 0)
+        }
     case .CALL:
         return generate_call(file, node, ctx, register_num, false)
     case .IDENTIFIER:
-        if type_node.value == "procedure"
+        if type_node.value == "[procedure]"
         {
             return immediate(node.value)
         }
@@ -969,6 +1036,11 @@ close_gen_context :: proc(file: os.Handle, parent_ctx: ^gen_context, ctx: ^gen_c
 
 contains_allocations :: proc(node: ^ast_node) -> bool
 {
+    if node.type == .INDEX && get_type(node).value != "[slice]"
+    {
+        return true
+    }
+
     if node.type == .CALL && get_type(node).directive != "#extern"
     {
         return true
@@ -1135,14 +1207,19 @@ precision :: proc(size: int) -> string
 
 byte_size_of :: proc(type_node: ^ast_node, ctx: ^gen_context) -> int
 {
-    if type_node.type == .INDEX
+    if type_node.type == .REFERENCE
+    {
+        return address_size
+    }
+
+    if type_node.value == "[array]"
     {
         return byte_size_of(&type_node.children[0], ctx) * strconv.atoi(type_node.children[1].value)
     }
 
-    if type_node.type == .REFERENCE
+    if type_node.value == "[slice]"
     {
-        return address_size
+        return address_size + 8
     }
 
     if type_node.value == "struct"

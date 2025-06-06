@@ -29,12 +29,12 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     ctx.identifiers["i16"] = { type = .TYPE, value = "i16" }
     ctx.identifiers["i32"] = { type = .TYPE, value = "i32" }
     ctx.identifiers["i64"] = { type = .TYPE, value = "i64" }
-    ctx.identifiers["procedure"] = { type = .TYPE, value = "procedure" }
+    ctx.identifiers["[procedure]"] = { type = .TYPE, value = "[procedure]" }
     ctx.identifiers["string"] = { type = .TYPE, value = "string" }
 
     syscall := ast_node { type = .IDENTIFIER, value = "syscall" }
-    append(&syscall.children, ast_node { type = .TYPE, value = "procedure", directive = "#extern" })
-    append(&syscall.children[0].children, ast_node { type = .TYPE, value = "parameters" })
+    append(&syscall.children, ast_node { type = .TYPE, value = "[procedure]", directive = "#extern" })
+    append(&syscall.children[0].children, ast_node { type = .TYPE, value = "[parameters]" })
     append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "syscall_num" })
     append(&syscall.children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "i64" })
     append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg0" })
@@ -53,11 +53,11 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     ctx.identifiers["syscall"] = syscall
 
     clone := ast_node { type = .IDENTIFIER, value = "clone" }
-    append(&clone.children, ast_node { type = .TYPE, value = "procedure", directive = "#extern" })
-    append(&clone.children[0].children, ast_node { type = .TYPE, value = "parameters" })
+    append(&clone.children, ast_node { type = .TYPE, value = "[procedure]", directive = "#extern" })
+    append(&clone.children[0].children, ast_node { type = .TYPE, value = "[parameters]" })
     append(&clone.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "thread_proc" })
-    append(&clone.children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "procedure" })
-    append(&clone.children[0].children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "parameters" })
+    append(&clone.children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "[procedure]" })
+    append(&clone.children[0].children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "[parameters]" })
     append(&clone.children[0].children, ast_node { type = .TYPE, value = "i64" })
     ctx.identifiers["clone"] = clone
 
@@ -69,7 +69,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
-            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "procedure")
+            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "[procedure]")
             {
                 type_check_statement(&node, &ctx) or_return
             }
@@ -82,7 +82,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
-            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "procedure")
+            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "[procedure]")
             {
                 continue
             }
@@ -218,7 +218,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         rhs_node := &node.children[1]
 
         lhs_type_node := get_type(lhs_node)
-        if lhs_type_node != nil && lhs_type_node.value == "procedure"
+        if lhs_type_node != nil && lhs_type_node.value == "[procedure]"
         {
             if lhs_type_node.directive == "#extern"
             {
@@ -393,7 +393,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
         upgrade_types(rhs_node, coerced_type_node)
     }
 
-    if coerced_type_node.type == .INDEX || coerced_type_node.type == .REFERENCE
+    if coerced_type_node.value == "[array]" || coerced_type_node.value == "[slice]" || coerced_type_node.type == .REFERENCE
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Invalid type %s in", type_name(get_type(node))), node.file_info)
@@ -442,7 +442,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
         type_check_primary(&node.children[0], ctx) or_return
 
         child_type_node := get_type(&node.children[0])
-        if child_type_node.type == .INDEX || child_type_node.type == .REFERENCE
+        if child_type_node.value == "[array]" || child_type_node.value == "[slice]" || child_type_node.type == .REFERENCE
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot negate type %s in", type_name(child_type_node)), node.file_info)
@@ -485,7 +485,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
         }
 
         child_type_node = get_type(&node.children[0])^
-        if child_type_node.type == .INDEX
+        if child_type_node.value == "[array]" || child_type_node.value == "[slice]"
         {
             append(&node.children, child_type_node.children[0])
         }
@@ -494,15 +494,27 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
             append(&node.children, child_type_node)
         }
 
-        length := child_type_node.type == .INDEX ? strconv.atoi(child_type_node.children[1].value) : 1
-
         type_check_rhs_expression(&node.children[1], ctx, &ctx.identifiers["i64"]) or_return
 
-        if child_type_node.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= length
+        if len(node.children) == 4
         {
-            fmt.println("Failed to type check primary")
-            file_error(fmt.aprintf("Index %i out of bounds of '%s' in", strconv.atoi(node.children[1].value), identifier), node.file_info)
-            return false
+            type_check_rhs_expression(&node.children[2], ctx, &ctx.identifiers["i64"]) or_return
+
+            type_node := ast_node { type = .TYPE, value = "[slice]" }
+            append(&type_node.children, get_type(node)^)
+            get_type(node)^ = type_node
+        }
+
+        if child_type_node.value != "[slice]"
+        {
+            length := child_type_node.value == "[array]" ? strconv.atoi(child_type_node.children[1].value) : 1
+
+            if child_type_node.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= length
+            {
+                fmt.println("Failed to type check primary")
+                file_error(fmt.aprintf("Index %i out of bounds of '%s' in", strconv.atoi(node.children[1].value), identifier), node.file_info)
+                return false
+            }
         }
     case .CALL:
         type_check_call(node, ctx) or_return
@@ -537,8 +549,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     case .NIL:
         append(&node.children, ast_node { type = .TYPE, value = "nil" })
     case .TYPE:
-        assert(false, "???") // TODO remove
-        // nothing to do
+        assert(false, "Failed to type check primary")
     case:
         type_check_rhs_expression_1(node, ctx) or_return
     }
@@ -562,7 +573,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     procedure_node := &ctx.identifiers[name_node.value]
 
     procedure_type_node := get_type(procedure_node)
-    if procedure_type_node.value != "procedure"
+    if procedure_type_node.value != "[procedure]"
     {
         fmt.println("Failed to type check call")
         file_error(fmt.aprintf("Identifier %s does not refer to a procedure in", name_node.value), node.file_info)
@@ -601,7 +612,7 @@ copy_type_checking_context := proc(ctx: type_checking_context, inline := false) 
     for key in ctx.identifiers
     {
         identifier_node := &ctx.identifiers[key]
-        if inline || is_type(identifier_node) || get_type(identifier_node).value == "procedure"
+        if inline || is_type(identifier_node) || get_type(identifier_node).value == "[procedure]"
         {
             ctx_copy.identifiers[key] = ctx.identifiers[key]
         }
@@ -691,16 +702,23 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
 
 type_name :: proc(type_node: ^ast_node) -> string
 {
-    prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
+    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
 
-    if type_node.type == .INDEX
-    {
-        return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
-    }
+    prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
 
     if type_node.type == .REFERENCE
     {
         return strings.concatenate({ prefix, "^", type_name(&type_node.children[0]) })
+    }
+
+    if type_node.value == "[array]"
+    {
+        return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
+    }
+
+    if type_node.value == "[slice]"
+    {
+        return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[]" })
     }
 
     return strings.concatenate({ prefix, type_node.value })
@@ -713,7 +731,7 @@ is_type :: proc(type_node: ^ast_node) -> bool
         return true
     }
 
-    if type_node.type == .INDEX || type_node.type == .REFERENCE
+    if type_node.type == .REFERENCE
     {
         return is_type(&type_node.children[0])
     }
@@ -739,17 +757,14 @@ get_type :: proc(node: ^ast_node) -> ^ast_node
 
 get_type_value :: proc(type_node: ^ast_node) -> string
 {
-    if type_node.type == .TYPE
-    {
-        return type_node.value
-    }
+    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
 
-    if type_node.type == .INDEX || type_node.type == .REFERENCE
+    if len(type_node.children) > 0
     {
         return get_type_value(&type_node.children[0])
     }
 
-    return ""
+    return type_node.value
 }
 
 get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
@@ -758,6 +773,8 @@ get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
     {
         return nil
     }
+
+    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
 
     if type_node.value == "call" && len(type_node.children) == 2
     {
@@ -783,7 +800,7 @@ upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
     }
 }
 
-resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context)
+resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     if node.type == .IDENTIFIER && node.value in ctx.identifiers
     {
@@ -791,13 +808,24 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context)
         if is_type(identifier_node)
         {
             node^ = identifier_node^
+            return true
         }
     }
 
     for &child_node in node.children
     {
-        resolve_types(&child_node, ctx)
+        if resolve_types(&child_node, ctx)
+        {
+            if node.type == .INDEX
+            {
+                node.type = .TYPE
+                node.value = len(node.children) == 1 ? "[slice]" : "[array]"
+
+            }
+        }
     }
+
+    return false
 }
 
 is_struct_member :: proc(node: ^ast_node) -> bool

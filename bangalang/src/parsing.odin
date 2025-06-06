@@ -440,14 +440,40 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
         child_node := node
 
         node = {
-            type = .INDEX,
+            type = type == .type ? .TYPE : .INDEX,
+            value = type == .type ? "[slice]" : "",
             file_info = child_node.file_info
         }
 
         append(&node.children, child_node)
 
-        expression_node := parse_rhs_expression(stream) or_return
-        append(&node.children, expression_node)
+        if type == .type
+        {
+            if peek_token(stream).type == .NUMBER
+            {
+                node.value = "[array]"
+
+                number_node := ast_node {
+                    type = .NUMBER,
+                    value = (next_token(stream, .NUMBER) or_return).value,
+                    file_info = child_node.file_info
+                }
+                append(&node.children, number_node)
+            }
+        }
+        else
+        {
+            start_expression_node := parse_rhs_expression(stream) or_return
+            append(&node.children, start_expression_node)
+
+            if peek_token(stream).type == .COLON
+            {
+                next_token(stream, .COLON) or_return
+
+                end_expression_node := parse_rhs_expression(stream) or_return
+                append(&node.children, end_expression_node)
+            }
+        }
 
         next_token(stream, .CLOSING_SQUARE_BRACKET) or_return
     case .PERIOD:
@@ -538,14 +564,14 @@ parse_struct_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 parse_procedure_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .TYPE
-    node.value = "procedure"
+    node.value = "[procedure]"
     node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.KEYWORD, "proc") or_return
 
     next_token(stream, .OPENING_BRACKET) or_return
 
-    params_type_node := ast_node { type = .TYPE, value = "parameters" }
+    params_type_node := ast_node { type = .TYPE, value = "[parameters]" }
 
     for peek_token(stream).type != .CLOSING_BRACKET
     {
