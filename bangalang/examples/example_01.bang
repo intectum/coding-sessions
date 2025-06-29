@@ -178,10 +178,41 @@ check_opengl_error: proc() =
     }
 }*/
 
-arr: i64[10]
+/*blah: atomic_i64 = 1
+blah += 4
+blah -= 2*/
+//exit(#untyped blah)
+
+println("Semaphore test")
+semaphore: atomic_i32
+sem_func: proc(arg: i64) =
+{
+    semaphore: ^atomic_i32 = #untyped arg
+    semaphore_signal(semaphore)
+}
+start_thread(sem_func, #untyped ^semaphore)
+semaphore_wait(^semaphore)
+println("Semaphore test complete")
+start_thread(sem_func, #untyped ^semaphore)
+semaphore_wait(^semaphore)
+println("Semaphore test complete 2")
+
+println("Mutex test")
+mutex: i32
+mutex_lock(^mutex)
+mut_func: proc(arg: i64) =
+{
+    mutex: ^i32 = #untyped arg
+    mutex_unlock(mutex)
+}
+start_thread(mut_func, #untyped ^mutex)
+mutex_lock(^mutex)
+println("Mutex test complete")
+
+/*arr: i64[10]
 arr[7] = 6
 arr_slice = arr[arr[7]:10]
-exit(arr_slice)
+exit(arr_slice[1])
 
 vec3 = f32[3]
 bar: vec3
@@ -196,4 +227,4 @@ exit(my_expr_proc(my_struct))
 my_proc(my_struct)
 
 my_proc: proc(blah: foo) = exit(blah.member2)
-my_expr_proc: proc(blah: foo) -> my_int = blah.member2 + 2
+my_expr_proc: proc(blah: foo) -> my_int = blah.member2 + 2*/
