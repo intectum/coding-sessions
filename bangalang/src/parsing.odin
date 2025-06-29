@@ -622,7 +622,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .MINUS, .ASTERISK, .BACKSLASH, .PERCENT:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS, .ASTERISK, .BACKSLASH, .PERCENT:
         return true
     case:
         return false
@@ -635,7 +635,7 @@ binary_operator_precedence :: proc(token: token) -> int
     {
     case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS:
         return 1
-    case .PLUS, .MINUS:
+    case .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS:
         return 2
     case .ASTERISK, .BACKSLASH, .PERCENT:
         return 3
@@ -663,8 +663,12 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
         return .GREATER_THAN_OR_EQUAL
     case .PLUS:
         return .ADD
+    case .PLUS_EQUALS:
+        return .ADD_ASSIGN
     case .MINUS:
         return .SUBTRACT
+    case .MINUS_EQUALS:
+        return .SUBTRACT_ASSIGN
     case .ASTERISK:
         return .MULTIPLY
     case .BACKSLASH:

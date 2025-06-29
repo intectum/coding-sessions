@@ -26,6 +26,29 @@ exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
 
 gettimeofday: proc(timeval: ^i64[2]) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
 
+futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
+    syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1, 0, 0)
+
+mutex_lock: proc(mutex: ^i32) =
+    for (cmpxchg(mutex, 0, 1) == false)
+        futex(mutex, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
+
+mutex_unlock: proc(mutex: ^i32) =
+    if (cmpxchg(mutex, 1, 0))
+        futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+
+semaphore_wait: proc(semaphore: ^atomic_i32) -> bool =
+    for (true) // spin
+    {
+        semaphore^ -= 1
+        if (semaphore^ >= 0)
+            return true
+        else
+            semaphore^ += 1
+    }
+
+semaphore_signal: proc(semaphore: ^atomic_i32) = semaphore^ += 1
+
 assert: proc(assertion: bool, message: string) =
 {
     if (assertion == false)

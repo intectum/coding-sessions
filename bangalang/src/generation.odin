@@ -61,6 +61,11 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
     ctx: gen_context
 
+    ctx.data_sizes["[procedure]"] = address_size
+    ctx.data_sizes["atomic_i8"] = 1
+    ctx.data_sizes["atomic_i16"] = 2
+    ctx.data_sizes["atomic_i32"] = 4
+    ctx.data_sizes["atomic_i64"] = 8
     ctx.data_sizes["bool"] = 1
     ctx.data_sizes["cint"] = 4 // TODO platform dependant
     ctx.data_sizes["cstring"] = address_size
@@ -70,7 +75,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     ctx.data_sizes["i16"] = 2
     ctx.data_sizes["i32"] = 4
     ctx.data_sizes["i64"] = 8
-    ctx.data_sizes["[procedure]"] = address_size
     ctx.data_sizes["string"] = 8 + address_size
 
     for &node in nodes
@@ -92,11 +96,13 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  mov rdi, 0 ; arg0: exit_code")
     fmt.fprintln(file, "  syscall ; call kernel")
 
-    fmt.fprintln(file, "clone:")
-    fmt.fprintln(file, "  mov rbx, [rsp + 8] ; copy")
+    fmt.fprintln(file, "start_thread:")
+    fmt.fprintln(file, "  mov rbx, [rsp + 16] ; copy")
+    fmt.fprintln(file, "  mov rcx, [rsp + 8] ; copy")
+    fmt.fprintln(file, "  mov [thread_stack + 4096 - 16], rcx ; copy")
     fmt.fprintln(file, "  mov rax, 56 ; syscall: clone")
-    fmt.fprintln(file, "  mov rdi, 0x00000011 ; arg0: flags (CLONE_VM | SIGCHLD)")
-    fmt.fprintln(file, "  mov rsi, thread_stack + 4096 ; arg1: stack pointer (top of stack)")
+    fmt.fprintln(file, "  mov rdi, 0x10d00 ; arg0: flags (CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD)")
+    fmt.fprintln(file, "  mov rsi, thread_stack + 4096 - 16 ; arg1: stack pointer (top of stack)")
     fmt.fprintln(file, "  mov rdx, 0 ; arg2: parent TID ptr (not used)")
     fmt.fprintln(file, "  mov r10, 0 ; arg3: child TID ptr (not used)")
     fmt.fprintln(file, "  mov r8, 0 ; arg4: TLS (not used)")
@@ -104,7 +110,18 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  cmp rax, 0 ; check if child/zero")
     fmt.fprintln(file, "  jne .end ; skip procedure for parent")
     fmt.fprintln(file, "  call rbx ; call procedure")
+    fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
+    fmt.fprintln(file, "  mov rdi, 0 ; arg0: exit_code")
+    fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, ".end:")
+    fmt.fprintln(file, "  ret ; return")
+
+    fmt.fprintln(file, "cmpxchg:")
+    fmt.fprintln(file, "  mov rbx, [rsp + 16] ; dereference")
+    fmt.fprintln(file, "  mov eax, [rsp + 12] ; copy")
+    fmt.fprintln(file, "  mov ecx, [rsp + 8] ; copy")
+    fmt.fprintln(file, "  lock cmpxchg [rbx], ecx ; compare and exchange")
+    fmt.fprintln(file, "  setz [rsp + 24] ; assign return value")
     fmt.fprintln(file, "  ret ; return")
 
     fmt.fprintln(file, "panic_out_of_bounds:")
@@ -258,7 +275,7 @@ generate_if :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     child_index := 2
     else_index := 0
-    expression_dest := register(0, get_type(expression_node), ctx)
+    expression_dest := register(0, get_type_result(get_type(expression_node)), ctx)
 
     generate_expression(file, expression_node, ctx, expression_dest)
     fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
@@ -319,7 +336,7 @@ generate_for :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     fmt.fprintfln(file, ".for_%i:", for_index)
 
-    expression_dest := register(0, get_type(child_node), &for_ctx)
+    expression_dest := register(0, get_type_result(get_type(child_node)), &for_ctx)
     generate_expression(file, child_node, &for_ctx, expression_dest)
     fmt.fprintfln(file, "  cmp %s, 0 ; test expression", operand(expression_dest))
     fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
@@ -456,7 +473,7 @@ generate_expression_1 :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_contex
     operand_type_node := get_type_result(get_type(lhs_node))
     result_type_node := get_type(node)
 
-    lhs_register_num := register_num / 2 * 2 + 2
+    lhs_register_num := register_num
     rhs_register_num := lhs_register_num + 1
 
     lhs_location := generate_expression_1(file, lhs_node, ctx, lhs_register_num, contains_allocations)
@@ -471,6 +488,12 @@ generate_expression_1 :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_contex
     if float_type
     {
         return generate_expression_float(file, node, lhs_location, rhs_location, operand_type_node, result_type_node, ctx, register_num, contains_allocations)
+    }
+
+    _, atomic_integer_type := slice.linear_search(atomic_integer_types, operand_type_node.value)
+    if atomic_integer_type
+    {
+        return generate_expression_atomic_integer(file, node, lhs_location, rhs_location, operand_type_node, result_type_node, ctx, register_num, contains_allocations)
     }
 
     _, signed_integer_type := slice.linear_search(signed_integer_types, operand_type_node.value)
@@ -556,6 +579,56 @@ generate_expression_float :: proc(file: os.Handle, node: ^ast_node, lhs_location
     return result_location
 }
 
+generate_expression_atomic_integer :: proc(file: os.Handle, node: ^ast_node, lhs_location: location, rhs_location: location, operand_type_node: ^ast_node, result_type_node: ^ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
+{
+    result_location := register(register_num, result_type_node, ctx)
+
+    _, comparison_operator := slice.linear_search(comparison_operators, node.type)
+    if comparison_operator
+    {
+        lhs_register_location := copy_to_register(file, lhs_location, register_num, operand_type_node, ctx)
+
+        fmt.fprintfln(file, "  cmp %s, %s ; compare", operand(lhs_register_location), operand(rhs_location))
+
+        #partial switch node.type
+        {
+        case .EQUAL:
+            fmt.fprintfln(file, "  sete %s ; equal", operand(result_location))
+        case .NOT_EQUAL:
+            fmt.fprintfln(file, "  setne %s ; not equal", operand(result_location))
+        case .LESS_THAN:
+            fmt.fprintfln(file, "  setl %s ; less than", operand(result_location))
+        case .GREATER_THAN:
+            fmt.fprintfln(file, "  setg %s ; greater than", operand(result_location))
+        case .LESS_THAN_OR_EQUAL:
+            fmt.fprintfln(file, "  setle %s ; less than or equal", operand(result_location))
+        case .GREATER_THAN_OR_EQUAL:
+            fmt.fprintfln(file, "  setge %s ; greater than or equal", operand(result_location))
+        case:
+            assert(false, "Failed to generate expression")
+        }
+
+        return result_location
+    }
+
+    rhs_register_location := copy_to_register(file, rhs_location, register_num + 1, operand_type_node, ctx)
+
+    #partial switch node.type
+    {
+    case .ADD_ASSIGN:
+        result_location = lhs_location
+        fmt.fprintfln(file, "  lock xadd %s, %s ; atomic add", operand(result_location), operand(rhs_register_location))
+    case .SUBTRACT_ASSIGN:
+        result_location = lhs_location
+        fmt.fprintfln(file, "  neg %s ; negate", operand(rhs_register_location))
+        fmt.fprintfln(file, "  lock xadd %s, %s ; atomic add", operand(result_location), operand(rhs_register_location))
+    case:
+        assert(false, "Failed to generate expression")
+    }
+
+    return result_location
+}
+
 generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs_location: location, rhs_location: location, operand_type_node: ^ast_node, result_type_node: ^ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
     result_location := register(register_num, result_type_node, ctx)
@@ -593,9 +666,17 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs
     case .ADD:
         result_location = copy_to_register(file, lhs_location, register_num, result_type_node, ctx)
         fmt.fprintfln(file, "  add %s, %s ; add", operand(result_location), operand(rhs_location))
+    case .ADD_ASSIGN:
+        result_location = lhs_location
+        rhs_register_location := copy_to_register(file, rhs_location, register_num + 1, operand_type_node, ctx)
+        fmt.fprintfln(file, "  add %s, %s ; add", operand(result_location), operand(rhs_register_location))
     case .SUBTRACT:
         result_location = copy_to_register(file, lhs_location, register_num, result_type_node, ctx)
         fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(result_location), operand(rhs_location))
+    case .SUBTRACT_ASSIGN:
+        result_location = lhs_location
+        rhs_register_location := copy_to_register(file, rhs_location, register_num + 1, operand_type_node, ctx)
+        fmt.fprintfln(file, "  sub %s, %s ; subtract", operand(result_location), operand(rhs_register_location))
     case .MULTIPLY:
         result_location = copy_to_register(file, lhs_location, register_num, result_type_node, ctx)
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), operand(rhs_location))

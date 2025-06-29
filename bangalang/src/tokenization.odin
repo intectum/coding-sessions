@@ -37,7 +37,9 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
   fixed_token_types["=="] = .EQUALS_EQUALS
   fixed_token_types["!="] = .EXCLAMATION_EQUALS
   fixed_token_types["+"] = .PLUS
+  fixed_token_types["+="] = .PLUS_EQUALS
   fixed_token_types["-"] = .MINUS
+  fixed_token_types["-="] = .MINUS_EQUALS
   fixed_token_types["*"] = .ASTERISK
   fixed_token_types["/"] = .BACKSLASH
   fixed_token_types["%"] = .PERCENT
