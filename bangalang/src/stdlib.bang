@@ -22,6 +22,12 @@ printbln: proc(message: #boundless ^i8, length: i64) =
     write(1, "\n")
 }
 
+mmap: proc(address: #boundless ^i8, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> #boundless ^i8 =
+{
+    address_i64 = syscall(9, #untyped address, length, prot, flags, file_descriptor, offset)
+    return #untyped address_i64
+}
+
 exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
 
 gettimeofday: proc(timeval: ^i64[2]) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
@@ -47,17 +53,7 @@ semaphore_wait: proc(semaphore: ^atomic_i32) -> bool =
             semaphore^ += 1
     }
 
-semaphore_signal: proc(semaphore: ^atomic_i32) = semaphore^ += 1
-
-assert: proc(assertion: bool, message: string) =
-{
-    if (assertion == false)
-    {
-        print("Assertion failed: ")
-        print(message)
-        exit(1)
-    }
-}
+semaphore_signal: proc(semaphore: ^atomic_i32) = { semaphore^ += 1 }
 
 i8_cast: proc(value: i64) -> i8 = return #untyped value
 
@@ -65,6 +61,20 @@ itoa: proc(value: i64, string_bytes: #boundless ^i8) -> i64 =
 {
     length: i64 = 0
     string_bytes_reversed: i8[100]
+
+    if (value < 0)
+    {
+        string_bytes_reversed[length] = 45 // '-'
+
+        value = -value
+        length = length + 1
+    }
+    else if (value == 0)
+    {
+        string_bytes_reversed[length] = 48 // '0'
+
+        length = length + 1
+    }
 
     for (value > 0)
     {
@@ -80,4 +90,100 @@ itoa: proc(value: i64, string_bytes: #boundless ^i8) -> i64 =
     }
 
     return length
+}
+
+start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
+{
+    mmap_prot: i64 = 0x3 // PROT_READ | PROT_WRITE
+    mmap_flags: i64 = 0x22 // MAP_PRIVATE | MAP_ANONYMOUS
+    stack = mmap(nil, 4096, mmap_prot, mmap_flags, -1, 0)
+
+    stack_i64: i64 = #untyped stack
+    stack_i64 += 4096
+    stack_i64 -= (2 * 8) // account for params
+    stack_params: ^i64[2] = #untyped stack_i64
+    stack_params[1] = #untyped func
+    stack_params[0] = arg
+    stack_i64 -= 8 // account for instruction pointer
+    stack_i64 -= (7 * 8) // account for local vars declared before clone
+
+    clone_flags: i64 = 0x10d00 // CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD
+    pid = syscall(56, clone_flags, stack_i64, 0, 0, 0, 0)
+
+    if (pid == 0)
+    {
+        func(arg)
+        exit(0)
+    }
+
+    return pid
+}
+
+thread_pool_task = struct
+{
+    func: proc(data: f32[]),
+    data: f32[]
+}
+
+thread_pool = struct
+{
+    worker_count: i32,
+    tasks: thread_pool_task[100],
+    task_count: i64,
+    mutex: i32,
+    semaphore: atomic_i32
+}
+
+thread_pool_worker: proc(arg: i64) =
+{
+    pool: ^thread_pool = #untyped arg
+
+    alive = true
+    for (alive)
+    {
+        semaphore_wait(^pool.semaphore)
+        mutex_lock(^pool.mutex)
+
+        if (pool.task_count == 0)
+        {
+            alive = false
+            mutex_unlock(^pool.mutex)
+        }
+        else
+        {
+            pool.task_count -= 1
+            task = pool.tasks[pool.task_count]
+            mutex_unlock(^pool.mutex)
+
+            task.func(task.data)
+        }
+    }
+}
+
+thread_pool_start: proc(pool: ^thread_pool) =
+    for (index: i32, index < pool.worker_count, index = index + 1)
+        start_thread(thread_pool_worker, #untyped pool)
+
+thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
+{
+    mutex_lock(^pool.mutex)
+    pool.tasks[pool.task_count] = task^
+    pool.task_count += 1
+    mutex_unlock(^pool.mutex)
+
+    semaphore_signal(^pool.semaphore)
+}
+
+thread_pool_stop: proc(pool: ^thread_pool) =
+    for (index: i32, index < pool.worker_count, index = index + 1)
+        semaphore_signal(^pool.semaphore)
+
+assert: proc(assertion: bool, message: string) =
+{
+    if (assertion == false)
+    {
+        print("Assertion failed: ")
+        print(message)
+        exit(1)
+    }
 }

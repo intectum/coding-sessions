@@ -82,7 +82,8 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            if !is_type(lhs_node) && get_type(lhs_node).value == "[procedure]"
+            lhs_type_node := get_type(lhs_node)
+            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
             {
                 continue
             }
@@ -95,26 +96,6 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
     fmt.fprintln(file, "  mov rdi, 0 ; arg0: exit_code")
     fmt.fprintln(file, "  syscall ; call kernel")
-
-    fmt.fprintln(file, "start_thread:")
-    fmt.fprintln(file, "  mov rbx, [rsp + 16] ; copy")
-    fmt.fprintln(file, "  mov rcx, [rsp + 8] ; copy")
-    fmt.fprintln(file, "  mov [thread_stack + 4096 - 16], rcx ; copy")
-    fmt.fprintln(file, "  mov rax, 56 ; syscall: clone")
-    fmt.fprintln(file, "  mov rdi, 0x10d00 ; arg0: flags (CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD)")
-    fmt.fprintln(file, "  mov rsi, thread_stack + 4096 - 16 ; arg1: stack pointer (top of stack)")
-    fmt.fprintln(file, "  mov rdx, 0 ; arg2: parent TID ptr (not used)")
-    fmt.fprintln(file, "  mov r10, 0 ; arg3: child TID ptr (not used)")
-    fmt.fprintln(file, "  mov r8, 0 ; arg4: TLS (not used)")
-    fmt.fprintln(file, "  syscall ; call kernel")
-    fmt.fprintln(file, "  cmp rax, 0 ; check if child/zero")
-    fmt.fprintln(file, "  jne .end ; skip procedure for parent")
-    fmt.fprintln(file, "  call rbx ; call procedure")
-    fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
-    fmt.fprintln(file, "  mov rdi, 0 ; arg0: exit_code")
-    fmt.fprintln(file, "  syscall ; call kernel")
-    fmt.fprintln(file, ".end:")
-    fmt.fprintln(file, "  ret ; return")
 
     fmt.fprintln(file, "cmpxchg:")
     fmt.fprintln(file, "  mov rbx, [rsp + 16] ; dereference")
@@ -151,15 +132,13 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
         if node.type == .ASSIGNMENT
         {
             lhs_node := &node.children[0]
-            if !is_type(lhs_node) && get_type(lhs_node).value == "[procedure]"
+            lhs_type_node := get_type(lhs_node)
+            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
             {
                 generate_procedure(file, &node, &ctx)
             }
         }
     }
-
-    fmt.fprintln(file, "section .bss")
-    fmt.fprintln(file, "  thread_stack: resb 4096")
 
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
@@ -697,39 +676,40 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs
 
 generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
+    child_location: location
+    if len(node.children) > 0 && !is_type(&node.children[0])
+    {
+        child_location = generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
+    }
+
     type_node := get_type(node)
 
     #partial switch node.type
     {
     case .REFERENCE:
-        primary_dest := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
-        register_dest := register(register_num, type_node, ctx)
-        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(register_dest), operand(primary_dest))
-        return register_dest
+        location := register(register_num, type_node, ctx)
+        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(location), operand(child_location))
+        return location
     case .NEGATE:
-        primary_dest := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
-        register_dest := copy_to_register(file, primary_dest, register_num, type_node, ctx)
+        location := copy_to_register(file, child_location, register_num, type_node, ctx)
 
         _, float_type := slice.linear_search(float_types, get_type_value(type_node))
         if float_type
         {
             sign_mask_name := strings.concatenate({ get_type_value(type_node), "_sign_mask" })
             sign_mask := copy_to_register(file, memory(sign_mask_name, 0), register_num + 1, type_node, ctx)
-            fmt.fprintfln(file, "  xorp%s %s, %s ; negate", precision(byte_size_of(type_node, ctx)), operand(register_dest), operand(sign_mask))
+            fmt.fprintfln(file, "  xorp%s %s, %s ; negate", precision(byte_size_of(type_node, ctx)), operand(location), operand(sign_mask))
         }
         else
         {
-            fmt.fprintfln(file, "  neg %s ; negate", operand(register_dest))
+            fmt.fprintfln(file, "  neg %s ; negate", operand(location))
         }
 
-        return register_dest
+        return location
     case .DEREFERENCE:
-        primary_dest := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
-        register_dest := copy_to_register(file, primary_dest, register_num, &unknown_reference_type_node, ctx, "dereference")
-        return memory(operand(register_dest), 0)
+        location := copy_to_register(file, child_location, register_num, &unknown_reference_type_node, ctx, "dereference")
+        return memory(operand(location), 0)
     case .INDEX:
-        child_location := generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
-
         child_type_node := get_type(&node.children[0])
 
         start_expression_node := &node.children[1]
@@ -813,19 +793,18 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
             return memory(operand(address_location), 0)
         }
     case .CALL:
-        return generate_call(file, node, ctx, register_num, false)
+        return generate_call(file, node, ctx, register_num, child_location, false)
     case .IDENTIFIER:
-        if type_node.value == "[procedure]"
+        if type_node.allocator == "static"
         {
             return immediate(node.value)
         }
 
-        child_node := &node.children[0]
-        if child_node.type == .IDENTIFIER
+        if is_struct_member(node)
         {
-            primary_location := generate_primary(file, child_node, ctx, register_num, contains_allocations)
+            location := child_location
 
-            child_type_node := get_type(child_node)
+            child_type_node := get_type(&node.children[0])
             for &member_node in child_type_node.children
             {
                 if member_node.value == node.value
@@ -833,10 +812,10 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
                     break
                 }
 
-                primary_location.offset += byte_size_of(get_type(&member_node), ctx)
+                location.offset += byte_size_of(get_type(&member_node), ctx)
             }
 
-            return primary_location
+            return location
         }
 
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
@@ -888,9 +867,9 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
     }
 }
 
-generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, deallocate_return: bool) -> location
+generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, child_location: location, deallocate_return: bool) -> location
 {
-    name_node := node.children[0]
+    identifier_node := node.children[0]
     type_node := get_type(node)
 
     params_type_node := type_node.children[0]
@@ -927,8 +906,8 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         {
             param_node := &node.children[param_index + 1]
 
-            param_registers_named := name_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
-            param_registers_numbered := name_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
+            param_registers_named := identifier_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
+            param_registers_numbered := identifier_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
 
             if param_index < len(param_registers_named)
             {
@@ -961,18 +940,13 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         }
     }
 
-    if name_node.value == "syscall"
+    if identifier_node.value == "syscall"
     {
         fmt.fprintln(file, "  syscall ; call kernal")
     }
-    else if name_node.value in ctx.stack_variable_offsets
-    {
-        variable_position := ctx.stack_size - ctx.stack_variable_offsets[name_node.value]
-        fmt.fprintfln(file, "  call %s ; call procedure", operand(memory("rsp", variable_position)))
-    }
     else
     {
-        fmt.fprintfln(file, "  call %s ; call procedure", name_node.value)
+        fmt.fprintfln(file, "  call %s ; call procedure (%s)", operand(child_location), identifier_node.value)
     }
 
     deallocate(file, call_stack_size, ctx)
@@ -1303,7 +1277,7 @@ byte_size_of :: proc(type_node: ^ast_node, ctx: ^gen_context) -> int
         return address_size + 8
     }
 
-    if type_node.value == "struct"
+    if type_node.value == "[struct]"
     {
         byte_size := 0
         for &member_node in type_node.children

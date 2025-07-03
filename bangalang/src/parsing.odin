@@ -334,20 +334,7 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
         next_token(stream, .CLOSING_BRACKET) or_return
     case .IDENTIFIER:
-        if peek_token(stream, 1).type == .OPENING_BRACKET
-        {
-            if type != .rhs
-            {
-                stream.error = "Only a right-hand-side primary can contain a call"
-                return {}, false
-            }
-
-            node = parse_call(stream) or_return
-        }
-        else
-        {
-            node = parse_identifier(stream) or_return
-        }
+        node = parse_identifier(stream) or_return
     case .KEYWORD:
         if type == .lhs
         {
@@ -490,12 +477,24 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
         node = parse_primary(stream, type) or_return
 
         leaf_node := &node
-        for len(leaf_node.children) == 1
+        for len(leaf_node.children) > 0
         {
             leaf_node = &leaf_node.children[0]
         }
 
         append(&leaf_node.children, child_node)
+    case .OPENING_BRACKET:
+        if type != .rhs
+        {
+            stream.error = "Only a right-hand-side primary can contain a call"
+            return {}, false
+        }
+
+        child_node := node
+
+        node = parse_call(stream) or_return
+
+        inject_at(&node.children, 0, child_node)
     }
 
     return node, true
@@ -505,9 +504,6 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .CALL
     node.file_info = peek_token(stream).file_info
-
-    name_node := parse_identifier(stream) or_return
-    append(&node.children, name_node)
 
     next_token(stream, .OPENING_BRACKET) or_return
 
@@ -531,7 +527,7 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 parse_struct_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     node.type = .TYPE
-    node.value = "struct"
+    node.value = "[struct]"
     node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.KEYWORD, "struct") or_return

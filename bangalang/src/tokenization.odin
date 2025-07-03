@@ -125,6 +125,18 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
 
       append(tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
+    else if peek_string(&stream, 2) == "0x"
+    {
+      initial_stream := stream
+      next_string(&stream, 2)
+
+      for (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9') || (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'f') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'F')
+      {
+        next_rune(&stream)
+      }
+
+      append(tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
+    }
     else if peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
     {
       initial_stream := stream

@@ -4,6 +4,7 @@ ast_node :: struct
 {
   type: ast_node_type,
   value: string,
+  allocator: string, // TODO as node?
   directive: string, // TODO as node?
   children: [dynamic]ast_node,
   file_info: file_info

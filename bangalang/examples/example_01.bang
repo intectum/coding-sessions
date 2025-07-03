@@ -178,53 +178,18 @@ check_opengl_error: proc() =
     }
 }*/
 
-/*blah: atomic_i64 = 1
-blah += 4
-blah -= 2*/
-//exit(#untyped blah)
+pool: thread_pool
+pool.worker_count = 3
 
-println("Semaphore test")
-semaphore: atomic_i32
-sem_func: proc(arg: i64) =
-{
-    semaphore: ^atomic_i32 = #untyped arg
-    semaphore_signal(semaphore)
-}
-start_thread(sem_func, #untyped ^semaphore)
-semaphore_wait(^semaphore)
-println("Semaphore test complete")
-start_thread(sem_func, #untyped ^semaphore)
-semaphore_wait(^semaphore)
-println("Semaphore test complete 2")
+thread_pool_start(^pool)
 
-println("Mutex test")
-mutex: i32
-mutex_lock(^mutex)
-mut_func: proc(arg: i64) =
-{
-    mutex: ^i32 = #untyped arg
-    mutex_unlock(mutex)
-}
-start_thread(mut_func, #untyped ^mutex)
-mutex_lock(^mutex)
-println("Mutex test complete")
+task_func: proc(data: f32[]) = println("Task!")
 
-/*arr: i64[10]
-arr[7] = 6
-arr_slice = arr[arr[7]:10]
-exit(arr_slice[1])
+task: thread_pool_task
+task.func = task_func
 
-vec3 = f32[3]
-bar: vec3
+thread_pool_enqueue(^pool, ^task)
+thread_pool_enqueue(^pool, ^task)
+thread_pool_enqueue(^pool, ^task)
 
-my_int = i64
-foo = struct { member1: my_int, member2: my_int }
-
-my_struct: foo
-my_struct.member1 = 1
-my_struct.member2 = 2
-exit(my_expr_proc(my_struct))
-my_proc(my_struct)
-
-my_proc: proc(blah: foo) = exit(blah.member2)
-my_expr_proc: proc(blah: foo) -> my_int = blah.member2 + 2*/
+thread_pool_stop(^pool)
