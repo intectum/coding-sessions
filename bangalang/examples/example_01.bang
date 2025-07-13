@@ -1,4 +1,4 @@
-/*glfwInit: #extern proc() -> cint
+glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
 glfwWindowShouldClose: #extern proc(window: ^i8) -> cint
@@ -36,6 +36,12 @@ glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized
 
 gluErrorString: #extern proc(error: i32) -> #boundless ^i8
 
+vec3 = f32[3]
+vec3_array: vec3[3]
+vec3_array[1][2] = 42
+exit(i64(vec3_array[1][2]))
+
+/*
 glfwInit()
 window = glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
 glfwMakeContextCurrent(window)
@@ -51,13 +57,12 @@ fragment_shader_name = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, f
 
 program_name = link_shaders(vertex_shader_name, fragment_shader_name)
 
-triangle_count_i32: i32 = 65536
-triangle_count_i64: i64 = 65536
-triangle_count_1d: f32 = 256
-triangle_size: f32 = 2 / triangle_count_1d
+triangle_count: i64 = 65536
+triangle_count_1d: i64 = 256
+triangle_size = 2 / f32(triangle_count_1d)
 
 buffer_name: i32
-buffer_size: i64 = triangle_count_i64 * 3 * 3 * 4
+buffer_size: i64 = triangle_count * 3 * 3 * 4
 buffer_access_hints: i32 = 194
 glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
@@ -108,7 +113,7 @@ for (glfwWindowShouldClose(window) == 0)
     }
 
     glClear(GL_COLOR_BUFFER_BIT) check_opengl_error()
-    glDrawArrays(GL_TRIANGLES, 0, triangle_count_i32 * 3) check_opengl_error()
+    glDrawArrays(GL_TRIANGLES, 0, i32(triangle_count) * 3) check_opengl_error()
 
     timeval: i64[2]
     gettimeofday(^timeval)
@@ -176,9 +181,10 @@ check_opengl_error: proc() =
     {
         printb(gluErrorString(error), 100)
     }
-}*/
+}
+*/
 
-pool: thread_pool
+/*pool: thread_pool
 pool.worker_count = 3
 
 thread_pool_start(^pool)
@@ -192,4 +198,4 @@ thread_pool_enqueue(^pool, ^task)
 thread_pool_enqueue(^pool, ^task)
 thread_pool_enqueue(^pool, ^task)
 
-thread_pool_stop(^pool)
+thread_pool_stop(^pool)*/

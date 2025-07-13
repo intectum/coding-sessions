@@ -74,14 +74,14 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     {
         resolve_types(&node, &ctx)
 
-        if node.type == .ASSIGNMENT
+        if node.type == .ASSIGNMENT && len(node.children) == 2 && is_type(&node.children[1])
         {
             lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "[procedure]")
-            {
-                type_check_statement(&node, &ctx) or_return
-            }
+            rhs_node := &node.children[1]
+
+            name := lhs_node.value
+            lhs_node^ = rhs_node^
+            ctx.identifiers[name] = lhs_node^
         }
     }
 
@@ -91,10 +91,19 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
-            if (len(node.children) == 2 && is_type(&node.children[1])) || (lhs_type_node != nil && lhs_type_node.value == "[procedure]")
+            if !is_struct_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
             {
-                continue
+                lhs_type_node.allocator = "static"
+                ctx.identifiers[lhs_node.value] = lhs_node^
             }
+        }
+    }
+
+    for &node in nodes
+    {
+        if node.type == .ASSIGNMENT && len(node.children) == 2 && is_type(&node.children[1])
+        {
+            continue
         }
 
         type_check_statement(&node, &ctx) or_return
@@ -236,8 +245,6 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 return false
             }
 
-            lhs_type_node.allocator = "static"
-
             procedure_ctx := copy_type_checking_context(ctx^)
             procedure_ctx.procedure = lhs_node^
 
@@ -270,40 +277,25 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 return false
             }
 
-            if !is_type(rhs_node)
-            {
-                type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
-            }
+            type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
         }
 
         if lhs_type_node == nil
         {
-            if is_type(rhs_node)
-            {
-                name := lhs_node.value
-                lhs_node^ = rhs_node^
-                ctx.identifiers[name] = lhs_node^
-            }
-            else
-            {
-                append(&lhs_node.children, get_type_result(get_type(rhs_node))^)
-            }
+            append(&lhs_node.children, get_type_result(get_type(rhs_node))^)
         }
     }
 
-    if !is_type(lhs_node)
+    if get_type(lhs_node) == nil
     {
-        if get_type(lhs_node) == nil
-        {
-            fmt.println("Failed to type check assignment")
-            fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
-            return false
-        }
+        fmt.println("Failed to type check assignment")
+        fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
+        return false
+    }
 
-        if !is_struct_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
-        {
-            ctx.identifiers[lhs_node.value] = lhs_node^
-        }
+    if !is_struct_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
+    {
+        ctx.identifiers[lhs_node.value] = lhs_node^
     }
 
     return true
@@ -482,7 +474,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
 
         append(&node.children, child_type_node.children[0])
     case .INDEX:
-        identifier := node.children[0].value
+        identifier := node.children[0].value // TODO *eyebrow raise*
+
         auto_dereference(&node.children[0])
 
         child_type_node := get_type(&node.children[0])
@@ -567,14 +560,50 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
 type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     child_index := 0
-    identifier_node := &node.children[child_index]
+    procedure_node := &node.children[child_index]
     child_index += 1
 
-    type_node := get_type(identifier_node)
+    if is_type(procedure_node)
+    {
+        if 1 != len(node.children) - 1
+        {
+            fmt.println("Failed to type check call")
+            file_error("Wrong number of parameters in", node.file_info)
+            fmt.printfln("Expected: %i", 1)
+            fmt.printfln("Found: %i", len(node.children) - 1)
+            return false
+        }
+
+        param_node := &node.children[child_index]
+        child_index += 1
+
+        type_check_rhs_expression(param_node, ctx, nil) or_return
+
+        param_type_node := get_type(param_node)
+        _, param_numerical_type := slice.linear_search(numerical_types, param_type_node.value)
+        _, return_numerical_type := slice.linear_search(numerical_types, procedure_node.value)
+        if !param_numerical_type && !return_numerical_type
+        {
+            fmt.println("Failed to type check call")
+            file_error(fmt.aprintf("Type '%s' cannot be converted to type '%s' in", param_type_node.value, procedure_node.value), node.file_info)
+            return false
+        }
+
+        type_node := ast_node { type = .TYPE, value = "[call]" }
+        append(&type_node.children, ast_node { type = .TYPE, value = "[parameters]" })
+        append(&type_node.children[0].children, ast_node { type = .IDENTIFIER, value = "value" })
+        append(&type_node.children[0].children[0].children, param_type_node^)
+        append(&type_node.children, procedure_node^)
+        append(&node.children, type_node)
+
+        return true
+    }
+
+    type_node := get_type(procedure_node)
     if type_node.value != "[procedure]"
     {
         fmt.println("Failed to type check call")
-        file_error(fmt.aprintf("Identifier %s does not refer to a procedure in", identifier_node.value), node.file_info)
+        file_error(fmt.aprintf("'%s' does not refer to a procedure in", procedure_node.value), node.file_info)
         return false
     }
 
@@ -599,7 +628,7 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     }
 
     append(&node.children, type_node^)
-    get_type(node).value = "call"
+    get_type(node).value = "[call]"
 
     return true
 }
@@ -774,7 +803,7 @@ get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
 
     assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
 
-    if type_node.value == "call" && len(type_node.children) == 2
+    if type_node.value == "[call]" && len(type_node.children) == 2
     {
         return &type_node.children[1]
     }

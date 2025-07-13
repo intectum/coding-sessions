@@ -869,7 +869,13 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
 
 generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, child_location: location, deallocate_return: bool) -> location
 {
-    identifier_node := node.children[0]
+    procedure_node := &node.children[0]
+
+    if is_type(procedure_node)
+    {
+        return generate_conversion_call(file, node, ctx, register_num)
+    }
+
     type_node := get_type(node)
 
     params_type_node := type_node.children[0]
@@ -906,8 +912,8 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         {
             param_node := &node.children[param_index + 1]
 
-            param_registers_named := identifier_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
-            param_registers_numbered := identifier_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
+            param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
+            param_registers_numbered := procedure_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
 
             if param_index < len(param_registers_named)
             {
@@ -940,13 +946,13 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         }
     }
 
-    if identifier_node.value == "syscall"
+    if procedure_node.value == "syscall"
     {
         fmt.fprintln(file, "  syscall ; call kernal")
     }
     else
     {
-        fmt.fprintfln(file, "  call %s ; call procedure (%s)", operand(child_location), identifier_node.value)
+        fmt.fprintfln(file, "  call %s ; call procedure (%s)", operand(child_location), procedure_node.value)
     }
 
     deallocate(file, call_stack_size, ctx)
@@ -964,6 +970,65 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
     {
         return copy_stack_address(file, ctx, 0, register_num)
     }
+}
+
+generate_conversion_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int) -> location
+{
+    type_node := get_type(node)
+
+    param_type_node := &type_node.children[0].children[0].children[0]
+    return_type_node := &type_node.children[1]
+
+    param_location := register(register_num, param_type_node, ctx)
+    return_location := register(register_num, return_type_node, ctx)
+
+    generate_expression(file, &node.children[1], ctx, param_location, register_num)
+    if return_type_node.value == param_type_node.value
+    {
+        return param_location
+    }
+
+    _, param_float_type := slice.linear_search(float_types, param_type_node.value)
+    _, param_atomic_integer_type := slice.linear_search(atomic_integer_types, param_type_node.value)
+    _, param_signed_integer_type := slice.linear_search(signed_integer_types, param_type_node.value)
+
+    _, return_float_type := slice.linear_search(float_types, return_type_node.value)
+    _, return_atomic_integer_type := slice.linear_search(atomic_integer_types, return_type_node.value)
+    _, return_signed_integer_type := slice.linear_search(signed_integer_types, return_type_node.value)
+
+    param_byte_size := byte_size_of(param_type_node, ctx)
+    return_byte_size := byte_size_of(return_type_node, ctx)
+
+    param_precision := precision(param_byte_size)
+    return_precision := precision(return_byte_size)
+
+    if param_atomic_integer_type || param_signed_integer_type
+    {
+        if return_atomic_integer_type || return_signed_integer_type
+        {
+            if return_byte_size > param_byte_size
+            {
+                fmt.fprintfln(file, "  movsx %s, %s ; convert", operand(return_location), operand(param_location))
+            }
+        }
+        else if return_float_type
+        {
+            fmt.fprintfln(file, "  cvtsi2s%s %s, %s ; convert", return_precision, operand(return_location), operand(param_location))
+        }
+    }
+    else if param_float_type
+    {
+        if return_atomic_integer_type || return_signed_integer_type
+        {
+            fmt.fprintfln(file, "  cvtts%s2si %s, %s ; convert", param_precision, operand(return_location), operand(param_location))
+        }
+        else if return_float_type
+        {
+            fmt.fprintfln(file, "  cvts%s2s%s %s, %s ; convert", param_precision, return_precision, operand(return_location), operand(param_location))
+        }
+    }
+
+    return return_location
 }
 
 copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, type_node: ^ast_node, ctx: ^gen_context, comment: string = "") -> location

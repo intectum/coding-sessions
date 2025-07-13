@@ -172,39 +172,15 @@ parse_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_
     rhs_expression_stream := stream^
     rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
 
-    if !assignment_ok && !rhs_expression_ok
-    {
-        if rhs_expression_stream.next_index >= assignment_stream.next_index
-        {
-            stream^ = rhs_expression_stream
-        }
-        else
-        {
-            stream^ = assignment_stream
-        }
-
-        return {}, false
-    }
-
-    if !assignment_ok
+    if rhs_expression_stream.next_index >= assignment_stream.next_index
     {
         stream^ = rhs_expression_stream
-        return rhs_expression_node, true
-    }
-    else if !rhs_expression_ok
-    {
-        stream^ = assignment_stream
-        return assignment_node, true
-    }
-    else if rhs_expression_stream.next_index >= assignment_stream.next_index
-    {
-        stream^ = rhs_expression_stream
-        return rhs_expression_node, true
+        return rhs_expression_node, rhs_expression_ok
     }
     else
     {
         stream^ = assignment_stream
-        return assignment_node, true
+        return assignment_node, assignment_ok
     }
 }
 
@@ -402,99 +378,105 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
         return {}, false
     }
 
-    #partial switch peek_token(stream).type
+    found_suffix := true
+    for found_suffix
     {
-    case .HAT:
-        if type == .type
+        #partial switch peek_token(stream).type
         {
-            stream.error = "A type primary cannot be dereferenced"
-            return {}, false
-        }
-
-        next_token(stream, .HAT) or_return
-
-        child_node := node
-
-        node = {
-            type = .DEREFERENCE,
-            file_info = child_node.file_info
-        }
-
-        append(&node.children, child_node)
-    case .OPENING_SQUARE_BRACKET:
-        next_token(stream, .OPENING_SQUARE_BRACKET) or_return
-
-        child_node := node
-
-        node = {
-            type = type == .type ? .TYPE : .INDEX,
-            value = type == .type ? "[slice]" : "",
-            file_info = child_node.file_info
-        }
-
-        append(&node.children, child_node)
-
-        if type == .type
-        {
-            if peek_token(stream).type == .NUMBER
+        case .HAT:
+            if type == .type
             {
-                node.value = "[array]"
+                stream.error = "A type primary cannot be dereferenced"
+                return {}, false
+            }
 
-                number_node := ast_node {
-                    type = .NUMBER,
-                    value = (next_token(stream, .NUMBER) or_return).value,
-                    file_info = child_node.file_info
+            next_token(stream, .HAT) or_return
+
+            child_node := node
+
+            node = {
+                type = .DEREFERENCE,
+                file_info = child_node.file_info
+            }
+
+            append(&node.children, child_node)
+        case .OPENING_SQUARE_BRACKET:
+            next_token(stream, .OPENING_SQUARE_BRACKET) or_return
+
+            child_node := node
+
+            node = {
+                type = type == .type ? .TYPE : .INDEX,
+                value = type == .type ? "[slice]" : "",
+                file_info = child_node.file_info
+            }
+
+            append(&node.children, child_node)
+
+            if type == .type
+            {
+                if peek_token(stream).type == .NUMBER
+                {
+                    node.value = "[array]"
+
+                    number_node := ast_node {
+                        type = .NUMBER,
+                        value = (next_token(stream, .NUMBER) or_return).value,
+                        file_info = child_node.file_info
+                    }
+                    append(&node.children, number_node)
                 }
-                append(&node.children, number_node)
             }
-        }
-        else
-        {
-            start_expression_node := parse_rhs_expression(stream) or_return
-            append(&node.children, start_expression_node)
-
-            if peek_token(stream).type == .COLON
+            else
             {
-                next_token(stream, .COLON) or_return
+                start_expression_node := parse_rhs_expression(stream) or_return
+                append(&node.children, start_expression_node)
 
-                end_expression_node := parse_rhs_expression(stream) or_return
-                append(&node.children, end_expression_node)
+                if peek_token(stream).type == .COLON
+                {
+                    next_token(stream, .COLON) or_return
+
+                    end_expression_node := parse_rhs_expression(stream) or_return
+                    append(&node.children, end_expression_node)
+                }
             }
+
+            next_token(stream, .CLOSING_SQUARE_BRACKET) or_return
+        case .PERIOD:
+            if type == .type
+            {
+                stream.error = "A type primary cannot access a member"
+                return {}, false
+            }
+
+            next_token(stream, .PERIOD) or_return
+
+            child_node := node
+
+            node = parse_primary(stream, type) or_return
+
+            leaf_node := &node
+            for len(leaf_node.children) > 0
+            {
+                leaf_node = &leaf_node.children[0]
+            }
+
+            append(&leaf_node.children, child_node)
+        case .OPENING_BRACKET:
+            if type != .rhs
+            {
+                stream.error = "Only a right-hand-side primary can contain a call"
+                return {}, false
+            }
+
+            child_node := node
+
+            node = parse_call(stream) or_return
+
+            inject_at(&node.children, 0, child_node)
+        case:
+            found_suffix = false
         }
-
-        next_token(stream, .CLOSING_SQUARE_BRACKET) or_return
-    case .PERIOD:
-        if type == .type
-        {
-            stream.error = "A type primary cannot access a member"
-            return {}, false
-        }
-
-        next_token(stream, .PERIOD) or_return
-
-        child_node := node
-
-        node = parse_primary(stream, type) or_return
-
-        leaf_node := &node
-        for len(leaf_node.children) > 0
-        {
-            leaf_node = &leaf_node.children[0]
-        }
-
-        append(&leaf_node.children, child_node)
-    case .OPENING_BRACKET:
-        if type != .rhs
-        {
-            stream.error = "Only a right-hand-side primary can contain a call"
-            return {}, false
-        }
-
-        child_node := node
-
-        node = parse_call(stream) or_return
-
-        inject_at(&node.children, 0, child_node)
     }
 
     return node, true
