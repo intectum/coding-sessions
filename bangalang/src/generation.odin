@@ -391,7 +391,7 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     lhs_type_node := get_type(lhs_node)
 
-    if lhs_node.type == .IDENTIFIER && !is_struct_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
+    if lhs_node.type == .IDENTIFIER && !is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
     {
         allocate(file, byte_size_of(lhs_type_node, ctx), ctx)
         ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
@@ -661,11 +661,11 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), operand(rhs_location))
     case .DIVIDE, .MODULO:
         // dividend / divisor
-        rhs_register_location := copy_to_non_immediate(file, rhs_location, register_num, result_type_node, ctx)
+        rhs_register_location := copy_to_non_immediate(file, rhs_location, register_num + 1, result_type_node, ctx)
         output_register := register(node.type == .DIVIDE ? "ax" : "dx", result_type_node, ctx)
         fmt.fprintfln(file, "  mov %s, 0 ; divide: assign zero to dividend high part", operand(register("dx", result_type_node, ctx)))
         fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", result_type_node, ctx)), operand(lhs_location))
-        fmt.fprintfln(file, "  idiv %s ; divide", operand(rhs_register_location))
+        fmt.fprintfln(file, "  idiv %s %s ; divide", operation_size(byte_size_of(result_type_node, ctx)), operand(rhs_register_location))
         fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(result_location), operand(output_register))
     case:
         assert(false, "Failed to generate expression")
@@ -717,16 +717,7 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
         start_expression_location := register(register_num + 1, start_expression_type_node, ctx)
         generate_expression(file, start_expression_node, ctx, start_expression_location, register_num + 1)
 
-        length_location := immediate(1)
-        if child_type_node.value == "[array]"
-        {
-            length_location = immediate(child_type_node.children[1].value)
-        }
-        else if child_type_node.value == "[slice]"
-        {
-            length_location = child_location
-            length_location.offset += address_size
-        }
+        length_location := get_length_location(child_type_node, child_location)
 
         if type_node.directive != "#boundless"
         {
@@ -754,7 +745,14 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
         offset_location := register(register_num + 2, &unknown_reference_type_node, ctx)
         element_type_node := child_type_node.value == "[array]" || child_type_node.value == "[slice]" ? &child_type_node.children[0] : child_type_node
 
-        fmt.fprintfln(file, "  lea %s, %s ; reference", operand(address_location), operand(child_location))
+        if child_type_node.value == "[slice]"
+        {
+            fmt.fprintfln(file, "  mov %s, %s ; copy", operand(address_location), operand(child_location))
+        }
+        else
+        {
+            fmt.fprintfln(file, "  lea %s, %s ; reference", operand(address_location), operand(child_location))
+        }
         fmt.fprintfln(file, "  mov %s, %s ; copy", operand(offset_location), operand(start_expression_location))
         fmt.fprintfln(file, "  imul %s, %s ; multiply by element size", operand(offset_location), operand(immediate(byte_size_of(element_type_node, ctx))))
         fmt.fprintfln(file, "  add %s, %s ; offset", operand(address_location), operand(offset_location))
@@ -800,22 +798,33 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
             return immediate(node.value)
         }
 
-        if is_struct_member(node)
+        if is_member(node)
         {
-            location := child_location
-
             child_type_node := get_type(&node.children[0])
-            for &member_node in child_type_node.children
+            if child_type_node.value == "[struct]"
             {
-                if member_node.value == node.value
+                location := child_location
+
+                for &member_node in child_type_node.children
                 {
-                    break
+                    if member_node.value == node.value
+                    {
+                        break
+                    }
+
+                    location.offset += byte_size_of(get_type(&member_node), ctx)
                 }
 
-                location.offset += byte_size_of(get_type(&member_node), ctx)
+                return location
             }
-
-            return location
+            else if node.value == "length"
+            {
+                return get_length_location(child_type_node, child_location)
+            }
+            else
+            {
+                assert(false, "Failed to generate primary")
+            }
         }
 
         variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
@@ -999,9 +1008,6 @@ generate_conversion_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_con
     param_byte_size := byte_size_of(param_type_node, ctx)
     return_byte_size := byte_size_of(return_type_node, ctx)
 
-    param_precision := precision(param_byte_size)
-    return_precision := precision(return_byte_size)
-
     if param_atomic_integer_type || param_signed_integer_type
     {
         if return_atomic_integer_type || return_signed_integer_type
@@ -1013,18 +1019,18 @@ generate_conversion_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_con
         }
         else if return_float_type
         {
-            fmt.fprintfln(file, "  cvtsi2s%s %s, %s ; convert", return_precision, operand(return_location), operand(param_location))
+            fmt.fprintfln(file, "  cvtsi2s%s %s, %s ; convert", precision(return_byte_size), operand(return_location), operand(param_location))
         }
     }
     else if param_float_type
     {
         if return_atomic_integer_type || return_signed_integer_type
         {
-            fmt.fprintfln(file, "  cvtts%s2si %s, %s ; convert", param_precision, operand(return_location), operand(param_location))
+            fmt.fprintfln(file, "  cvtts%s2si %s, %s ; convert", precision(param_byte_size), operand(return_location), operand(param_location))
         }
         else if return_float_type
         {
-            fmt.fprintfln(file, "  cvts%s2s%s %s, %s ; convert", param_precision, return_precision, operand(return_location), operand(param_location))
+            fmt.fprintfln(file, "  cvts%s2s%s %s, %s ; convert", precision(param_byte_size), precision(return_byte_size), operand(return_location), operand(param_location))
         }
     }
 
@@ -1374,4 +1380,20 @@ deallocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
         fmt.fprintfln(file, "  add rsp, %i ; deallocate (stack)", size)
         ctx.stack_size -= size
     }
+}
+
+get_length_location :: proc(container_type_node: ^ast_node, container_location: location) -> location
+{
+    if container_type_node.value == "[array]"
+    {
+        return immediate(container_type_node.children[1].value)
+    }
+    else if container_type_node.value == "[slice]"
+    {
+        length_location := container_location
+        length_location.offset += address_size
+        return length_location
+    }
+
+    return immediate(1)
 }

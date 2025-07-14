@@ -28,7 +28,7 @@ glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, i
 glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: #boundless ^i8)
 glGetShaderiv: #extern proc(shader: i32, pname: i32, params: ^i32)
 glLinkProgram: #extern proc(program: i32)
-glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> #boundless ^f32
+glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> #boundless ^i8
 glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^i8, flags: i32)
 glShaderSource: #extern proc(shader: i32, count: i32, src: ^cstring, length: ^i32)
 glUseProgram: #extern proc(program: i32)
@@ -36,12 +36,6 @@ glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized
 
 gluErrorString: #extern proc(error: i32) -> #boundless ^i8
 
-vec3 = f32[3]
-vec3_array: vec3[3]
-vec3_array[1][2] = 42
-exit(i64(vec3_array[1][2]))
-
-/*
 glfwInit()
 window = glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
 glfwMakeContextCurrent(window)
@@ -58,16 +52,20 @@ fragment_shader_name = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, f
 program_name = link_shaders(vertex_shader_name, fragment_shader_name)
 
 triangle_count: i64 = 65536
-triangle_count_1d: i64 = 256
-triangle_size = 2 / f32(triangle_count_1d)
+vertex_count = triangle_count * 3
 
 buffer_name: i32
-buffer_size: i64 = triangle_count * 3 * 3 * 4
+buffer_size: i64 = vertex_count * 3 * 4
 buffer_access_hints: i32 = 194
 glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
-buffer_data = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
+buffer_data_raw = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
+
+buffer_data_i64: i64[2]
+buffer_data_i64[0] = #untyped buffer_data_raw
+buffer_data_i64[1] = vertex_count
+buffer_data: vec3[] = #untyped buffer_data_i64
 
 glUseProgram(program_name) check_opengl_error()
 
@@ -79,53 +77,69 @@ gettimeofday(^fps_timeval)
 fps_time = fps_timeval[0] * 1000000 + fps_timeval[1]
 frame_count: i64
 
+task_func: proc(data: vec3[], start: i64) =
+{
+    triangle_count_1d: i64 = 256
+    triangle_size = 2 / f32(triangle_count_1d)
+
+    for (index: i64, index < data.length, index = index + 1)
+    {
+        triangle_index = (start + index) / 3
+        vertex_index = (start + index) % 3
+
+        column_count = triangle_index / triangle_count_1d
+        row_count = triangle_index % triangle_count_1d
+
+        x = -1 + triangle_size * f32(column_count)
+        y = -1 + triangle_size * f32(row_count)
+
+        if (vertex_index == 0)
+        {
+            data[index][0] = x + triangle_size * 0.5
+            data[index][1] = y + triangle_size
+            data[index][2] = 0
+        }
+        else if (vertex_index == 1)
+        {
+            data[index][0] = x
+            data[index][1] = y
+            data[index][2] = 0
+        }
+        else if (vertex_index == 2)
+        {
+            data[index][0] = x + triangle_size
+            data[index][1] = y
+            data[index][2] = 0
+        }
+    }
+}
+
+pool: thread_pool
+pool.worker_count = 8
+thread_pool_start(^pool)
+
 for (glfwWindowShouldClose(window) == 0)
 {
     glfwPollEvents()
     glfwSwapBuffers(window)
 
-    float_index: i64
-    for (x: f32 = -1, x < 0.9999, x = x + triangle_size)
-    {
-        for (y: f32 = -1, y < 0.9999, y = y + triangle_size)
-        {
-            buffer_data[float_index] = x + triangle_size * 0.5
-            float_index = float_index + 1
-            buffer_data[float_index] = y + triangle_size
-            float_index = float_index + 1
-            buffer_data[float_index] = 0
-            float_index = float_index + 1
+    //task_func(buffer_data, 0)
 
-            buffer_data[float_index] = x
-            float_index = float_index + 1
-            buffer_data[float_index] = y
-            float_index = float_index + 1
-            buffer_data[float_index] = 0
-            float_index = float_index + 1
-
-            buffer_data[float_index] = x + triangle_size
-            float_index = float_index + 1
-            buffer_data[float_index] = y
-            float_index = float_index + 1
-            buffer_data[float_index] = 0
-            float_index = float_index + 1
-        }
-    }
+    boomstick(^pool, task_func, buffer_data)
+    thread_pool_wait(^pool)
 
     glClear(GL_COLOR_BUFFER_BIT) check_opengl_error()
-    glDrawArrays(GL_TRIANGLES, 0, i32(triangle_count) * 3) check_opengl_error()
+    glDrawArrays(GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
 
     timeval: i64[2]
     gettimeofday(^timeval)
     time = timeval[0] * 1000000 + timeval[1]
     if (time > fps_time + 1000000)
     {
-        fps_string_bytes: i8[100]
-        fps_string_len = itoa(frame_count, ^fps_string_bytes)
-
+        string_bytes: i8[100]
+        string_len = itoa(frame_count, ^string_bytes)
         print("FPS: ")
-        printb(^fps_string_bytes, fps_string_len)
-        print("\n")
+        printbln(^string_bytes, string_len)
 
         frame_count = 0
         fps_time = time
@@ -182,20 +196,3 @@ check_opengl_error: proc() =
         printb(gluErrorString(error), 100)
     }
 }
-*/
-
-/*pool: thread_pool
-pool.worker_count = 3
-
-thread_pool_start(^pool)
-
-task_func: proc(data: f32[]) = println("Task!")
-
-task: thread_pool_task
-task.func = task_func
-
-thread_pool_enqueue(^pool, ^task)
-thread_pool_enqueue(^pool, ^task)
-thread_pool_enqueue(^pool, ^task)
-
-thread_pool_stop(^pool)*/

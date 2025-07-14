@@ -91,7 +91,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
-            if !is_struct_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+            if !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
             {
                 lhs_type_node.allocator = "static"
                 ctx.identifiers[lhs_node.value] = lhs_node^
@@ -236,7 +236,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         rhs_node := &node.children[1]
 
         lhs_type_node := get_type(lhs_node)
-        if !is_struct_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+        if !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
         {
             if lhs_type_node.directive == "#extern"
             {
@@ -293,7 +293,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         return false
     }
 
-    if !is_struct_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
+    if !is_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
     {
         ctx.identifiers[lhs_node.value] = lhs_node^
     }
@@ -436,7 +436,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
 {
     if len(node.children) > 0 && !is_type(&node.children[0])
     {
-        type_check_primary(&node.children[0], ctx, allow_undefined)
+        type_check_primary(&node.children[0], ctx, allow_undefined) or_return
     }
 
     #partial switch node.type
@@ -513,19 +513,41 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
     case .CALL:
         type_check_call(node, ctx) or_return
     case .IDENTIFIER:
-        if is_struct_member(node)
+        if is_member(node)
         {
             child_node := &node.children[0]
             auto_dereference(child_node)
 
             child_type_node := get_type(child_node)
-            for &member_node in child_type_node.children
+            if child_type_node.value == "[struct]"
             {
-                if member_node.value == node.value
+                found_member := false
+                for &member_node in child_type_node.children
                 {
-                    append(&node.children, get_type(&member_node)^)
-                    break
+                    if member_node.value == node.value
+                    {
+                        append(&node.children, get_type(&member_node)^)
+                        found_member = true
+                        break
+                    }
                 }
+
+                if !found_member
+                {
+                    fmt.println("Failed to type check primary")
+                    file_error(fmt.aprintf("'%s' is not a member in", node.value), node.file_info)
+                    return false
+                }
+            }
+            else if node.value == "length"
+            {
+                append(&node.children, ctx.identifiers["i64"])
+            }
+            else
+            {
+                fmt.println("Failed to type check primary")
+                file_error(fmt.aprintf("'%s' is not a member in", node.value), node.file_info)
+                return false
             }
         }
         else if node.value in ctx.identifiers
@@ -855,14 +877,20 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     return false
 }
 
-is_struct_member :: proc(node: ^ast_node) -> bool
+is_member :: proc(node: ^ast_node) -> bool
 {
-    if node.type != .IDENTIFIER || len(node.children) == 0 || is_type(&node.children[0])
+    if node.type != .IDENTIFIER || len(node.children) == 0
     {
         return false
     }
 
-    return get_type_value(get_type(&node.children[0])) == "[struct]"
+    final_node := node
+    for final_node.children[0].type == .DEREFERENCE || final_node.children[0].type == .REFERENCE
+    {
+        final_node = &final_node.children[0]
+    }
+
+    return final_node.children[0].type == .IDENTIFIER
 }
 
 auto_dereference :: proc(node: ^ast_node)

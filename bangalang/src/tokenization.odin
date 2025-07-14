@@ -198,7 +198,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
     }
     else
     {
-      fmt.printfln("Invalid token at line %i, column %i", stream.file_info)
+      file_error("Invalid token in", stream.file_info)
       os.exit(1)
     }
   }

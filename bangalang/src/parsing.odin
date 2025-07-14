@@ -172,16 +172,14 @@ parse_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_
     rhs_expression_stream := stream^
     rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
 
-    if rhs_expression_stream.next_index >= assignment_stream.next_index
-    {
-        stream^ = rhs_expression_stream
-        return rhs_expression_node, rhs_expression_ok
-    }
-    else
+    if rhs_expression_stream.next_index < assignment_stream.next_index
     {
         stream^ = assignment_stream
         return assignment_node, assignment_ok
     }
+
+    stream^ = rhs_expression_stream
+    return rhs_expression_node, rhs_expression_ok
 }
 
 parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
