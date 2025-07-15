@@ -11,43 +11,44 @@ token :: struct
 
 token_type :: enum
 {
-  OPENING_BRACKET,
-  CLOSING_BRACKET,
-  OPENING_ANGLE_BRACKET,
-  OPENING_ANGLE_BRACKET_EQUALS,
-  CLOSING_ANGLE_BRACKET,
-  CLOSING_ANGLE_BRACKET_EQUALS,
-  OPENING_SQUARE_BRACKET,
-  CLOSING_SQUARE_BRACKET,
-  OPENING_SQUIGGLY_BRACKET,
-  CLOSING_SQUIGGLY_BRACKET,
-  COLON,
-  EQUALS,
-  EQUALS_EQUALS,
-  EXCLAMATION_EQUALS,
-  PLUS,
-  PLUS_EQUALS,
-  MINUS,
-  MINUS_EQUALS,
-  ASTERISK,
-  ASTERISK_EQUALS,
-  BACKSLASH,
-  BACKSLASH_EQUALS,
-  PERCENT,
-  PERCENT_EQUALS,
-  PERIOD,
-  COMMA,
-  HAT,
-  ARROW,
-  KEYWORD,
-  DIRECTIVE,
-  IDENTIFIER,
-  STRING,
-  CSTRING,
-  NUMBER,
-  BOOLEAN,
-  NIL,
-  END_OF_FILE
+  none,
+  asterisk,
+  asterisk_equals,
+  backslash,
+  backslash_equals,
+  boolean,
+  closing_angle_bracket,
+  closing_angle_bracket_equals,
+  closing_bracket,
+  closing_curly_bracket,
+  closing_square_bracket,
+  colon,
+  comma,
+  cstring_,
+  dash_greater_than,
+  directive,
+  end_of_file,
+  equals,
+  equals_equals,
+  exclamation_equals,
+  hat,
+  identifier,
+  keyword,
+  minus,
+  minus_equals,
+  nil_,
+  number,
+  opening_angle_bracket,
+  opening_angle_bracket_equals,
+  opening_bracket,
+  opening_curly_bracket,
+  opening_square_bracket,
+  percent,
+  percent_equals,
+  period,
+  plus,
+  plus_equals,
+  string_
 }
 
 keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
@@ -63,7 +64,7 @@ peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
 {
   if stream.next_index + offset >= len(stream.tokens)
   {
-    return { type = .END_OF_FILE }
+    return { type = .end_of_file }
   }
 
   return stream.tokens[stream.next_index + offset]

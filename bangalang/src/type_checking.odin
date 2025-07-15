@@ -21,60 +21,60 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 {
     ctx: type_checking_context
 
-    ctx.identifiers["[procedure]"] = { type = .TYPE, value = "[procedure]" }
-    ctx.identifiers["atomic_i8"] = { type = .TYPE, value = "atomic_i8" }
-    ctx.identifiers["atomic_i16"] = { type = .TYPE, value = "atomic_i16" }
-    ctx.identifiers["atomic_i32"] = { type = .TYPE, value = "atomic_i32" }
-    ctx.identifiers["atomic_i64"] = { type = .TYPE, value = "atomic_i64" }
-    ctx.identifiers["bool"] = { type = .TYPE, value = "bool" }
-    ctx.identifiers["cint"] = { type = .TYPE, value = "cint" }
-    ctx.identifiers["cstring"] = { type = .TYPE, value = "cstring" }
-    ctx.identifiers["f32"] = { type = .TYPE, value = "f32" }
-    ctx.identifiers["f64"] = { type = .TYPE, value = "f64" }
-    ctx.identifiers["i8"] = { type = .TYPE, value = "i8" }
-    ctx.identifiers["i16"] = { type = .TYPE, value = "i16" }
-    ctx.identifiers["i32"] = { type = .TYPE, value = "i32" }
-    ctx.identifiers["i64"] = { type = .TYPE, value = "i64" }
-    ctx.identifiers["string"] = { type = .TYPE, value = "string" }
+    ctx.identifiers["[procedure]"] = { type = .type, value = "[procedure]" }
+    ctx.identifiers["atomic_i8"] = { type = .type, value = "atomic_i8" }
+    ctx.identifiers["atomic_i16"] = { type = .type, value = "atomic_i16" }
+    ctx.identifiers["atomic_i32"] = { type = .type, value = "atomic_i32" }
+    ctx.identifiers["atomic_i64"] = { type = .type, value = "atomic_i64" }
+    ctx.identifiers["bool"] = { type = .type, value = "bool" }
+    ctx.identifiers["cint"] = { type = .type, value = "cint" }
+    ctx.identifiers["cstring"] = { type = .type, value = "cstring" }
+    ctx.identifiers["f32"] = { type = .type, value = "f32" }
+    ctx.identifiers["f64"] = { type = .type, value = "f64" }
+    ctx.identifiers["i8"] = { type = .type, value = "i8" }
+    ctx.identifiers["i16"] = { type = .type, value = "i16" }
+    ctx.identifiers["i32"] = { type = .type, value = "i32" }
+    ctx.identifiers["i64"] = { type = .type, value = "i64" }
+    ctx.identifiers["string"] = { type = .type, value = "string" }
 
-    syscall := ast_node { type = .IDENTIFIER, value = "syscall" }
-    append(&syscall.children, ast_node { type = .TYPE, value = "[procedure]", allocator = "static", directive = "#extern" })
-    append(&syscall.children[0].children, ast_node { type = .TYPE, value = "[parameters]" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "syscall_num" })
-    append(&syscall.children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg0" })
-    append(&syscall.children[0].children[0].children[1].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg1" })
-    append(&syscall.children[0].children[0].children[2].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg2" })
-    append(&syscall.children[0].children[0].children[3].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg3" })
-    append(&syscall.children[0].children[0].children[4].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg4" })
-    append(&syscall.children[0].children[0].children[5].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "arg5" })
-    append(&syscall.children[0].children[0].children[6].children, ast_node { type = .TYPE, value = "i64" })
-    append(&syscall.children[0].children, ast_node { type = .TYPE, value = "i64" })
+    syscall := ast_node { type = .identifier, value = "syscall" }
+    append(&syscall.children, ast_node { type = .type, value = "[procedure]", allocator = "static", directive = "#extern" })
+    append(&syscall.children[0].children, ast_node { type = .type, value = "[parameters]" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "syscall_num" })
+    append(&syscall.children[0].children[0].children[0].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg0" })
+    append(&syscall.children[0].children[0].children[1].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg1" })
+    append(&syscall.children[0].children[0].children[2].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg2" })
+    append(&syscall.children[0].children[0].children[3].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg3" })
+    append(&syscall.children[0].children[0].children[4].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg4" })
+    append(&syscall.children[0].children[0].children[5].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg5" })
+    append(&syscall.children[0].children[0].children[6].children, ast_node { type = .type, value = "i64" })
+    append(&syscall.children[0].children, ast_node { type = .type, value = "i64" })
     ctx.identifiers["syscall"] = syscall
 
-    cmpxchg := ast_node { type = .IDENTIFIER, value = "cmpxchg" }
-    append(&cmpxchg.children, ast_node { type = .TYPE, value = "[procedure]", allocator = "static" })
-    append(&cmpxchg.children[0].children, ast_node { type = .TYPE, value = "[parameters]" })
-    append(&cmpxchg.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "value" })
-    append(&cmpxchg.children[0].children[0].children[0].children, ast_node { type = .REFERENCE })
-    append(&cmpxchg.children[0].children[0].children[0].children[0].children, ast_node { type = .TYPE, value = "i32" })
-    append(&cmpxchg.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "expected" })
-    append(&cmpxchg.children[0].children[0].children[1].children, ast_node { type = .TYPE, value = "i32" })
-    append(&cmpxchg.children[0].children[0].children, ast_node { type = .IDENTIFIER, value = "replacement" })
-    append(&cmpxchg.children[0].children[0].children[2].children, ast_node { type = .TYPE, value = "i32" })
-    append(&cmpxchg.children[0].children, ast_node { type = .TYPE, value = "bool" })
+    cmpxchg := ast_node { type = .identifier, value = "cmpxchg" }
+    append(&cmpxchg.children, ast_node { type = .type, value = "[procedure]", allocator = "static" })
+    append(&cmpxchg.children[0].children, ast_node { type = .type, value = "[parameters]" })
+    append(&cmpxchg.children[0].children[0].children, ast_node { type = .identifier, value = "value" })
+    append(&cmpxchg.children[0].children[0].children[0].children, ast_node { type = .reference })
+    append(&cmpxchg.children[0].children[0].children[0].children[0].children, ast_node { type = .type, value = "i32" })
+    append(&cmpxchg.children[0].children[0].children, ast_node { type = .identifier, value = "expected" })
+    append(&cmpxchg.children[0].children[0].children[1].children, ast_node { type = .type, value = "i32" })
+    append(&cmpxchg.children[0].children[0].children, ast_node { type = .identifier, value = "replacement" })
+    append(&cmpxchg.children[0].children[0].children[2].children, ast_node { type = .type, value = "i32" })
+    append(&cmpxchg.children[0].children, ast_node { type = .type, value = "bool" })
     ctx.identifiers["cmpxchg"] = cmpxchg
 
     for &node in nodes
     {
         resolve_types(&node, &ctx)
 
-        if node.type == .ASSIGNMENT && len(node.children) == 2 && is_type(&node.children[1])
+        if node.type == .assignment && len(node.children) == 2 && is_type(&node.children[1])
         {
             lhs_node := &node.children[0]
             rhs_node := &node.children[1]
@@ -87,7 +87,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 
     for &node in nodes
     {
-        if node.type == .ASSIGNMENT
+        if node.type == .assignment
         {
             lhs_node := &node.children[0]
             lhs_type_node := get_type(lhs_node)
@@ -101,7 +101,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 
     for &node in nodes
     {
-        if node.type == .ASSIGNMENT && len(node.children) == 2 && is_type(&node.children[1])
+        if node.type == .assignment && len(node.children) == 2 && is_type(&node.children[1])
         {
             continue
         }
@@ -116,15 +116,15 @@ type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bo
 {
     #partial switch node.type
     {
-    case .IF:
+    case .if_:
         return type_check_if(node, ctx)
-    case .FOR:
+    case .for_:
         return type_check_for(node, ctx)
-    case .SCOPE:
+    case .scope:
         return type_check_scope(node, ctx)
-    case .RETURN:
+    case .return_:
         return type_check_return(node, ctx)
-    case .ASSIGNMENT:
+    case .assignment:
         return type_check_assignment(node, ctx)
     case:
         return type_check_rhs_expression(node, ctx, nil)
@@ -170,7 +170,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     child_node := &node.children[child_index]
     child_index += 1
 
-    if child_node.type == .ASSIGNMENT
+    if child_node.type == .assignment
     {
         type_check_assignment(child_node, &for_ctx) or_return
 
@@ -183,7 +183,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     child_node = &node.children[child_index]
     child_index += 1
 
-    if child_node.type == .ASSIGNMENT
+    if child_node.type == .assignment
     {
         type_check_assignment(child_node, &for_ctx) or_return
 
@@ -254,23 +254,22 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 procedure_ctx.identifiers[param_node.value] = param_node
             }
 
-            type_check_statement(rhs_node, &procedure_ctx) or_return
-
-            rhs_type_node_result := get_type_result(get_type(rhs_node))
-
-            if rhs_type_node_result != nil && rhs_node.type != .IF && rhs_node.type != .FOR && rhs_node.type != .SCOPE && rhs_node.type != .RETURN && rhs_node.type != .ASSIGNMENT && rhs_node.type != .CALL
+            return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil
+            if return_type_node != nil && rhs_node.type != .if_ && rhs_node.type != .for_ && rhs_node.type != .scope && rhs_node.type != .return_ && rhs_node.type != .assignment
             {
                 return_node := ast_node {
-                    type = .RETURN,
+                    type = .return_,
                     file_info = rhs_node.file_info
                 }
                 append(&return_node.children, rhs_node^)
                 rhs_node^ = return_node
             }
+
+            type_check_statement(rhs_node, &procedure_ctx) or_return
         }
         else
         {
-            if rhs_node.type == .IF || rhs_node.type == .FOR || rhs_node.type == .SCOPE || rhs_node.type == .RETURN || rhs_node.type == .ASSIGNMENT
+            if rhs_node.type == .if_ || rhs_node.type == .for_ || rhs_node.type == .scope || rhs_node.type == .return_ || rhs_node.type == .assignment
             {
                 fmt.println("Failed to type check assignment")
                 file_error("Right-hand-side must be an expression in", lhs_node.file_info)
@@ -399,19 +398,12 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
         upgrade_types(rhs_node, coerced_type_node)
     }
 
-    if coerced_type_node.value == "[array]" || coerced_type_node.value == "[slice]" || coerced_type_node.type == .REFERENCE
-    {
-        fmt.println("Failed to type check right-hand-side expression")
-        file_error(fmt.aprintf("Invalid type %s in", type_name(get_type(node))), node.file_info)
-        return false
-    }
-
     _, numerical_type := slice.linear_search(numerical_types, coerced_type_node.value)
     _, float_type := slice.linear_search(float_types, coerced_type_node.value)
     _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
     if coerced_type_node.value == "bool"
     {
-        if node.type != .EQUAL && node.type != .NOT_EQUAL
+        if node.type != .equal && node.type != .not_equal
         {
             fmt.println("Failed to type check right-hand-side expression")
             file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
@@ -424,13 +416,13 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
-    else if float_type && (node.type == .MODULO || node.type == .MODULO_ASSIGN)
+    else if float_type && (node.type == .modulo || node.type == .modulo_assign)
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
-    else if atomic_integer_type && !comparison_operator && node.type != .ADD_ASSIGN && node.type != .SUBTRACT_ASSIGN
+    else if atomic_integer_type && !comparison_operator && node.type != .add_assign && node.type != .subtract_assign
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
@@ -449,21 +441,21 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
 
     #partial switch node.type
     {
-    case .REFERENCE:
+    case .reference:
         child_type_node := get_type(&node.children[0])
-        if child_type_node.type == .REFERENCE
+        if child_type_node.type == .reference
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot reference type %s in", type_name(child_type_node)), node.file_info)
             return false
         }
 
-        type_node := ast_node { type = .REFERENCE }
+        type_node := ast_node { type = .reference }
         append(&type_node.children, get_type(&node.children[0])^)
         append(&node.children, type_node)
-    case .NEGATE:
+    case .negate:
         child_type_node := get_type(&node.children[0])
-        if child_type_node.value == "[array]" || child_type_node.value == "[slice]" || child_type_node.type == .REFERENCE
+        if child_type_node.value == "[array]" || child_type_node.value == "[slice]" || child_type_node.type == .reference
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot negate type %s in", type_name(child_type_node)), node.file_info)
@@ -471,9 +463,9 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         }
 
         append(&node.children, child_type_node^)
-    case .DEREFERENCE:
+    case .dereference:
         child_type_node := get_type(&node.children[0])
-        if child_type_node.type != .REFERENCE
+        if child_type_node.type != .reference
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot dereference type %s in", type_name(child_type_node)), node.file_info)
@@ -481,7 +473,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         }
 
         append(&node.children, child_type_node.children[0])
-    case .INDEX:
+    case .index:
         identifier := node.children[0].value // TODO *eyebrow raise*
 
         auto_dereference(&node.children[0])
@@ -502,7 +494,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         {
             type_check_rhs_expression(&node.children[2], ctx, &ctx.identifiers["i64"]) or_return
 
-            type_node := ast_node { type = .TYPE, value = "[slice]" }
+            type_node := ast_node { type = .type, value = "[slice]" }
             append(&type_node.children, get_type(node)^)
             get_type(node)^ = type_node
         }
@@ -511,16 +503,16 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         {
             length := child_type_node.value == "[array]" ? strconv.atoi(child_type_node.children[1].value) : 1
 
-            if child_type_node.directive != "#boundless" && node.children[1].type == .NUMBER && strconv.atoi(node.children[1].value) >= length
+            if child_type_node.directive != "#boundless" && node.children[1].type == .number && strconv.atoi(node.children[1].value) >= length
             {
                 fmt.println("Failed to type check primary")
                 file_error(fmt.aprintf("Index %i out of bounds of '%s' in", strconv.atoi(node.children[1].value), identifier), node.file_info)
                 return false
             }
         }
-    case .CALL:
+    case .call:
         type_check_call(node, ctx) or_return
-    case .IDENTIFIER:
+    case .identifier:
         if is_member(node)
         {
             child_node := &node.children[0]
@@ -568,17 +560,17 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
             file_error(fmt.aprintf("'%s' is not defined in", node.value), node.file_info)
             return false
         }
-    case .STRING:
-        append(&node.children, ast_node { type = .TYPE, value = "string" })
-    case .CSTRING:
-        append(&node.children, ast_node { type = .TYPE, value = "cstring" })
-    case .NUMBER:
-        append(&node.children, ast_node { type = .TYPE, value = "number" })
-    case .BOOLEAN:
-        append(&node.children, ast_node { type = .TYPE, value = "bool" })
-    case .NIL:
-        append(&node.children, ast_node { type = .TYPE, value = "nil" })
-    case .TYPE:
+    case .string_:
+        append(&node.children, ast_node { type = .type, value = "string" })
+    case .cstring_:
+        append(&node.children, ast_node { type = .type, value = "cstring" })
+    case .number:
+        append(&node.children, ast_node { type = .type, value = "number" })
+    case .boolean:
+        append(&node.children, ast_node { type = .type, value = "bool" })
+    case .nil_:
+        append(&node.children, ast_node { type = .type, value = "nil" })
+    case .type:
         assert(false, "Failed to type check primary")
     case:
         type_check_rhs_expression_1(node, ctx) or_return
@@ -619,9 +611,9 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
             return false
         }
 
-        type_node := ast_node { type = .TYPE, value = "[call]" }
-        append(&type_node.children, ast_node { type = .TYPE, value = "[parameters]" })
-        append(&type_node.children[0].children, ast_node { type = .IDENTIFIER, value = "value" })
+        type_node := ast_node { type = .type, value = "[call]" }
+        append(&type_node.children, ast_node { type = .type, value = "[parameters]" })
+        append(&type_node.children[0].children, ast_node { type = .identifier, value = "value" })
         append(&type_node.children[0].children[0].children, param_type_node^)
         append(&type_node.children, procedure_node^)
         append(&node.children, type_node)
@@ -700,7 +692,7 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
         return nil, false
     }
 
-    if a.type == .REFERENCE
+    if a.type == .reference
     {
         if a.directive == "#boundless" && b.directive != "#boundless"
         {
@@ -715,7 +707,7 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
 
     if a.value != b.value
     {
-        if a.type == .TYPE
+        if a.type == .type
         {
             _, a_numerical_type := slice.linear_search(numerical_types, a.value)
             if b.value == "number" && !a_numerical_type
@@ -759,11 +751,11 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
 
 type_name :: proc(type_node: ^ast_node) -> string
 {
-    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
+    assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
 
     prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
 
-    if type_node.type == .REFERENCE
+    if type_node.type == .reference
     {
         return strings.concatenate({ prefix, "^", type_name(&type_node.children[0]) })
     }
@@ -783,12 +775,12 @@ type_name :: proc(type_node: ^ast_node) -> string
 
 is_type :: proc(type_node: ^ast_node) -> bool
 {
-    if type_node.type == .TYPE
+    if type_node.type == .type
     {
         return true
     }
 
-    if type_node.type == .REFERENCE
+    if type_node.type == .reference
     {
         return is_type(&type_node.children[0])
     }
@@ -814,7 +806,7 @@ get_type :: proc(node: ^ast_node) -> ^ast_node
 
 get_type_value :: proc(type_node: ^ast_node) -> string
 {
-    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
+    assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
 
     if len(type_node.children) > 0 && type_node.value == ""
     {
@@ -831,7 +823,7 @@ get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
         return nil
     }
 
-    assert(type_node.type == .REFERENCE || type_node.type == .TYPE, "Invalid type")
+    assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
 
     if type_node.value == "[call]" && len(type_node.children) == 2
     {
@@ -843,7 +835,7 @@ get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
 
 upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
 {
-    if node.type == .TYPE
+    if node.type == .type
     {
         if node.value == "nil" || node.value == "number" || node.directive == "#untyped"
         {
@@ -859,7 +851,7 @@ upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
 
 resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
-    if node.type == .IDENTIFIER && node.value in ctx.identifiers
+    if node.type == .identifier && node.value in ctx.identifiers
     {
         identifier_node := &ctx.identifiers[node.value]
         if is_type(identifier_node)
@@ -873,9 +865,9 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     {
         if resolve_types(&child_node, ctx)
         {
-            if node.type == .INDEX
+            if node.type == .index
             {
-                node.type = .TYPE
+                node.type = .type
                 node.value = len(node.children) == 1 ? "[slice]" : "[array]"
 
             }
@@ -887,24 +879,24 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 
 is_member :: proc(node: ^ast_node) -> bool
 {
-    if node.type != .IDENTIFIER || len(node.children) == 0
+    if node.type != .identifier || len(node.children) == 0
     {
         return false
     }
 
     final_node := node
-    for final_node.children[0].type == .DEREFERENCE || final_node.children[0].type == .REFERENCE
+    for final_node.children[0].type == .dereference || final_node.children[0].type == .reference
     {
         final_node = &final_node.children[0]
     }
 
-    return final_node.children[0].type == .IDENTIFIER
+    return final_node.children[0].type == .identifier
 }
 
 auto_dereference :: proc(node: ^ast_node)
 {
     type_node := get_type(node)^
-    if type_node.type != .REFERENCE
+    if type_node.type != .reference
     {
         return
     }
@@ -912,7 +904,7 @@ auto_dereference :: proc(node: ^ast_node)
     child_node := node^
 
     node^ = {
-        type = .DEREFERENCE,
+        type = .dereference,
         file_info = child_node.file_info
     }
 

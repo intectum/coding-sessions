@@ -22,34 +22,34 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
   stream := src_stream { src, 0, { name, 1, 1 } }
 
   fixed_token_types: map[string]token_type
-  fixed_token_types["("] = .OPENING_BRACKET
-  fixed_token_types[")"] = .CLOSING_BRACKET
-  fixed_token_types["<"] = .OPENING_ANGLE_BRACKET
-  fixed_token_types["<="] = .OPENING_ANGLE_BRACKET_EQUALS
-  fixed_token_types[">"] = .CLOSING_ANGLE_BRACKET
-  fixed_token_types[">="] = .CLOSING_ANGLE_BRACKET_EQUALS
-  fixed_token_types["["] = .OPENING_SQUARE_BRACKET
-  fixed_token_types["]"] = .CLOSING_SQUARE_BRACKET
-  fixed_token_types["{"] = .OPENING_SQUIGGLY_BRACKET
-  fixed_token_types["}"] = .CLOSING_SQUIGGLY_BRACKET
-  fixed_token_types[":"] = .COLON
-  fixed_token_types["="] = .EQUALS
-  fixed_token_types["=="] = .EQUALS_EQUALS
-  fixed_token_types["!="] = .EXCLAMATION_EQUALS
-  fixed_token_types["+"] = .PLUS
-  fixed_token_types["+="] = .PLUS_EQUALS
-  fixed_token_types["-"] = .MINUS
-  fixed_token_types["-="] = .MINUS_EQUALS
-  fixed_token_types["*"] = .ASTERISK
-  fixed_token_types["*="] = .ASTERISK_EQUALS
-  fixed_token_types["/"] = .BACKSLASH
-  fixed_token_types["/="] = .BACKSLASH_EQUALS
-  fixed_token_types["%"] = .PERCENT
-  fixed_token_types["%="] = .PERCENT_EQUALS
-  fixed_token_types["."] = .PERIOD
-  fixed_token_types[","] = .COMMA
-  fixed_token_types["^"] = .HAT
-  fixed_token_types["->"] = .ARROW
+  fixed_token_types["("] = .opening_bracket
+  fixed_token_types[")"] = .closing_bracket
+  fixed_token_types["<"] = .opening_angle_bracket
+  fixed_token_types["<="] = .opening_angle_bracket_equals
+  fixed_token_types[">"] = .closing_angle_bracket
+  fixed_token_types[">="] = .closing_angle_bracket_equals
+  fixed_token_types["["] = .opening_square_bracket
+  fixed_token_types["]"] = .closing_square_bracket
+  fixed_token_types["{"] = .opening_curly_bracket
+  fixed_token_types["}"] = .closing_curly_bracket
+  fixed_token_types[":"] = .colon
+  fixed_token_types["="] = .equals
+  fixed_token_types["=="] = .equals_equals
+  fixed_token_types["!="] = .exclamation_equals
+  fixed_token_types["+"] = .plus
+  fixed_token_types["+="] = .plus_equals
+  fixed_token_types["-"] = .minus
+  fixed_token_types["-="] = .minus_equals
+  fixed_token_types["*"] = .asterisk
+  fixed_token_types["*="] = .asterisk_equals
+  fixed_token_types["/"] = .backslash
+  fixed_token_types["/="] = .backslash_equals
+  fixed_token_types["%"] = .percent
+  fixed_token_types["%="] = .percent_equals
+  fixed_token_types["."] = .period
+  fixed_token_types[","] = .comma
+  fixed_token_types["^"] = .hat
+  fixed_token_types["->"] = .dash_greater_than
 
   for peek_rune(&stream) != 0
   {
@@ -118,7 +118,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
       initial_stream := stream
       read_string(&stream)
 
-      append(tokens, token { .STRING, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
+      append(tokens, token { .string_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_string(&stream, 2) == "c\""
     {
@@ -126,7 +126,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
       next_rune(&stream)
       read_string(&stream)
 
-      append(tokens, token { .CSTRING, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
+      append(tokens, token { .cstring_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_string(&stream, 2) == "0x"
     {
@@ -138,7 +138,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         next_rune(&stream)
       }
 
-      append(tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
+      append(tokens, token { .number, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
     {
@@ -155,7 +155,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         next_rune(&stream)
       }
 
-      append(tokens, token { .NUMBER, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
+      append(tokens, token { .number, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_rune(&stream) == '#'
     {
@@ -167,7 +167,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         next_rune(&stream)
       }
 
-      token := token { .DIRECTIVE, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
+      token := token { .directive, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
       append(tokens, token)
     }
     else if (peek_rune(&stream) >= 'a' && peek_rune(&stream) <= 'z') || (peek_rune(&stream) >= 'A' && peek_rune(&stream) <= 'Z') || peek_rune(&stream) == '_'
@@ -180,21 +180,21 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         next_rune(&stream)
       }
 
-      token := token { .IDENTIFIER, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
+      token := token { .identifier, src[initial_stream.next_index:stream.next_index], initial_stream.file_info }
       if token.value == "false" || token.value == "true"
       {
-        token.type = .BOOLEAN
+        token.type = .boolean
       }
       else if token.value == "nil"
       {
-        token.type = .NIL
+        token.type = .nil_
       }
       else
       {
         _, found_keyword := slice.linear_search(keywords, token.value)
         if found_keyword
         {
-          token.type = .KEYWORD
+          token.type = .keyword
         }
       }
       append(tokens, token)

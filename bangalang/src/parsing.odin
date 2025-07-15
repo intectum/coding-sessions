@@ -27,7 +27,7 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
     #partial switch peek_token(stream).type
     {
-    case .KEYWORD:
+    case .keyword:
         if peek_token(stream).value == "if"
         {
             return parse_if(stream)
@@ -40,7 +40,7 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         {
             return parse_return(stream)
         }
-    case .OPENING_SQUIGGLY_BRACKET:
+    case .opening_curly_bracket:
         return parse_scope(stream)
     }
 
@@ -49,32 +49,32 @@ parse_statement :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .IF
+    node.type = .if_
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, token_type.KEYWORD, "if") or_return
+    next_token(stream, token_type.keyword, "if") or_return
 
-    next_token(stream, .OPENING_BRACKET) or_return
+    next_token(stream, .opening_bracket) or_return
 
     expression_node := parse_rhs_expression(stream) or_return
     append(&node.children, expression_node)
 
-    next_token(stream, .CLOSING_BRACKET) or_return
+    next_token(stream, .closing_bracket) or_return
 
     statement_node := parse_statement(stream) or_return
     append(&node.children, statement_node)
 
     for peek_token(stream).value == "else" && peek_token(stream, 1).value == "if"
     {
-        next_token(stream, token_type.KEYWORD, "else") or_return
-        next_token(stream, token_type.KEYWORD, "if") or_return
+        next_token(stream, token_type.keyword, "else") or_return
+        next_token(stream, token_type.keyword, "if") or_return
 
-        next_token(stream, .OPENING_BRACKET) or_return
+        next_token(stream, .opening_bracket) or_return
 
         else_if_expression_node := parse_rhs_expression(stream) or_return
         append(&node.children, else_if_expression_node)
 
-        next_token(stream, .CLOSING_BRACKET) or_return
+        next_token(stream, .closing_bracket) or_return
 
         else_if_statement_node := parse_statement(stream) or_return
         append(&node.children, else_if_statement_node)
@@ -82,7 +82,7 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
     if peek_token(stream).value == "else"
     {
-        next_token(stream, token_type.KEYWORD, "else") or_return
+        next_token(stream, token_type.keyword, "else") or_return
 
         else_statement_node := parse_statement(stream) or_return
         append(&node.children, else_statement_node)
@@ -93,34 +93,34 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .FOR
+    node.type = .for_
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, token_type.KEYWORD, "for") or_return
+    next_token(stream, token_type.keyword, "for") or_return
 
-    next_token(stream, .OPENING_BRACKET) or_return
+    next_token(stream, .opening_bracket) or_return
 
     // TODO this is way too manual checking...
-    if peek_token(stream).type == .IDENTIFIER && peek_token(stream, 1).type == .COLON
+    if peek_token(stream).type == .identifier && peek_token(stream, 1).type == .colon
     {
         pre_assignment_node := parse_assignment(stream) or_return
         append(&node.children, pre_assignment_node)
 
-        next_token(stream, .COMMA) or_return
+        next_token(stream, .comma) or_return
     }
 
     expression_node := parse_rhs_expression(stream) or_return
     append(&node.children, expression_node)
 
-    if peek_token(stream).type == .COMMA
+    if peek_token(stream).type == .comma
     {
-        next_token(stream, .COMMA) or_return
+        next_token(stream, .comma) or_return
 
         post_assignment_node := parse_assignment(stream) or_return
         append(&node.children, post_assignment_node)
     }
 
-    next_token(stream, .CLOSING_BRACKET) or_return
+    next_token(stream, .closing_bracket) or_return
 
     statement_node := parse_statement(stream) or_return
     append(&node.children, statement_node)
@@ -130,16 +130,16 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .SCOPE
+    node.type = .scope
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, .OPENING_SQUIGGLY_BRACKET) or_return
+    next_token(stream, .opening_curly_bracket) or_return
 
     for stream.next_index < len(stream.tokens)
     {
-        if peek_token(stream).type == .CLOSING_SQUIGGLY_BRACKET
+        if peek_token(stream).type == .closing_curly_bracket
         {
-            next_token(stream, .CLOSING_SQUIGGLY_BRACKET) or_return
+            next_token(stream, .closing_curly_bracket) or_return
             return node, true
         }
 
@@ -153,10 +153,10 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 parse_return :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .RETURN
+    node.type = .return_
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, token_type.KEYWORD, "return") or_return
+    next_token(stream, token_type.keyword, "return") or_return
 
     expression_node := parse_rhs_expression(stream) or_return
     append(&node.children, expression_node)
@@ -184,15 +184,15 @@ parse_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_
 
 parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .ASSIGNMENT
+    node.type = .assignment
     node.file_info = peek_token(stream).file_info
 
     lhs_node := parse_lhs_expression(stream) or_return
     append(&node.children, lhs_node)
 
-    if peek_token(stream).type == .EQUALS
+    if peek_token(stream).type == .equals
     {
-        next_token(stream, .EQUALS) or_return
+        next_token(stream, .equals) or_return
 
         statement_node := parse_statement(stream) or_return
         append(&node.children, statement_node)
@@ -205,9 +205,9 @@ parse_lhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool
 {
     node = parse_primary(stream, .lhs) or_return
 
-    if peek_token(stream).type == .COLON
+    if peek_token(stream).type == .colon
     {
-        next_token(stream, .COLON) or_return
+        next_token(stream, .colon) or_return
 
         type_node := parse_primary(stream, .type) or_return
         append(&node.children, type_node)
@@ -258,58 +258,58 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
     #partial switch peek_token(stream).type
     {
-    case .DIRECTIVE:
+    case .directive:
         if type == .lhs
         {
             stream.error = "A left-hand-side primary cannot contain a directive"
             return {}, false
         }
 
-        directive := (next_token(stream, .DIRECTIVE) or_return).value
+        directive := (next_token(stream, .directive) or_return).value
 
         node = parse_primary(stream, type) or_return
         node.directive = directive
-    case .HAT:
+    case .hat:
         if type == .lhs
         {
             stream.error = "A left-hand-side primary cannot be referenced"
             return {}, false
         }
 
-        next_token(stream, .HAT) or_return
+        next_token(stream, .hat) or_return
 
-        node.type = .REFERENCE
+        node.type = .reference
 
         primary_node := parse_primary(stream, type) or_return
         append(&node.children, primary_node)
-    case .MINUS:
+    case .minus:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can be negated"
             return {}, false
         }
 
-        next_token(stream, .MINUS) or_return
+        next_token(stream, .minus) or_return
 
-        node.type = .NEGATE
+        node.type = .negate
 
         primary_node := parse_primary(stream, type) or_return
         append(&node.children, primary_node)
-    case .OPENING_BRACKET:
+    case .opening_bracket:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a sub-expression"
             return {}, false
         }
 
-        next_token(stream, .OPENING_BRACKET) or_return
+        next_token(stream, .opening_bracket) or_return
 
         node = parse_rhs_expression(stream) or_return
 
-        next_token(stream, .CLOSING_BRACKET) or_return
-    case .IDENTIFIER:
+        next_token(stream, .closing_bracket) or_return
+    case .identifier:
         node = parse_identifier(stream) or_return
-    case .KEYWORD:
+    case .keyword:
         if type == .lhs
         {
             stream.error = "A left-hand-side primary cannot contain a type literal"
@@ -326,51 +326,51 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
             stream.error = "Failed to parse primary"
             return {}, false
         }
-    case .STRING:
+    case .string_:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a string literal"
             return {}, false
         }
 
-        node.type = .STRING
-        node.value = (next_token(stream, .STRING) or_return).value
-    case .CSTRING:
+        node.type = .string_
+        node.value = (next_token(stream, .string_) or_return).value
+    case .cstring_:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a cstring literal"
             return {}, false
         }
 
-        node.type = .CSTRING
-        node.value = (next_token(stream, .CSTRING) or_return).value
-    case .NUMBER:
+        node.type = .cstring_
+        node.value = (next_token(stream, .cstring_) or_return).value
+    case .number:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a number literal"
             return {}, false
         }
 
-        node.type = .NUMBER
-        node.value = (next_token(stream, .NUMBER) or_return).value
-    case .BOOLEAN:
+        node.type = .number
+        node.value = (next_token(stream, .number) or_return).value
+    case .boolean:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a boolean literal"
             return {}, false
         }
 
-        node.type = .BOOLEAN
-        node.value = (next_token(stream, .BOOLEAN) or_return).value
-    case .NIL:
+        node.type = .boolean
+        node.value = (next_token(stream, .boolean) or_return).value
+    case .nil_:
         if type != .rhs
         {
             stream.error = "Only a right-hand-side primary can contain a nil"
             return {}, false
         }
 
-        node.type = .NIL
-        node.value = (next_token(stream, .NIL) or_return).value
+        node.type = .nil_
+        node.value = (next_token(stream, .nil_) or_return).value
     case:
         stream.error = "Failed to parse primary"
         return {}, false
@@ -381,30 +381,30 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
     {
         #partial switch peek_token(stream).type
         {
-        case .HAT:
+        case .hat:
             if type == .type
             {
                 stream.error = "A type primary cannot be dereferenced"
                 return {}, false
             }
 
-            next_token(stream, .HAT) or_return
+            next_token(stream, .hat) or_return
 
             child_node := node
 
             node = {
-                type = .DEREFERENCE,
+                type = .dereference,
                 file_info = child_node.file_info
             }
 
             append(&node.children, child_node)
-        case .OPENING_SQUARE_BRACKET:
-            next_token(stream, .OPENING_SQUARE_BRACKET) or_return
+        case .opening_square_bracket:
+            next_token(stream, .opening_square_bracket) or_return
 
             child_node := node
 
             node = {
-                type = type == .type ? .TYPE : .INDEX,
+                type = type == .type ? .type : .index,
                 value = type == .type ? "[slice]" : "",
                 file_info = child_node.file_info
             }
@@ -413,13 +413,13 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
             if type == .type
             {
-                if peek_token(stream).type == .NUMBER
+                if peek_token(stream).type == .number
                 {
                     node.value = "[array]"
 
                     number_node := ast_node {
-                        type = .NUMBER,
-                        value = (next_token(stream, .NUMBER) or_return).value,
+                        type = .number,
+                        value = (next_token(stream, .number) or_return).value,
                         file_info = child_node.file_info
                     }
                     append(&node.children, number_node)
@@ -430,24 +430,24 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
                 start_expression_node := parse_rhs_expression(stream) or_return
                 append(&node.children, start_expression_node)
 
-                if peek_token(stream).type == .COLON
+                if peek_token(stream).type == .colon
                 {
-                    next_token(stream, .COLON) or_return
+                    next_token(stream, .colon) or_return
 
                     end_expression_node := parse_rhs_expression(stream) or_return
                     append(&node.children, end_expression_node)
                 }
             }
 
-            next_token(stream, .CLOSING_SQUARE_BRACKET) or_return
-        case .PERIOD:
+            next_token(stream, .closing_square_bracket) or_return
+        case .period:
             if type == .type
             {
                 stream.error = "A type primary cannot access a member"
                 return {}, false
             }
 
-            next_token(stream, .PERIOD) or_return
+            next_token(stream, .period) or_return
 
             child_node := node
 
@@ -460,7 +460,7 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
             }
 
             append(&leaf_node.children, child_node)
-        case .OPENING_BRACKET:
+        case .opening_bracket:
             if type != .rhs
             {
                 stream.error = "Only a right-hand-side primary can contain a call"
@@ -482,43 +482,43 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
 parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .CALL
+    node.type = .call
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, .OPENING_BRACKET) or_return
+    next_token(stream, .opening_bracket) or_return
 
-    for peek_token(stream).type != .CLOSING_BRACKET
+    for peek_token(stream).type != .closing_bracket
     {
         param_node := parse_rhs_expression(stream) or_return
         append(&node.children, param_node)
 
         // TODO allows comma at end of params
-        if peek_token(stream).type != .CLOSING_BRACKET
+        if peek_token(stream).type != .closing_bracket
         {
-            next_token(stream, .COMMA) or_return
+            next_token(stream, .comma) or_return
         }
     }
 
-    next_token(stream, .CLOSING_BRACKET) or_return
+    next_token(stream, .closing_bracket) or_return
 
     return node, true
 }
 
 parse_struct_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .TYPE
+    node.type = .type
     node.value = "[struct]"
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, token_type.KEYWORD, "struct") or_return
+    next_token(stream, token_type.keyword, "struct") or_return
 
-    next_token(stream, .OPENING_SQUIGGLY_BRACKET) or_return
+    next_token(stream, .opening_curly_bracket) or_return
 
-    for peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
+    for peek_token(stream).type != .closing_curly_bracket
     {
         member_node := parse_identifier(stream) or_return
 
-        next_token(stream, .COLON) or_return
+        next_token(stream, .colon) or_return
 
         member_type_node := parse_primary(stream, .type) or_return
         append(&member_node.children, member_type_node)
@@ -526,34 +526,34 @@ parse_struct_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         append(&node.children, member_node)
 
         // TODO allows comma at end of params
-        if peek_token(stream).type != .CLOSING_SQUIGGLY_BRACKET
+        if peek_token(stream).type != .closing_curly_bracket
         {
-            next_token(stream, .COMMA) or_return
+            next_token(stream, .comma) or_return
         }
     }
 
-    next_token(stream, .CLOSING_SQUIGGLY_BRACKET) or_return
+    next_token(stream, .closing_curly_bracket) or_return
 
     return node, true
 }
 
 parse_procedure_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    node.type = .TYPE
+    node.type = .type
     node.value = "[procedure]"
     node.file_info = peek_token(stream).file_info
 
-    next_token(stream, token_type.KEYWORD, "proc") or_return
+    next_token(stream, token_type.keyword, "proc") or_return
 
-    next_token(stream, .OPENING_BRACKET) or_return
+    next_token(stream, .opening_bracket) or_return
 
-    params_type_node := ast_node { type = .TYPE, value = "[parameters]" }
+    params_type_node := ast_node { type = .type, value = "[parameters]" }
 
-    for peek_token(stream).type != .CLOSING_BRACKET
+    for peek_token(stream).type != .closing_bracket
     {
         param_node := parse_identifier(stream) or_return
 
-        next_token(stream, .COLON) or_return
+        next_token(stream, .colon) or_return
 
         param_type_node := parse_primary(stream, .type) or_return
         append(&param_node.children, param_type_node)
@@ -561,19 +561,19 @@ parse_procedure_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool
         append(&params_type_node.children, param_node)
 
         // TODO allows comma at end of params
-        if peek_token(stream).type != .CLOSING_BRACKET
+        if peek_token(stream).type != .closing_bracket
         {
-            next_token(stream, .COMMA) or_return
+            next_token(stream, .comma) or_return
         }
     }
 
     append(&node.children, params_type_node)
 
-    next_token(stream, .CLOSING_BRACKET) or_return
+    next_token(stream, .closing_bracket) or_return
 
-    if peek_token(stream).type == .ARROW
+    if peek_token(stream).type == .dash_greater_than
     {
-        next_token(stream, .ARROW) or_return
+        next_token(stream, .dash_greater_than) or_return
 
         return_type_node := parse_primary(stream, .type) or_return
         append(&node.children, return_type_node)
@@ -584,9 +584,9 @@ parse_procedure_type :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool
 
 parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
-    token := next_token(stream, .IDENTIFIER) or_return
+    token := next_token(stream, .identifier) or_return
     node = ast_node {
-        type = .IDENTIFIER,
+        type = .identifier,
         value = token.value,
         file_info = token.file_info
     }
@@ -598,7 +598,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS, .ASTERISK, .ASTERISK_EQUALS, .BACKSLASH, .BACKSLASH_EQUALS, .PERCENT, .PERCENT_EQUALS:
+    case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals, .plus, .plus_equals, .minus, .minus_equals, .asterisk, .asterisk_equals, .backslash, .backslash_equals, .percent, .percent_equals:
         return true
     case:
         return false
@@ -609,11 +609,11 @@ binary_operator_precedence :: proc(token: token) -> int
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS:
+    case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals:
         return 1
-    case .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS:
+    case .plus, .plus_equals, .minus, .minus_equals:
         return 2
-    case .ASTERISK, .ASTERISK_EQUALS, .BACKSLASH, .BACKSLASH_EQUALS, .PERCENT, .PERCENT_EQUALS:
+    case .asterisk, .asterisk_equals, .backslash, .backslash_equals, .percent, .percent_equals:
         return 3
     }
 
@@ -625,40 +625,40 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS:
-        return .EQUAL
-    case .EXCLAMATION_EQUALS:
-        return .NOT_EQUAL
-    case .OPENING_ANGLE_BRACKET:
-        return .LESS_THAN
-    case .CLOSING_ANGLE_BRACKET:
-        return .GREATER_THAN
-    case .OPENING_ANGLE_BRACKET_EQUALS:
-        return .LESS_THAN_OR_EQUAL
-    case .CLOSING_ANGLE_BRACKET_EQUALS:
-        return .GREATER_THAN_OR_EQUAL
-    case .PLUS:
-        return .ADD
-    case .PLUS_EQUALS:
-        return .ADD_ASSIGN
-    case .MINUS:
-        return .SUBTRACT
-    case .MINUS_EQUALS:
-        return .SUBTRACT_ASSIGN
-    case .ASTERISK:
-        return .MULTIPLY
-    case .ASTERISK_EQUALS:
-        return .MULTIPLY_ASSIGN
-    case .BACKSLASH:
-        return .DIVIDE
-    case .BACKSLASH_EQUALS:
-        return .DIVIDE_ASSIGN
-    case .PERCENT:
-        return .MODULO
-    case .PERCENT_EQUALS:
-        return .MODULO_ASSIGN
+    case .equals_equals:
+        return .equal
+    case .exclamation_equals:
+        return .not_equal
+    case .opening_angle_bracket:
+        return .less_than
+    case .closing_angle_bracket:
+        return .greater_than
+    case .opening_angle_bracket_equals:
+        return .less_than_or_equal
+    case .closing_angle_bracket_equals:
+        return .greater_than_or_equal
+    case .plus:
+        return .add
+    case .plus_equals:
+        return .add_assign
+    case .minus:
+        return .subtract
+    case .minus_equals:
+        return .subtract_assign
+    case .asterisk:
+        return .multiply
+    case .asterisk_equals:
+        return .multiply_assign
+    case .backslash:
+        return .divide
+    case .backslash_equals:
+        return .divide_assign
+    case .percent:
+        return .modulo
+    case .percent_equals:
+        return .modulo_assign
     }
 
     assert(false, "Unsupported ast node type")
-    return .EQUAL
+    return .equal
 }
