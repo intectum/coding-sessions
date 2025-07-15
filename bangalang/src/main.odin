@@ -8,24 +8,41 @@ import "core:sys/linux"
 
 main :: proc()
 {
-  //run_test_suite()
+  failed_tests := run_test_suite()
+  if len(failed_tests) > 0
+  {
+    fmt.println("Tests failed:")
+    for failed_test in failed_tests
+    {
+      fmt.printfln("  %s", failed_test)
+    }
+    os.exit(1)
+  }
 
-  run("examples/example_01.bang", "bin/example_01")
+  name := "examples/example_01.bang"
+  src_data, src_ok := os.read_entire_file(name)
+  if !src_ok
+  {
+    fmt.println("Failed to read src file")
+    os.exit(1)
+  }
+
+  run(name, string(src_data), "bin/example_01")
 }
 
-run :: proc(src_path: string, bin_path: string)
+run :: proc(name: string, src: string, out_path: string)
 {
-  build(src_path, bin_path)
+  build(name, src, out_path)
 
-  os.exit(int(exec(bin_path)))
+  os.exit(int(exec(out_path)))
 }
 
-build :: proc(src_path: string, bin_path: string)
+build :: proc(name: string, src: string, out_path: string)
 {
-  asm_path := strings.concatenate({ bin_path, ".asm" })
-  object_path := strings.concatenate({ bin_path, ".o" })
+  asm_path := strings.concatenate({ out_path, ".asm" })
+  object_path := strings.concatenate({ out_path, ".o" })
 
-  compile(src_path, asm_path)
+  compile(name, src, asm_path)
 
   nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
   nasm_code := exec(nasm_command)
@@ -36,7 +53,7 @@ build :: proc(src_path: string, bin_path: string)
   }
 
   // TODO don't hardcode this stuff...
-  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", bin_path, " -lglfw -lGL -lGLU" })
+  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", out_path, " -lglfw -lGL -lGLU" })
   ld_code := exec(ld_command)
   if ld_code > 0
   {
@@ -45,7 +62,7 @@ build :: proc(src_path: string, bin_path: string)
   }
 }
 
-compile :: proc(src_path: string, asm_path: string)
+compile :: proc(name: string, src: string, asm_path: string)
 {
   tokens: [dynamic]token
 
@@ -58,14 +75,7 @@ compile :: proc(src_path: string, asm_path: string)
 
   tokenize("src/stdlib.bang", string(stdlib_data), &tokens)
 
-  src_data, src_ok := os.read_entire_file(src_path)
-  if !src_ok
-  {
-    fmt.println("Failed to read src file")
-    os.exit(1)
-  }
-
-  tokenize(src_path, string(src_data), &tokens)
+  tokenize(name, src, &tokens)
 
   stream := token_stream { tokens = tokens[:] }
   ast_nodes, parse_ok := parse_program(&stream)
@@ -90,15 +100,4 @@ compile :: proc(src_path: string, asm_path: string)
 exec :: proc(command: string) -> u32
 {
   return linux.WEXITSTATUS(u32(libc.system(strings.clone_to_cstring(command))))
-}
-
-run_test_suite :: proc()
-{
-  build("src/tests.bang", "bin/tests")
-  tests_code := exec("bin/tests")
-  if tests_code > 0
-  {
-    fmt.println("Failed tests")
-    os.exit(int(tests_code))
-  }
 }

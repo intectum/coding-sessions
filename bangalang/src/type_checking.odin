@@ -286,7 +286,8 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         }
     }
 
-    if get_type(lhs_node) == nil
+    lhs_ndoe_type := get_type(lhs_node)
+    if lhs_ndoe_type == nil || lhs_ndoe_type.value == "number"
     {
         fmt.println("Failed to type check assignment")
         fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
@@ -406,26 +407,33 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
     }
 
     _, numerical_type := slice.linear_search(numerical_types, coerced_type_node.value)
+    _, float_type := slice.linear_search(float_types, coerced_type_node.value)
     _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
     if coerced_type_node.value == "bool"
     {
         if node.type != .EQUAL && node.type != .NOT_EQUAL
         {
             fmt.println("Failed to type check right-hand-side expression")
-            file_error(fmt.aprintf("Invalid type %s in", type_name(get_type(node))), node.file_info)
+            file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
             return false
         }
     }
     else if !numerical_type
     {
         fmt.println("Failed to type check right-hand-side expression")
-        file_error(fmt.aprintf("Invalid type %s in", type_name(get_type(node))), node.file_info)
+        file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
+        return false
+    }
+    else if float_type && (node.type == .MODULO || node.type == .MODULO_ASSIGN)
+    {
+        fmt.println("Failed to type check right-hand-side expression")
+        file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
     else if atomic_integer_type && !comparison_operator && node.type != .ADD_ASSIGN && node.type != .SUBTRACT_ASSIGN
     {
         fmt.println("Failed to type check right-hand-side expression")
-        file_error(fmt.aprintf("Invalid type %s in", type_name(get_type(node))), node.file_info)
+        file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
 

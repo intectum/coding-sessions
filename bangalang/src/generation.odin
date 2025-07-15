@@ -543,16 +543,22 @@ generate_expression_float :: proc(file: os.Handle, node: ^ast_node, lhs_location
 
     #partial switch node.type
     {
-    case .ADD:
+    case .ADD, .ADD_ASSIGN:
         fmt.fprintfln(file, "  adds%s %s, %s ; add", precision, operand(result_location), operand(rhs_location))
-    case .SUBTRACT:
+    case .SUBTRACT, .SUBTRACT_ASSIGN:
         fmt.fprintfln(file, "  subs%s %s, %s ; subtract", precision, operand(result_location), operand(rhs_location))
-    case .MULTIPLY:
+    case .MULTIPLY, .MULTIPLY_ASSIGN:
         fmt.fprintfln(file, "  muls%s %s, %s ; multiply", precision, operand(result_location), operand(rhs_location))
-    case .DIVIDE:
+    case .DIVIDE, .DIVIDE_ASSIGN:
         fmt.fprintfln(file, "  divs%s %s, %s ; divide", precision, operand(result_location), operand(rhs_location))
     case:
         assert(false, "Failed to generate expression")
+    }
+
+    if node.type == .ADD_ASSIGN || node.type == .SUBTRACT_ASSIGN || node.type == .MULTIPLY_ASSIGN || node.type == .DIVIDE_ASSIGN
+    {
+        copy(file, result_location, lhs_location, result_type_node, ctx)
+        result_location = lhs_location
     }
 
     return result_location
@@ -659,14 +665,33 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs
     case .MULTIPLY:
         result_location = copy_to_register(file, lhs_location, register_num, result_type_node, ctx)
         fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), operand(rhs_location))
-    case .DIVIDE, .MODULO:
+    case .MULTIPLY_ASSIGN:
+        result_location = copy_to_register(file, lhs_location, register_num, result_type_node, ctx)
+        rhs_register_location := copy_to_register(file, rhs_location, register_num + 1, operand_type_node, ctx)
+        fmt.fprintfln(file, "  imul %s, %s ; multiply", operand(result_location), operand(rhs_register_location))
+        copy(file, result_location, lhs_location, result_type_node, ctx)
+        result_location = lhs_location
+    case .DIVIDE, .DIVIDE_ASSIGN, .MODULO, .MODULO_ASSIGN:
         // dividend / divisor
+        if node.type == .DIVIDE_ASSIGN || node.type == .MODULO_ASSIGN
+        {
+            result_location = lhs_location
+        }
+
+        operation_name := "divide"
+        output_register_name := "ax"
+        if node.type == .MODULO || node.type == .MODULO_ASSIGN
+        {
+            operation_name = "modulo"
+            output_register_name = "dx"
+        }
+
         rhs_register_location := copy_to_non_immediate(file, rhs_location, register_num + 1, result_type_node, ctx)
-        output_register := register(node.type == .DIVIDE ? "ax" : "dx", result_type_node, ctx)
-        fmt.fprintfln(file, "  mov %s, 0 ; divide: assign zero to dividend high part", operand(register("dx", result_type_node, ctx)))
-        fmt.fprintfln(file, "  mov %s, %s ; divide: assign lhs to dividend low part", operand(register("ax", result_type_node, ctx)), operand(lhs_location))
-        fmt.fprintfln(file, "  idiv %s %s ; divide", operation_size(byte_size_of(result_type_node, ctx)), operand(rhs_register_location))
-        fmt.fprintfln(file, "  mov %s, %s ; divide: assign result", operand(result_location), operand(output_register))
+        output_register := register(output_register_name, result_type_node, ctx)
+        fmt.fprintfln(file, "  mov %s, 0 ; %s: assign zero to dividend high part", operand(register("dx", result_type_node, ctx)), operation_name)
+        fmt.fprintfln(file, "  mov %s, %s ; %s: assign lhs to dividend low part", operand(register("ax", result_type_node, ctx)), operand(lhs_location), operation_name)
+        fmt.fprintfln(file, "  idiv %s %s ; %s", operation_size(byte_size_of(result_type_node, ctx)), operand(rhs_register_location), operation_name)
+        fmt.fprintfln(file, "  mov %s, %s ; %s: assign result", operand(result_location), operand(output_register), operation_name)
     case:
         assert(false, "Failed to generate expression")
     }

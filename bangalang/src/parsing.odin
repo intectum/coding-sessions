@@ -598,7 +598,7 @@ is_binary_operator :: proc(token: token) -> bool
 {
     #partial switch token.type
     {
-    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS, .ASTERISK, .BACKSLASH, .PERCENT:
+    case .EQUALS_EQUALS, .EXCLAMATION_EQUALS, .OPENING_ANGLE_BRACKET, .CLOSING_ANGLE_BRACKET, .OPENING_ANGLE_BRACKET_EQUALS, .CLOSING_ANGLE_BRACKET_EQUALS, .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS, .ASTERISK, .ASTERISK_EQUALS, .BACKSLASH, .BACKSLASH_EQUALS, .PERCENT, .PERCENT_EQUALS:
         return true
     case:
         return false
@@ -613,7 +613,7 @@ binary_operator_precedence :: proc(token: token) -> int
         return 1
     case .PLUS, .PLUS_EQUALS, .MINUS, .MINUS_EQUALS:
         return 2
-    case .ASTERISK, .BACKSLASH, .PERCENT:
+    case .ASTERISK, .ASTERISK_EQUALS, .BACKSLASH, .BACKSLASH_EQUALS, .PERCENT, .PERCENT_EQUALS:
         return 3
     }
 
@@ -647,10 +647,16 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
         return .SUBTRACT_ASSIGN
     case .ASTERISK:
         return .MULTIPLY
+    case .ASTERISK_EQUALS:
+        return .MULTIPLY_ASSIGN
     case .BACKSLASH:
         return .DIVIDE
+    case .BACKSLASH_EQUALS:
+        return .DIVIDE_ASSIGN
     case .PERCENT:
         return .MODULO
+    case .PERCENT_EQUALS:
+        return .MODULO_ASSIGN
     }
 
     assert(false, "Unsupported ast node type")
