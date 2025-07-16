@@ -17,7 +17,7 @@ file_error :: proc(message: string, file_info: file_info)
   fmt.printfln("%s file %s at line %i, column %i", message, file_info.name, file_info.line_number, file_info.column_number)
 }
 
-tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
+tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
 {
   stream := src_stream { src, 0, { name, 1, 1 } }
 
@@ -93,7 +93,10 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
         }
         else if peek_rune(&stream) == '"'
         {
-          read_string(&stream)
+          if !read_string(&stream)
+          {
+            return false
+          }
         }
         else
         {
@@ -116,7 +119,10 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
     else if peek_rune(&stream) == '"'
     {
       initial_stream := stream
-      read_string(&stream)
+      if !read_string(&stream)
+      {
+        return false
+      }
 
       append(tokens, token { .string_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
@@ -124,7 +130,10 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
     {
       initial_stream := stream
       next_rune(&stream)
-      read_string(&stream)
+      if !read_string(&stream)
+      {
+        return false
+      }
 
       append(tokens, token { .cstring_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
@@ -202,11 +211,11 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token)
     else
     {
       file_error("Invalid token in", stream.file_info)
-      os.exit(1)
+      return false
     }
   }
 
-  return
+  return true
 }
 
 read_single_line_comment :: proc(stream: ^src_stream)
@@ -219,7 +228,7 @@ read_single_line_comment :: proc(stream: ^src_stream)
   }
 }
 
-read_string :: proc(stream: ^src_stream)
+read_string :: proc(stream: ^src_stream) -> bool
 {
   initial_stream := stream
   next_rune(stream)
@@ -232,8 +241,10 @@ read_string :: proc(stream: ^src_stream)
   if peek_rune(stream) == 0
   {
     file_error("Unclosed string in", initial_stream.file_info)
-    os.exit(1)
+    return false
   }
 
   next_rune(stream)
+
+  return true
 }

@@ -35,7 +35,10 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     ctx.identifiers["i16"] = { type = .type, value = "i16" }
     ctx.identifiers["i32"] = { type = .type, value = "i32" }
     ctx.identifiers["i64"] = { type = .type, value = "i64" }
-    ctx.identifiers["string"] = { type = .type, value = "string" }
+
+    string_type_node := ast_node { type = .type, value = "[slice]" }
+    append(&string_type_node.children, ast_node { type = .type, value = "i8" })
+    ctx.identifiers["string"] = string_type_node
 
     syscall := ast_node { type = .identifier, value = "syscall" }
     append(&syscall.children, ast_node { type = .type, value = "[procedure]", allocator = "static", directive = "#extern" })
@@ -269,21 +272,11 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         }
         else
         {
-            if rhs_node.type == .scope
-            {
-                rhs_node.type = .compound_literal
-            }
-
-            if rhs_node.type == .if_ || rhs_node.type == .for_ || rhs_node.type == .scope || rhs_node.type == .return_ || rhs_node.type == .assignment
+            if rhs_node.type == .if_ || rhs_node.type == .for_ || rhs_node.type == .return_ || rhs_node.type == .assignment
             {
                 fmt.println("Failed to type check assignment")
                 file_error("Right-hand-side must be an expression in", lhs_node.file_info)
                 return false
-            }
-
-            if rhs_node.type == .compound_literal && lhs_type_node != nil
-            {
-                append(&rhs_node.children, lhs_type_node^)
             }
 
             type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
@@ -334,6 +327,16 @@ type_check_lhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context) 
 
 type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_type_node: ^ast_node) -> bool
 {
+    if node.type == .scope
+    {
+        node.type = .compound_literal
+    }
+
+    if node.type == .compound_literal && expected_type_node != nil
+    {
+        append(&node.children, expected_type_node^)
+    }
+
     type_check_rhs_expression_1(node, ctx) or_return
 
     type_node_result := get_type_result(get_type(node))
@@ -456,7 +459,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         if child_type_node.type == .reference
         {
             fmt.println("Failed to type check primary")
-            file_error(fmt.aprintf("Cannot reference type %s in", type_name(child_type_node)), node.file_info)
+            file_error(fmt.aprintf("Cannot reference type '%s' in", type_name(child_type_node)), node.file_info)
             return false
         }
 
@@ -468,7 +471,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         if child_type_node.value == "[array]" || child_type_node.value == "[slice]" || child_type_node.type == .reference
         {
             fmt.println("Failed to type check primary")
-            file_error(fmt.aprintf("Cannot negate type %s in", type_name(child_type_node)), node.file_info)
+            file_error(fmt.aprintf("Cannot negate type '%s' in", type_name(child_type_node)), node.file_info)
             return false
         }
 
@@ -478,7 +481,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         if child_type_node.type != .reference
         {
             fmt.println("Failed to type check primary")
-            file_error(fmt.aprintf("Cannot dereference type %s in", type_name(child_type_node)), node.file_info)
+            file_error(fmt.aprintf("Cannot dereference type '%s' in", type_name(child_type_node)), node.file_info)
             return false
         }
 
@@ -489,14 +492,14 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         auto_dereference(&node.children[0])
 
         child_type_node := get_type(&node.children[0])
-        if child_type_node.value == "[array]" || child_type_node.value == "[slice]"
+        if child_type_node.value != "[array]" && child_type_node.value != "[slice]"
         {
-            append(&node.children, child_type_node.children[0])
+            fmt.println("Failed to type check primary")
+            file_error(fmt.aprintf("Cannot index type '%s' in", type_name(child_type_node)), node.file_info)
+            return false
         }
-        else
-        {
-            append(&node.children, child_type_node^)
-        }
+
+        append(&node.children, child_type_node.children[0])
 
         type_check_rhs_expression(&node.children[1], ctx, &ctx.identifiers["i64"]) or_return
 
@@ -509,9 +512,9 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
             get_type(node)^ = type_node
         }
 
-        if child_type_node.value != "[slice]"
+        if child_type_node.value == "[array]"
         {
-            length := child_type_node.value == "[array]" ? strconv.atoi(child_type_node.children[1].value) : 1
+            length := strconv.atoi(child_type_node.children[1].value)
 
             if child_type_node.directive != "#boundless" && node.children[1].type == .number && strconv.atoi(node.children[1].value) >= length
             {
@@ -529,8 +532,9 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
             auto_dereference(child_node)
 
             child_type_node := get_type(child_node)
-            if child_type_node.value == "[struct]"
+            switch child_type_node.value
             {
+            case "[struct]":
                 found_member := false
                 for &member_node in child_type_node.children
                 {
@@ -548,13 +552,18 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
                     file_error(fmt.aprintf("'%s' is not a member in", node.value), node.file_info)
                     return false
                 }
-            }
-            else if node.value == "length"
-            {
-                append(&node.children, ctx.identifiers["i64"])
-            }
-            else
-            {
+            case "[array]", "[slice]":
+                if node.value == "raw"
+                {
+                    raw_type_node := ast_node { type = .reference }
+                    append(&raw_type_node.children, child_type_node.children[0])
+                    append(&node.children, raw_type_node)
+                }
+                else if node.value == "length"
+                {
+                    append(&node.children, ctx.identifiers["i64"])
+                }
+            case:
                 fmt.println("Failed to type check primary")
                 file_error(fmt.aprintf("'%s' is not a member in", node.value), node.file_info)
                 return false
@@ -571,13 +580,13 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
             return false
         }
     case .string_:
-        append(&node.children, ast_node { type = .type, value = "string" })
+        append(&node.children, ctx.identifiers["string"])
     case .cstring_:
-        append(&node.children, ast_node { type = .type, value = "cstring" })
+        append(&node.children, ctx.identifiers["cstring"])
     case .number:
         append(&node.children, ast_node { type = .type, value = "number" })
     case .boolean:
-        append(&node.children, ast_node { type = .type, value = "bool" })
+        append(&node.children, ctx.identifiers["bool"])
     case .compound_literal:
         type_node := get_type(node)
 
@@ -771,19 +780,6 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
     if a.type != b.type
     {
         return nil, false
-    }
-
-    if a.type == .reference
-    {
-        if a.directive == "#boundless" && b.directive != "#boundless"
-        {
-            return coerce_type(&a.children[0], &b.children[0].children[0])
-        }
-
-        if a.directive != "#boundless" && b.directive == "#boundless"
-        {
-            return coerce_type(&a.children[0].children[0], &b.children[0])
-        }
     }
 
     if a.value != b.value

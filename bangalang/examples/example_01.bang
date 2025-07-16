@@ -24,17 +24,17 @@ glEnableVertexAttribArray: #extern proc(index: i32)
 glGenBuffers: #extern proc(n: i32, buffers: ^i32)
 glGetError: #extern proc() -> i32
 glGetProgramiv: #extern proc(program: i32, pname: i32, params: ^i32)
-glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: #boundless ^i8)
-glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: #boundless ^i8)
+glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: ^i8)
+glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: ^i8)
 glGetShaderiv: #extern proc(shader: i32, pname: i32, params: ^i32)
 glLinkProgram: #extern proc(program: i32)
-glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> #boundless ^i8
+glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^i8
 glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^i8, flags: i32)
 glShaderSource: #extern proc(shader: i32, count: i32, src: ^cstring, length: ^i32)
 glUseProgram: #extern proc(program: i32)
 glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^i8)
 
-gluErrorString: #extern proc(error: i32) -> #boundless ^i8
+gluErrorString: #extern proc(error: i32) -> ^i8
 
 glfwInit()
 window = glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
@@ -131,16 +131,15 @@ for (glfwWindowShouldClose(window) == 0)
     time = timeval[0] * 1000000 + timeval[1]
     if (time > fps_time + 1000000)
     {
-        string_bytes: i8[100]
-        string_len = itoa(frame_count, ^string_bytes)
+        string_buf: i8[100]
         print("FPS: ")
-        printbln(^string_bytes, string_len)
+        println(itoa(frame_count, string_buf[0:string_buf.length]))
 
         frame_count = 0
         fps_time = time
     }
 
-    frame_count = frame_count + 1
+    frame_count += 1
 }
 
 compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
@@ -154,9 +153,10 @@ compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
     glGetShaderiv(name, GL_COMPILE_STATUS, ^compile_status) check_opengl_error()
 
     info_log: i8[1000000]
-    glGetShaderInfoLog(name, 1000000, nil, ^info_log) check_opengl_error()
+    info_log_length: i32
+    glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if (info_log[0] != 0) printb(^info_log, 1000000)
+    if (info_log[0] != 0) println(info_log[0:i64(info_log_length)])
     assert(compile_status != 0, "failed to compile shader")
 
     return name
@@ -174,9 +174,10 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
     glGetProgramiv(name, GL_LINK_STATUS, ^link_status) check_opengl_error()
 
     info_log: i8[1000000]
-    glGetProgramInfoLog(name, 1000000, nil, ^info_log) check_opengl_error()
+    info_log_length: i32
+    glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if (info_log[0] != 0) printb(^info_log, 1000000)
+    if (info_log[0] != 0) println(info_log[0:i64(info_log_length)])
     assert(link_status != 0, "failed to link shaders")
 
     return name
@@ -188,6 +189,7 @@ check_opengl_error: proc() =
     GL_NO_ERROR: i32 = 0
     if (error != GL_NO_ERROR)
     {
-        printb(gluErrorString(error), 100)
+        error_buffer = gluErrorString(error)
+        println({ raw = error_buffer, length = 100 })
     }
 }

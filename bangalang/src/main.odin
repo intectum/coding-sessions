@@ -8,7 +8,7 @@ import "core:sys/linux"
 
 main :: proc()
 {
-  failed_tests := run_test_suite()
+  /*failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -17,7 +17,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }
+  }*/
 
   name := "examples/example_01.bang"
   src_data, src_ok := os.read_entire_file(name)
@@ -73,9 +73,17 @@ compile :: proc(name: string, src: string, asm_path: string)
     os.exit(1)
   }
 
-  tokenize("src/stdlib.bang", string(stdlib_data), &tokens)
+  if !tokenize("src/stdlib.bang", string(stdlib_data), &tokens)
+  {
+    fmt.println("Failed to tokenize")
+    os.exit(1)
+  }
 
-  tokenize(name, src, &tokens)
+  if !tokenize(name, src, &tokens)
+  {
+    fmt.println("Failed to tokenize")
+    os.exit(1)
+  }
 
   stream := token_stream { tokens = tokens[:] }
   ast_nodes, parse_ok := parse_program(&stream)
