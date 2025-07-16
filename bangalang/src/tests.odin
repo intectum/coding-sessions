@@ -281,7 +281,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     assert(var0[5].member1 == <value1>, "")
   `*/
 
-  value_tests["declare_then_assign_slice"] =
+  value_tests["declare_and_assign_slice"] =
   `
     var0: <type>[10]
     var0[5] = <value0>
@@ -289,12 +289,62 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     assert(var1[3] == <value0>, "")
   `
 
-  value_tests["declare_then_assign_slice_of_arrays"] =
+  value_tests["declare_then_assign_slice"] =
+  `
+    var0: <type>[10]
+    var0[5] = <value0>
+    var1: <type>[]
+    var1 = var0[2:8]
+    assert(var1[3] == <value0>, "")
+  `
+
+  value_tests["declare_and_assign_slice_from_literal"] =
+  `
+    var0: <type>[10]
+    var0[5] = <value0>
+    var1: <type>[] = { raw = ^var0[0], length = 10 }
+    assert(var1[5] == <value0>, "")
+  `
+
+  value_tests["declare_then_assign_slice_from_literal"] =
+  `
+    var0: <type>[10]
+    var0[5] = <value0>
+    var1: <type>[]
+    var1 = { raw = ^var0[0], length = 10 }
+    assert(var1[5] == <value0>, "")
+  `
+
+  value_tests["declare_and_assign_slice_of_arrays"] =
   `
     var0: <type>[10][10]
     var0[5][5] = <value0>
     var1 = var0[2:8]
     assert(var1[3][5] == <value0>, "")
+  `
+
+  value_tests["declare_then_assign_slice_of_arrays"] =
+  `
+    var0: <type>[10][10]
+    var0[5][5] = <value0>
+    var1: <type>[10][]
+    var1 = var0[2:8]
+    assert(var1[3][5] == <value0>, "")
+  `
+
+  value_tests["declare_and_assign_struct"] =
+  `
+    var0: struct { member0: <type>, member1: <type> } = { member0 = <value0>, member1 = <value1> }
+    assert(var0.member0 == <value0>, "")
+    assert(var0.member1 == <value1>, "")
+  `
+
+  value_tests["declare_then_assign_struct"] =
+  `
+    var0: struct { member0: <type>, member1: <type> }
+    var0 = { member0 = <value0>, member1 = <value1> }
+    assert(var0.member0 == <value0>, "")
+    assert(var0.member1 == <value1>, "")
   `
 
   value_tests["declare_then_assign_struct_member"] =

@@ -166,10 +166,12 @@ boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec3[], start: i64), data
         start = index * worker_data_length
         end = start + worker_data_length
 
-        task: thread_pool_task
-        task.func = kernel
-        task.data = data[start:end]
-        task.start = start
+        task: thread_pool_task =
+        {
+            func = kernel,
+            data = data[start:end],
+            start = start
+        }
 
         thread_pool_enqueue(pool, ^task)
     }

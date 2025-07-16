@@ -225,10 +225,10 @@ generate_statement :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, 
         generate_if(file, node, ctx)
     case .for_:
         generate_for(file, node, ctx)
-    case .scope:
-        generate_scope(file, node, ctx, include_end_label)
     case .return_:
         generate_return(file, node, ctx)
+    case .scope:
+        generate_scope(file, node, ctx, include_end_label)
     case .assignment:
         generate_assignment(file, node, ctx)
     case:
@@ -702,7 +702,7 @@ generate_expression_signed_integer :: proc(file: os.Handle, node: ^ast_node, lhs
 generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, contains_allocations: bool) -> location
 {
     child_location: location
-    if len(node.children) > 0 && !is_type(&node.children[0])
+    if node.type != .compound_literal && len(node.children) > 0 && !is_type(&node.children[0])
     {
         child_location = generate_primary(file, &node.children[0], ctx, register_num, contains_allocations)
     }
@@ -894,6 +894,79 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
         return immediate(node.value)
     case .boolean:
         return immediate(node.value == "true" ? 1 : 0)
+    case .compound_literal:
+        allocate(file, byte_size_of(type_node, ctx), ctx)
+
+        if type_node.value == "[struct]"
+        {
+            member_location := memory("rsp", 0)
+            for &member_node in type_node.children
+            {
+                found_assignment := false
+                for child_node in node.children
+                {
+                    child_lhs_node := &child_node.children[0]
+                    child_rhs_node := &child_node.children[1]
+
+                    if child_lhs_node.value == member_node.value
+                    {
+                        generate_expression(file, child_rhs_node, ctx, member_location, register_num)
+                        found_assignment = true
+                        break
+                    }
+                }
+
+                if !found_assignment
+                {
+                    rhs_node := ast_node { type = .nil_ }
+                    append(&rhs_node.children, get_type(&member_node)^)
+                    generate_expression(file, &rhs_node, ctx, member_location, register_num)
+                }
+
+                member_location.offset += byte_size_of(get_type(&member_node), ctx)
+            }
+        }
+        else if type_node.value == "[slice]"
+        {
+            member_names: []string = { "raw", "length" }
+            for member_name in member_names
+            {
+                member_type_node := unknown_reference_type_node
+                member_location := memory("rsp", 0)
+                if member_name == "length"
+                {
+                    member_type_node = { type = .type, value = "i64" }
+                    member_location.offset += address_size
+                }
+
+                found_assignment := false
+                for child_node in node.children
+                {
+                    child_lhs_node := &child_node.children[0]
+                    child_rhs_node := &child_node.children[1]
+
+                    if child_lhs_node.value == member_name
+                    {
+                        generate_expression(file, child_rhs_node, ctx, member_location, register_num)
+                        found_assignment = true
+                        break
+                    }
+                }
+
+                if !found_assignment
+                {
+                    rhs_node := ast_node { type = .nil_ }
+                    append(&rhs_node.children, member_type_node)
+                    generate_expression(file, &rhs_node, ctx, member_location, register_num)
+                }
+            }
+        }
+        else
+        {
+            assert(false, "Failed to generate primary")
+        }
+
+        return copy_stack_address(file, ctx, 0, register_num)
     case .nil_:
         return immediate(0)
     case:
@@ -1187,6 +1260,11 @@ close_gen_context :: proc(file: os.Handle, parent_ctx: ^gen_context, ctx: ^gen_c
 
 contains_allocations :: proc(node: ^ast_node) -> bool
 {
+    if node.type == .compound_literal
+    {
+        return true
+    }
+
     if node.type == .index && get_type(node).value != "[slice]"
     {
         return true

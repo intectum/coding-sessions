@@ -18,6 +18,7 @@ ast_node_type :: enum
   assignment,
   boolean,
   call,
+  compound_literal,
   cstring_,
   dereference,
   divide,

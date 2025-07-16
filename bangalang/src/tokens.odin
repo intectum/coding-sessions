@@ -73,7 +73,6 @@ peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
 next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> (token, bool)
 {
   next_token := peek_token(stream)
-  stream.next_index += 1
 
   if next_token.type != type
   {
@@ -86,6 +85,8 @@ next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") 
     stream.error = fmt.aprintf("Expected: %s, Found: %s", value, next_token.value)
     return {}, false
   }
+
+  stream.next_index += 1
 
   return next_token, true
 }

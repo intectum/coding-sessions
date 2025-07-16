@@ -120,10 +120,10 @@ type_check_statement :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bo
         return type_check_if(node, ctx)
     case .for_:
         return type_check_for(node, ctx)
-    case .scope:
-        return type_check_scope(node, ctx)
     case .return_:
         return type_check_return(node, ctx)
+    case .scope:
+        return type_check_scope(node, ctx)
     case .assignment:
         return type_check_assignment(node, ctx)
     case:
@@ -269,11 +269,21 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         }
         else
         {
+            if rhs_node.type == .scope
+            {
+                rhs_node.type = .compound_literal
+            }
+
             if rhs_node.type == .if_ || rhs_node.type == .for_ || rhs_node.type == .scope || rhs_node.type == .return_ || rhs_node.type == .assignment
             {
                 fmt.println("Failed to type check assignment")
                 file_error("Right-hand-side must be an expression in", lhs_node.file_info)
                 return false
+            }
+
+            if rhs_node.type == .compound_literal && lhs_type_node != nil
+            {
+                append(&rhs_node.children, lhs_type_node^)
             }
 
             type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
@@ -434,7 +444,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
 
 type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_undefined: bool) -> bool
 {
-    if len(node.children) > 0 && !is_type(&node.children[0])
+    if node.type != .compound_literal && len(node.children) > 0 && !is_type(&node.children[0])
     {
         type_check_primary(&node.children[0], ctx, allow_undefined) or_return
     }
@@ -568,6 +578,77 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         append(&node.children, ast_node { type = .type, value = "number" })
     case .boolean:
         append(&node.children, ast_node { type = .type, value = "bool" })
+    case .compound_literal:
+        type_node := get_type(node)
+
+        for child_node in node.children[:len(node.children) - 1]
+        {
+            if child_node.type != .assignment
+            {
+                fmt.println("Failed to type check primary")
+                file_error("Compound literal can only contain assignments in", node.file_info)
+                return false
+            }
+
+            child_lhs_node := &child_node.children[0]
+            if child_lhs_node.type != .identifier || len(child_lhs_node.children) > 0
+            {
+                fmt.println("Failed to type check primary")
+                file_error("Compound literal can only contain assignments to members in", node.file_info)
+                return false
+            }
+
+            found_member := false
+            if type_node.value == "[struct]"
+            {
+                for &member_node in type_node.children
+                {
+                    if member_node.value == child_lhs_node.value
+                    {
+                        append(&child_lhs_node.children, get_type(&member_node)^)
+                        found_member = true
+                        break
+                    }
+                }
+            }
+            else if type_node.value == "[slice]"
+            {
+                switch child_lhs_node.value
+                {
+                case "raw":
+                    raw_type_node := ast_node { type = .reference }
+                    append(&raw_type_node.children, type_node.children[0])
+                    append(&child_lhs_node.children, raw_type_node)
+                    found_member = true
+                case "length":
+                    append(&child_lhs_node.children, ctx.identifiers["i64"])
+                    found_member = true
+                }
+            }
+            else
+            {
+                fmt.println("Failed to type check primary")
+                file_error(fmt.aprintf("Cannot use compound literal with type '%s' in", type_node.value), node.file_info)
+                return false
+            }
+
+            if !found_member
+            {
+                fmt.println("Failed to type check primary")
+                file_error(fmt.aprintf("'%s' is not a member in", child_lhs_node.value), node.file_info)
+                return false
+            }
+
+            if len(child_node.children) == 1
+            {
+                fmt.println("Failed to type check primary")
+                file_error("Compound literal can only contain assignments with right-hand-side expressions in", node.file_info)
+                return false
+            }
+
+            child_rhs_node := &child_node.children[1]
+            type_check_rhs_expression(child_rhs_node, ctx, get_type(child_lhs_node)) or_return
+        }
     case .nil_:
         append(&node.children, ast_node { type = .type, value = "nil" })
     case .type:

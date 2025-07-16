@@ -61,11 +61,7 @@ glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
 buffer_data_raw = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
-
-buffer_data_i64: i64[2]
-buffer_data_i64[0] = #untyped buffer_data_raw
-buffer_data_i64[1] = vertex_count
-buffer_data: vec3[] = #untyped buffer_data_i64
+buffer_data: vec3[] = { raw = #untyped buffer_data_raw, length = vertex_count }
 
 glUseProgram(program_name) check_opengl_error()
 
@@ -114,8 +110,7 @@ task_func: proc(data: vec3[], start: i64) =
     }
 }
 
-pool: thread_pool
-pool.worker_count = 8
+pool: thread_pool = { worker_count = 8 }
 thread_pool_start(^pool)
 
 for (glfwWindowShouldClose(window) == 0)
