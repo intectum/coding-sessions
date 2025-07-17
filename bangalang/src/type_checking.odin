@@ -3,8 +3,8 @@ package main
 import "core:fmt"
 import "core:os"
 import "core:slice"
-import "core:strings"
 import "core:strconv"
+import "core:strings"
 
 type_checking_context :: struct
 {
@@ -21,7 +21,6 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 {
     ctx: type_checking_context
 
-    ctx.identifiers["[procedure]"] = { type = .type, value = "[procedure]" }
     ctx.identifiers["atomic_i8"] = { type = .type, value = "atomic_i8" }
     ctx.identifiers["atomic_i16"] = { type = .type, value = "atomic_i16" }
     ctx.identifiers["atomic_i32"] = { type = .type, value = "atomic_i32" }
@@ -173,9 +172,10 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     child_node := &node.children[child_index]
     child_index += 1
 
-    if child_node.type == .assignment
+    _, statement := slice.linear_search(statements, child_node.type)
+    if statement
     {
-        type_check_assignment(child_node, &for_ctx) or_return
+        type_check_statement(child_node, &for_ctx) or_return
 
         child_node = &node.children[child_index]
         child_index += 1
@@ -186,27 +186,15 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     child_node = &node.children[child_index]
     child_index += 1
 
-    if child_node.type == .assignment
+    if len(node.children) > child_index
     {
-        type_check_assignment(child_node, &for_ctx) or_return
+        type_check_statement(child_node, &for_ctx) or_return
 
         child_node = &node.children[child_index]
         child_index += 1
     }
 
     type_check_statement(child_node, &for_ctx) or_return
-
-    return true
-}
-
-type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
-{
-    scope_ctx := copy_type_checking_context(ctx^, true)
-
-    for &child_node in node.children
-    {
-        type_check_statement(&child_node, &scope_ctx) or_return
-    }
 
     return true
 }
@@ -224,6 +212,18 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     }
 
     type_check_rhs_expression(expression_node, ctx, &procedure_type_node.children[1]) or_return
+
+    return true
+}
+
+type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
+{
+    scope_ctx := copy_type_checking_context(ctx^, true)
+
+    for &child_node in node.children
+    {
+        type_check_statement(&child_node, &scope_ctx) or_return
+    }
 
     return true
 }
@@ -272,7 +272,13 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         }
         else
         {
-            if rhs_node.type == .if_ || rhs_node.type == .for_ || rhs_node.type == .return_ || rhs_node.type == .assignment
+            if rhs_node.type == .scope
+            {
+                rhs_node.type = .compound_literal
+            }
+
+            _, statement := slice.linear_search(statements, rhs_node.type)
+            if statement
             {
                 fmt.println("Failed to type check assignment")
                 file_error("Right-hand-side must be an expression in", lhs_node.file_info)
@@ -306,32 +312,25 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
 
 type_check_lhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
-    type_check_primary(node, ctx, true) or_return
-
-    if node.value in ctx.identifiers
+    if is_member(node) || node.value in ctx.identifiers
     {
         type_node := get_type(node)
-        identifier_type_node := get_type(&ctx.identifiers[node.value])
-        _, coerce_ok := coerce_type(type_node, identifier_type_node)
-        if !coerce_ok
+
+        if type_node != nil && (type_node.value != "[procedure]" || type_node.allocator != "static")
         {
-            type_names: []string = { type_name(type_node), type_name(identifier_type_node) }
             fmt.println("Failed to type check left-hand-side expression")
-            file_error(fmt.aprintf("Incompatible types %s in", type_names), node.file_info)
+            file_error(fmt.aprintf("Cannot redefine type of '%s' in", node.value), node.file_info)
             return false
         }
     }
+
+    type_check_primary(node, ctx, true) or_return
 
     return true
 }
 
 type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, expected_type_node: ^ast_node) -> bool
 {
-    if node.type == .scope
-    {
-        node.type = .compound_literal
-    }
-
     if node.type == .compound_literal && expected_type_node != nil
     {
         append(&node.children, expected_type_node^)
@@ -455,11 +454,11 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
     #partial switch node.type
     {
     case .reference:
-        child_type_node := get_type(&node.children[0])
-        if child_type_node.type == .reference
+        _, literal := slice.linear_search(literals, node.children[0].type)
+        if literal
         {
             fmt.println("Failed to type check primary")
-            file_error(fmt.aprintf("Cannot reference type '%s' in", type_name(child_type_node)), node.file_info)
+            file_error(fmt.aprintf("Cannot reference '%s' literal in", node.children[0].type), node.file_info)
             return false
         }
 
@@ -468,7 +467,8 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         append(&node.children, type_node)
     case .negate:
         child_type_node := get_type(&node.children[0])
-        if child_type_node.value == "[array]" || child_type_node.value == "[slice]" || child_type_node.type == .reference
+        _, numerical_type := slice.linear_search(numerical_types, child_type_node.value)
+        if !numerical_type
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot negate type '%s' in", type_name(child_type_node)), node.file_info)
@@ -837,14 +837,36 @@ type_name :: proc(type_node: ^ast_node) -> string
         return strings.concatenate({ prefix, "^", type_name(&type_node.children[0]) })
     }
 
-    if type_node.value == "[array]"
+    switch type_node.value
     {
+    case "[array]":
         return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
-    }
+    case "[procedure]":
+        param_type_names: [dynamic]string
+        params_type_node := type_node.children[0]
+        for &param_node in params_type_node.children
+        {
+            append(&param_type_names, strings.concatenate({ param_node.value, ": ", type_name(get_type(&param_node)) }))
+        }
 
-    if type_node.value == "[slice]"
-    {
+        return_type_name: string
+        if len(type_node.children) == 2
+        {
+            return_type_node := &type_node.children[1]
+            return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
+        }
+
+        return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
+    case "[slice]":
         return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[]" })
+    case "[struct]":
+        member_type_names: [dynamic]string
+        for &member_node in type_node.children
+        {
+            append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(get_type(&member_node)) }))
+        }
+
+        return strings.concatenate({ prefix, "struct { ", strings.join(member_type_names[:], ", "), " }" })
     }
 
     return strings.concatenate({ prefix, type_node.value })

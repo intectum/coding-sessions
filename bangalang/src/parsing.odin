@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strconv"
 
 primary_type :: enum
@@ -51,12 +52,20 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
     next_token(stream, token_type.keyword, "if") or_return
 
-    next_token(stream, .opening_bracket) or_return
+    if_brackets := false
+    if peek_token(stream).type == .opening_bracket
+    {
+        next_token(stream, .opening_bracket) or_return
+        if_brackets = true
+    }
 
     expression_node := parse_rhs_expression(stream) or_return
     append(&node.children, expression_node)
 
-    next_token(stream, .closing_bracket) or_return
+    if if_brackets
+    {
+        next_token(stream, .closing_bracket) or_return
+    }
 
     statement_node := parse_statement(stream) or_return
     append(&node.children, statement_node)
@@ -66,12 +75,20 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         next_token(stream, token_type.keyword, "else") or_return
         next_token(stream, token_type.keyword, "if") or_return
 
-        next_token(stream, .opening_bracket) or_return
+        else_if_brackets := false
+        if peek_token(stream).type == .opening_bracket
+        {
+            next_token(stream, .opening_bracket) or_return
+            else_if_brackets = true
+        }
 
         else_if_expression_node := parse_rhs_expression(stream) or_return
         append(&node.children, else_if_expression_node)
 
-        next_token(stream, .closing_bracket) or_return
+        if else_if_brackets
+        {
+            next_token(stream, .closing_bracket) or_return
+        }
 
         else_if_statement_node := parse_statement(stream) or_return
         append(&node.children, else_if_statement_node)
@@ -95,13 +112,21 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
     next_token(stream, token_type.keyword, "for") or_return
 
-    next_token(stream, .opening_bracket) or_return
-
-    // TODO this is way too manual checking...
-    if peek_token(stream).type == .identifier && peek_token(stream, 1).type == .colon
+    brackets := false
+    if peek_token(stream).type == .opening_bracket
     {
-        pre_assignment_node := parse_assignment(stream) or_return
-        append(&node.children, pre_assignment_node)
+        next_token(stream, .opening_bracket) or_return
+        brackets = true
+    }
+
+    pre_statement_stream := stream^
+    pre_statement_node, pre_statement_ok := parse_statement(&pre_statement_stream)
+
+    _, statement := slice.linear_search(statements, pre_statement_node.type)
+    if pre_statement_ok && statement
+    {
+        stream^ = pre_statement_stream
+        append(&node.children, pre_statement_node)
 
         next_token(stream, .comma) or_return
     }
@@ -113,11 +138,14 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     {
         next_token(stream, .comma) or_return
 
-        post_assignment_node := parse_assignment(stream) or_return
-        append(&node.children, post_assignment_node)
+        post_statement_node := parse_statement(stream) or_return
+        append(&node.children, post_statement_node)
     }
 
-    next_token(stream, .closing_bracket) or_return
+    if brackets
+    {
+        next_token(stream, .closing_bracket) or_return
+    }
 
     statement_node := parse_statement(stream) or_return
     append(&node.children, statement_node)
@@ -136,29 +164,6 @@ parse_return :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     append(&node.children, expression_node)
 
     return node, true
-}
-
-parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
-{
-    node.type = .scope
-    node.file_info = peek_token(stream).file_info
-
-    next_token(stream, .opening_curly_bracket) or_return
-
-    for stream.next_index < len(stream.tokens)
-    {
-        if peek_token(stream).type == .closing_curly_bracket
-        {
-            next_token(stream, .closing_curly_bracket) or_return
-            return node, true
-        }
-
-        statement_node := parse_statement(stream) or_return
-        append(&node.children, statement_node)
-    }
-
-    stream.error = "Scope never ends"
-    return {}, false
 }
 
 parse_scope_or_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
@@ -188,6 +193,29 @@ parse_scope_or_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (n
 
     stream^ = assignment_stream
     return assignment_node, assignment_ok
+}
+
+parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+{
+    node.type = .scope
+    node.file_info = peek_token(stream).file_info
+
+    next_token(stream, .opening_curly_bracket) or_return
+
+    for stream.next_index < len(stream.tokens)
+    {
+        if peek_token(stream).type == .closing_curly_bracket
+        {
+            next_token(stream, .closing_curly_bracket) or_return
+            return node, true
+        }
+
+        statement_node := parse_statement(stream) or_return
+        append(&node.children, statement_node)
+    }
+
+    stream.error = "Scope never ends"
+    return {}, false
 }
 
 parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)

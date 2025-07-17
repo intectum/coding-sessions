@@ -2,8 +2,8 @@ $$
 \begin{align}
 program\ &\to\ statement*\\
 statement\ &\to\ if\ |\ for\ |\ return\ |\ scope\ |\ assignment\ |\ rhs\_expression\\
-if\ &\to\ \text{"if"}\ \text{"("}\ rhs\_expression\ \text{")"}\ statement\ (\ \text{"else"}\ \text{"if"}\ \text{"("}\ rhs\_expression\ \text{")"}\ statement\ )*\ (\ \text{"else"}\ statement\ )?\\
-for\ &\to\ \text{"for"}\ \text{"("}\ (\ assignment\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ assignment\ )?\ \text{")"}\ statement\\
+if\ &\to\ \text{"if"}\ \text{"("}?\ rhs\_expression\ \text{")"}?\ statement\ (\ \text{"else"}\ \text{"if"}\ \text{"("}?\ rhs\_expression\ \text{")"}?\ statement\ )*\ (\ \text{"else"}\ statement\ )?\\
+for\ &\to\ \text{"for"}\ \text{"("}?\ (\ statement\ \&\ !rhs\_expression\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ statement\ )?\ \text{")"}?\ statement\\
 scope\ &\to\ \text{"\{"}\ statement*\ \text{"\}"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression\\
 assignment\ &\to\ lhs\_expression\ (\ \text{"="}\ statement\ )?\\

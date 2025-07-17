@@ -49,5 +49,7 @@ ast_node_type :: enum
   type
 }
 
+statements: []ast_node_type = { .assignment, .for_, .if_, .return_, .scope }
 binary_operators: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal, .add, .add_assign, .subtract, .subtract_assign, .multiply, .multiply_assign, .divide, .divide_assign, .modulo, .modulo_assign }
 comparison_operators: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal }
+literals: []ast_node_type = { .boolean, .compound_literal, .cstring_, .nil_, .number, .string_ }

@@ -2,8 +2,8 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strings"
-import slice "core:slice"
 
 non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "multiply", "multiply_assign", "divide", "divide_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
 
@@ -36,6 +36,16 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_false_scope"] =
   `
     var0 = false
+    if false
+    {
+        var0 = true
+    }
+    assert(var0 == false, "")
+  `
+
+  general_tests["if_false_scope_brackets"] =
+  `
+    var0 = false
     if (false)
     {
         var0 = true
@@ -46,7 +56,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_true_scope"] =
   `
     var0 = false
-    if (true)
+    if true
     {
         var0 = true
     }
@@ -56,21 +66,21 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_false_non_scope"] =
   `
     var0 = false
-    if (false) var0 = true
+    if false var0 = true
     assert(var0 == false, "")
   `
 
   general_tests["if_true_non_scope"] =
   `
     var0 = false
-    if (true) var0 = true
+    if true var0 = true
     assert(var0, "")
   `
 
   general_tests["if_else_true_scope"] =
   `
     var0: i8 = 0
-    if (true)
+    if true
     {
         var0 = 1
     }
@@ -84,7 +94,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_false_scope"] =
   `
     var0: i8 = 0
-    if (false)
+    if false
     {
         var0 = 1
     }
@@ -98,7 +108,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_true_non_scope"] =
   `
     var0: i8 = 0
-    if (true) var0 = 1
+    if true var0 = 1
     else var0 = 2
     assert(var0 == 1, "")
   `
@@ -106,12 +116,30 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_false_non_scope"] =
   `
     var0: i8 = 0
-    if (false) var0 = 1
+    if false var0 = 1
     else var0 = 2
     assert(var0 == 2, "")
   `
 
   general_tests["if_else_if_true_true_scope"] =
+  `
+    var0: i8 = 0
+    if true
+    {
+        var0 = 1
+    }
+    else if true
+    {
+        var0 = 2
+    }
+    else
+    {
+        var0 = 3
+    }
+    assert(var0 == 1, "")
+  `
+
+  general_tests["if_else_if_true_true_scope_brackets"] =
   `
     var0: i8 = 0
     if (true)
@@ -132,11 +160,11 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_if_false_true_scope"] =
   `
     var0: i8 = 0
-    if (false)
+    if false
     {
         var0 = 1
     }
-    else if (true)
+    else if true
     {
         var0 = 2
     }
@@ -150,11 +178,11 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_if_false_false_scope"] =
   `
     var0: i8 = 0
-    if (false)
+    if false
     {
         var0 = 1
     }
-    else if (false)
+    else if false
     {
         var0 = 2
     }
@@ -168,8 +196,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_if_true_true_non_scope"] =
   `
     var0: i8 = 0
-    if (true) var0 = 1
-    else if (true) var0 = 2
+    if true var0 = 1
+    else if true var0 = 2
     else var0 = 3
     assert(var0 == 1, "")
   `
@@ -177,8 +205,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_if_false_true_non_scope"] =
   `
     var0: i8 = 0
-    if (false) var0 = 1
-    else if (true) var0 = 2
+    if false var0 = 1
+    else if true var0 = 2
     else var0 = 3
     assert(var0 == 2, "")
   `
@@ -186,8 +214,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["if_else_if_false_false_non_scope"] =
   `
     var0: i8 = 0
-    if (false) var0 = 1
-    else if (false) var0 = 2
+    if false var0 = 1
+    else if false var0 = 2
     else var0 = 3
     assert(var0 == 3, "")
   `
@@ -196,7 +224,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   `
     sum: i64 = 0
     value: i64 = 10
-    for (value > 0)
+    for value > 0
     {
         sum += value
         value -= 1
@@ -207,7 +235,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["for_pre_expression_scope"] =
   `
     sum: i64 = 0
-    for (value: i64 = 10, value > 0)
+    for value: i64 = 10, value > 0
     {
         sum += value
         value -= 1
@@ -219,7 +247,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   general_tests["for_pre_expression_post_scope"] =
   `
     sum: i64 = 0
-    for (value: i64 = 10, value > 0, value = value - 1)
+    for value: i64 = 10, value > 0, value = value - 1
     {
         sum += value
     }
@@ -227,7 +255,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     value: bool // 'value' above is no longer in scope
   `
 
-  general_tests["for_pre_expression_post_non_scope"] =
+  general_tests["for_pre_expression_post_non_scope_brackets"] =
   `
     sum: i64 = 0
     for (value: i64 = 10, value > 0, value = value - 1) sum += value

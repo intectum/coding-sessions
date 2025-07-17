@@ -78,7 +78,7 @@ task_func: proc(data: vec3[], start: i64) =
     triangle_count_1d: i64 = 256
     triangle_size = 2 / f32(triangle_count_1d)
 
-    for (index: i64, index < data.length, index = index + 1)
+    for index: i64, index < data.length, index += 1
     {
         triangle_index = (start + index) / 3
         vertex_index = (start + index) % 3
@@ -89,19 +89,19 @@ task_func: proc(data: vec3[], start: i64) =
         x = -1 + triangle_size * f32(column_count)
         y = -1 + triangle_size * f32(row_count)
 
-        if (vertex_index == 0)
+        if vertex_index == 0
         {
             data[index][0] = x + triangle_size * 0.5
             data[index][1] = y + triangle_size
             data[index][2] = 0
         }
-        else if (vertex_index == 1)
+        else if vertex_index == 1
         {
             data[index][0] = x
             data[index][1] = y
             data[index][2] = 0
         }
-        else if (vertex_index == 2)
+        else if vertex_index == 2
         {
             data[index][0] = x + triangle_size
             data[index][1] = y
@@ -113,7 +113,7 @@ task_func: proc(data: vec3[], start: i64) =
 pool: thread_pool = { worker_count = 8 }
 thread_pool_start(^pool)
 
-for (glfwWindowShouldClose(window) == 0)
+for glfwWindowShouldClose(window) == 0
 {
     glfwPollEvents()
     glfwSwapBuffers(window)
@@ -129,7 +129,7 @@ for (glfwWindowShouldClose(window) == 0)
     timeval: i64[2]
     gettimeofday(^timeval)
     time = timeval[0] * 1000000 + timeval[1]
-    if (time > fps_time + 1000000)
+    if time > fps_time + 1000000
     {
         string_buf: i8[100]
         print("FPS: ")
@@ -156,7 +156,7 @@ compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
     info_log_length: i32
     glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if (info_log[0] != 0) println(info_log[0:i64(info_log_length)])
+    if info_log[0] != 0 println(info_log[0:i64(info_log_length)])
     assert(compile_status != 0, "failed to compile shader")
 
     return name
@@ -177,7 +177,7 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
     info_log_length: i32
     glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if (info_log[0] != 0) println(info_log[0:i64(info_log_length)])
+    if info_log[0] != 0 println(info_log[0:i64(info_log_length)])
     assert(link_status != 0, "failed to link shaders")
 
     return name
@@ -187,7 +187,7 @@ check_opengl_error: proc() =
 {
     error = glGetError()
     GL_NO_ERROR: i32 = 0
-    if (error != GL_NO_ERROR)
+    if error != GL_NO_ERROR
     {
         error_buffer = gluErrorString(error)
         println({ raw = error_buffer, length = 100 })

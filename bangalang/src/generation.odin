@@ -3,8 +3,8 @@ package main
 import "core:fmt"
 import "core:os"
 import "core:slice"
-import "core:strings"
 import "core:strconv"
+import "core:strings"
 
 location_type :: enum
 {
@@ -288,7 +288,8 @@ generate_for :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
     child_node := &node.children[child_index]
     child_index += 1
 
-    if child_node.type == .assignment
+    _, statement := slice.linear_search(statements, child_node.type)
+    if statement
     {
         generate_assignment(file, child_node, &for_ctx)
 
@@ -309,36 +310,15 @@ generate_for :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
     statement_node := &node.children[len(node.children) - 1]
     generate_statement(file, statement_node, &for_ctx)
 
-    if child_node.type == .assignment
+    if len(node.children) > child_index
     {
-        generate_assignment(file, child_node, &for_ctx)
+        generate_statement(file, child_node, &for_ctx)
     }
 
     fmt.fprintfln(file, "  jmp .for_%i ; back to top", for_index)
     fmt.fprintfln(file, ".for_%i_end:", for_index)
 
     close_gen_context(file, ctx, &for_ctx, "for", true)
-}
-
-generate_scope :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, include_end_label := false)
-{
-    fmt.fprintln(file, "; scope start")
-
-    scope_ctx := copy_gen_context(ctx, true)
-
-    for &child_node in node.children
-    {
-        generate_statement(file, &child_node, &scope_ctx)
-    }
-
-    if include_end_label
-    {
-        fmt.fprintln(file, ".end:")
-    }
-
-    close_gen_context(file, ctx, &scope_ctx, "scope", true)
-
-    fmt.fprintln(file, "; scope end")
 }
 
 generate_return :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
@@ -360,6 +340,27 @@ generate_return :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
         copy(file, immediate(60), register("ax", expression_type_node), expression_type_node)
         fmt.fprintln(file, "  syscall ; call kernel")
     }
+}
+
+generate_scope :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, include_end_label := false)
+{
+    fmt.fprintln(file, "; scope start")
+
+    scope_ctx := copy_gen_context(ctx, true)
+
+    for &child_node in node.children
+    {
+        generate_statement(file, &child_node, &scope_ctx)
+    }
+
+    if include_end_label
+    {
+        fmt.fprintln(file, ".end:")
+    }
+
+    close_gen_context(file, ctx, &scope_ctx, "scope", true)
+
+    fmt.fprintln(file, "; scope end")
 }
 
 generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
@@ -840,33 +841,17 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
             return memory("rsp", variable_position)
         }
     case .string_:
-        buf: [8]byte
-        string_name := strings.concatenate({ "string_", strconv.itoa(buf[:], len(ctx.data_section_strings)) })
-        append(&ctx.data_section_strings, node.value)
-
-        return memory(string_name, 0)
+        return memory(get_data_section_name(&ctx.data_section_strings, "string_", node.value), 0)
     case .cstring_:
-        buf: [8]byte
-        cstring_name := strings.concatenate({ "cstring_", strconv.itoa(buf[:], len(ctx.data_section_cstrings)) })
-        append(&ctx.data_section_cstrings, node.value)
-
-        return immediate(cstring_name)
+        return immediate(get_data_section_name(&ctx.data_section_cstrings, "cstring_", node.value))
     case .number:
         if type_node.value == "f32"
         {
-            buf: [8]byte
-            f32_name := strings.concatenate({ "f32_", strconv.itoa(buf[:], len(ctx.data_section_f32s)) })
-            append(&ctx.data_section_f32s, node.value)
-
-            return memory(f32_name, 0)
+            return memory(get_data_section_name(&ctx.data_section_f32s, "f32_", node.value), 0)
         }
         else if type_node.value == "f64"
         {
-            buf: [8]byte
-            f64_name := strings.concatenate({ "f64_", strconv.itoa(buf[:], len(ctx.data_section_f64s)) })
-            append(&ctx.data_section_f64s, node.value)
-
-            return memory(f64_name, 0)
+            return memory(get_data_section_name(&ctx.data_section_f64s, "f64_", node.value), 0)
         }
 
         return immediate(node.value)
@@ -1493,4 +1478,25 @@ get_length_location :: proc(container_type_node: ^ast_node, container_location: 
 
     assert(false, "Unsupported length location")
     return immediate(1)
+}
+
+get_data_section_name :: proc(data_section_values: ^[dynamic]string, prefix: string, value: string) -> string
+{
+    index := len(data_section_values)
+    for existing_value, existing_index in data_section_values
+    {
+        if existing_value == value
+        {
+            index = existing_index
+            break
+        }
+    }
+
+    if index == len(data_section_values)
+    {
+        append(data_section_values, value)
+    }
+
+    buf: [8]byte
+    return strings.concatenate({ prefix, strconv.itoa(buf[:], index) })
 }
