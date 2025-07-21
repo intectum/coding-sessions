@@ -30,7 +30,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
     */
 
-    uncommented_code: i8 = 1
+    uncommented_code = 1
   `
 
   general_tests["if_false_scope"] =
@@ -492,6 +492,32 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     var0: <type> = <value0>
     var1: <type> = <value1>
     assert(var0 != var1, "")
+  `
+
+  bool_tests["and"] =
+  `
+    var0: <type> = <value0>
+    var1: <type> = <value1>
+    assert(var0 && var0, "")
+    assert((var0 && var1) == false, "")
+    assert((var1 && var1) == false, "")
+  `
+
+  bool_tests["or"] =
+  `
+    var0: <type> = <value0>
+    var1: <type> = <value1>
+    assert(var0 || var0, "")
+    assert(var0 || var1, "")
+    assert(var1 || var1 == false, "")
+  `
+
+  bool_tests["not"] =
+  `
+    var0: <type> = <value0>
+    var1: <type> = <value1>
+    assert(!var0 == false, "")
+    assert(!var1 == true, "")
   `
 
   numerical_tests: map[string]string

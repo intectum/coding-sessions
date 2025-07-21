@@ -76,10 +76,10 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
     {
         resolve_types(&node, &ctx)
 
-        if node.type == .assignment && len(node.children) == 2 && is_type(&node.children[1])
+        if node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
         {
             lhs_node := &node.children[0]
-            rhs_node := &node.children[1]
+            rhs_node := &node.children[2]
 
             name := lhs_node.value
             lhs_node^ = rhs_node^
@@ -103,7 +103,7 @@ type_check_program :: proc(nodes: [dynamic]ast_node) -> bool
 
     for &node in nodes
     {
-        if node.type == .assignment && len(node.children) == 2 && is_type(&node.children[1])
+        if node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
         {
             continue
         }
@@ -172,7 +172,7 @@ type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     child_node := &node.children[child_index]
     child_index += 1
 
-    _, statement := slice.linear_search(statements, child_node.type)
+    _, statement := slice.linear_search(statement_node_types, child_node.type)
     if statement
     {
         type_check_statement(child_node, &for_ctx) or_return
@@ -234,9 +234,10 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
 
     type_check_lhs_expression(lhs_node, ctx) or_return
 
-    if len(node.children) == 2
+    if len(node.children) > 1
     {
-        rhs_node := &node.children[1]
+        operator_node := &node.children[1]
+        rhs_node := &node.children[2]
 
         lhs_type_node := get_type(lhs_node)
         if !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
@@ -277,7 +278,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 rhs_node.type = .compound_literal
             }
 
-            _, statement := slice.linear_search(statements, rhs_node.type)
+            _, statement := slice.linear_search(statement_node_types, rhs_node.type)
             if statement
             {
                 fmt.println("Failed to type check assignment")
@@ -288,14 +289,42 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
             type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
         }
 
+        rhs_type_node_result := get_type_result(get_type(rhs_node))
         if lhs_type_node == nil
         {
-            append(&lhs_node.children, get_type_result(get_type(rhs_node))^)
+            append(&lhs_node.children, rhs_type_node_result^)
+        }
+
+        if operator_node.type != .assign
+        {
+            _, numerical_type := slice.linear_search(numerical_types, rhs_type_node_result.value)
+            if !numerical_type
+            {
+                fmt.println("Failed to type check assignment")
+                file_error(fmt.aprintf("Assignment operator %s is not valid for type '%s' in", operator_node.type, type_name(rhs_type_node_result)), operator_node.file_info)
+                return false
+            }
+
+            _, float_type := slice.linear_search(float_types, rhs_type_node_result.value)
+            if float_type && operator_node.type == .modulo_assign
+            {
+                fmt.println("Failed to type check assignment")
+                file_error(fmt.aprintf("Assignment operator %s is not valid for type '%s' in", operator_node.type, type_name(rhs_type_node_result)), operator_node.file_info)
+                return false
+            }
+
+            _, atomic_integer_type := slice.linear_search(atomic_integer_types, rhs_type_node_result.value)
+            if atomic_integer_type && operator_node.type != .add_assign && operator_node.type != .subtract_assign
+            {
+                fmt.println("Failed to type check assignment")
+                file_error(fmt.aprintf("Assignment operator %s is not valid for type '%s' in", operator_node.type, type_name(rhs_type_node_result)), operator_node.file_info)
+                return false
+            }
         }
     }
 
-    lhs_ndoe_type := get_type(lhs_node)
-    if lhs_ndoe_type == nil || lhs_ndoe_type.value == "number"
+    lhs_type_node := get_type(lhs_node)
+    if lhs_type_node == nil || lhs_type_node.value == "number"
     {
         fmt.println("Failed to type check assignment")
         fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
@@ -356,7 +385,7 @@ type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, 
 
 type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
-    _, binary_operator := slice.linear_search(binary_operators, node.type)
+    _, binary_operator := slice.linear_search(binary_operator_node_types, node.type)
     if !binary_operator
     {
         type_node := get_type(node)
@@ -388,7 +417,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
         return false
     }
 
-    _, comparison_operator := slice.linear_search(comparison_operators, node.type)
+    _, comparison_operator := slice.linear_search(comparison_operator_node_types, node.type)
     if comparison_operator
     {
         append(&node.children, ctx.identifiers["bool"])
@@ -411,30 +440,32 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
     }
 
     _, numerical_type := slice.linear_search(numerical_types, coerced_type_node.value)
-    _, float_type := slice.linear_search(float_types, coerced_type_node.value)
-    _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
     if coerced_type_node.value == "bool"
     {
-        if node.type != .equal && node.type != .not_equal
+        if node.type != .equal && node.type != .not_equal && node.type != .and && node.type != .or
         {
             fmt.println("Failed to type check right-hand-side expression")
             file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
             return false
         }
     }
-    else if !numerical_type
+    else if !numerical_type || node.type == .and || node.type == .or
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
-    else if float_type && (node.type == .modulo || node.type == .modulo_assign)
+
+    _, float_type := slice.linear_search(float_types, coerced_type_node.value)
+    if float_type && node.type == .modulo
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
         return false
     }
-    else if atomic_integer_type && !comparison_operator && node.type != .add_assign && node.type != .subtract_assign
+
+    _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
+    if atomic_integer_type && !comparison_operator
     {
         fmt.println("Failed to type check right-hand-side expression")
         file_error(fmt.aprintf("Binary operator %s is not valid for type '%s' in", node.type, type_name(get_type(node))), node.file_info)
@@ -454,7 +485,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
     #partial switch node.type
     {
     case .reference:
-        _, literal := slice.linear_search(literals, node.children[0].type)
+        _, literal := slice.linear_search(literal_node_types, node.children[0].type)
         if literal
         {
             fmt.println("Failed to type check primary")
@@ -472,6 +503,16 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         {
             fmt.println("Failed to type check primary")
             file_error(fmt.aprintf("Cannot negate type '%s' in", type_name(child_type_node)), node.file_info)
+            return false
+        }
+
+        append(&node.children, child_type_node^)
+    case .not:
+        child_type_node := get_type(&node.children[0])
+        if child_type_node.value != "bool"
+        {
+            fmt.println("Failed to type check primary")
+            file_error(fmt.aprintf("Cannot invert type '%s' in", type_name(child_type_node)), node.file_info)
             return false
         }
 
@@ -655,7 +696,7 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
                 return false
             }
 
-            child_rhs_node := &child_node.children[1]
+            child_rhs_node := &child_node.children[2]
             type_check_rhs_expression(child_rhs_node, ctx, get_type(child_lhs_node)) or_return
         }
     case .nil_:

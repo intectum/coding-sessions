@@ -122,7 +122,7 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     pre_statement_stream := stream^
     pre_statement_node, pre_statement_ok := parse_statement(&pre_statement_stream)
 
-    _, statement := slice.linear_search(statements, pre_statement_node.type)
+    _, statement := slice.linear_search(statement_node_types, pre_statement_node.type)
     if pre_statement_ok && statement
     {
         stream^ = pre_statement_stream
@@ -226,9 +226,14 @@ parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     lhs_node := parse_lhs_expression(stream) or_return
     append(&node.children, lhs_node)
 
-    if peek_token(stream).type == .equals
+    token_type := peek_token(stream).type
+    _, assignment_operator := slice.linear_search(assignment_operator_token_types, token_type)
+    if assignment_operator
     {
-        next_token(stream, .equals) or_return
+        next_token(stream, token_type) or_return
+
+        operator_node := ast_node { type = to_ast_node_type(token_type) }
+        append(&node.children, operator_node)
 
         statement_node := parse_statement(stream) or_return
         append(&node.children, statement_node)
@@ -277,7 +282,7 @@ parse_rhs_expression_1 :: proc(stream: ^token_stream, lhs: ast_node, min_precede
             lookahead = peek_token(stream)
         }
 
-        new_lhs := ast_node { type = to_ast_node_type(op) }
+        new_lhs := ast_node { type = to_ast_node_type(op.type) }
         new_lhs.file_info = op.file_info
 
         append(&new_lhs.children, final_lhs)
@@ -328,6 +333,19 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
         next_token(stream, .minus) or_return
 
         node.type = .negate
+
+        primary_node := parse_primary(stream, type) or_return
+        append(&node.children, primary_node)
+    case .exclamation:
+        if type != .rhs
+        {
+            stream.error = "Only a right-hand-side primary can be inverted"
+            return {}, false
+        }
+
+        next_token(stream, .exclamation) or_return
+
+        node.type = .not
 
         primary_node := parse_primary(stream, type) or_return
         append(&node.children, primary_node)
@@ -658,35 +676,36 @@ parse_identifier :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 is_binary_operator :: proc(token: token) -> bool
 {
-    #partial switch token.type
-    {
-    case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals, .plus, .plus_equals, .minus, .minus_equals, .asterisk, .asterisk_equals, .backslash, .backslash_equals, .percent, .percent_equals:
-        return true
-    case:
-        return false
-    }
+    _, binary_operator := slice.linear_search(binary_operator_token_types, token.type)
+    return binary_operator
 }
 
 binary_operator_precedence :: proc(token: token) -> int
 {
     #partial switch token.type
     {
-    case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals:
+    case .pipe_pipe:
         return 1
-    case .plus, .plus_equals, .minus, .minus_equals:
+    case .ampersand_ampersand:
         return 2
-    case .asterisk, .asterisk_equals, .backslash, .backslash_equals, .percent, .percent_equals:
+    case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals:
         return 3
+    case .plus, .minus:
+        return 4
+    case .asterisk, .backslash, .percent:
+        return 5
     }
 
     assert(false, "Unsupported binary operator")
     return 0
 }
 
-to_ast_node_type :: proc(token: token) -> ast_node_type
+to_ast_node_type :: proc(token_type: token_type) -> ast_node_type
 {
-    #partial switch token.type
+    #partial switch token_type
     {
+    case .equals:
+        return .assign
     case .equals_equals:
         return .equal
     case .exclamation_equals:
@@ -719,6 +738,10 @@ to_ast_node_type :: proc(token: token) -> ast_node_type
         return .modulo
     case .percent_equals:
         return .modulo_assign
+    case .ampersand_ampersand:
+        return .and
+    case .pipe_pipe:
+        return .or
     }
 
     assert(false, "Unsupported ast node type")

@@ -49,12 +49,12 @@ start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 
     stack_i64: i64 = #untyped stack
     stack_i64 += 4096
-    stack_i64 -= (2 * 8) // account for params
+    stack_i64 -= 2 * 8 // account for params
     stack_params: ^i64[2] = #untyped stack_i64
     stack_params[1] = #untyped func
     stack_params[0] = arg
     stack_i64 -= 8 // account for instruction pointer
-    stack_i64 -= (7 * 8) // account for local vars declared before clone
+    stack_i64 -= 7 * 8 // account for local vars declared before clone
 
     clone_flags: i64 = 0x10d00 // CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD
     pid = syscall(56, clone_flags, stack_i64, 0, 0, 0, 0)
@@ -135,9 +135,8 @@ thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
 
 thread_pool_wait: proc(pool: ^thread_pool) -> bool =
     for true // spin
-        if pool.task_count == 0
-            if pool.current_worker_count == 0
-                return true
+        if pool.task_count == 0 && pool.current_worker_count == 0
+            return true
 
 thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1

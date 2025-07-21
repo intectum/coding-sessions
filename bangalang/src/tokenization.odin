@@ -22,6 +22,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
   stream := src_stream { src, 0, { name, 1, 1 } }
 
   fixed_token_types: map[string]token_type
+  fixed_token_types["&&"] = .ampersand_ampersand
   fixed_token_types["("] = .opening_bracket
   fixed_token_types[")"] = .closing_bracket
   fixed_token_types["<"] = .opening_angle_bracket
@@ -35,6 +36,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
   fixed_token_types[":"] = .colon
   fixed_token_types["="] = .equals
   fixed_token_types["=="] = .equals_equals
+  fixed_token_types["!"] = .exclamation
   fixed_token_types["!="] = .exclamation_equals
   fixed_token_types["+"] = .plus
   fixed_token_types["+="] = .plus_equals
@@ -47,6 +49,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
   fixed_token_types["%"] = .percent
   fixed_token_types["%="] = .percent_equals
   fixed_token_types["."] = .period
+  fixed_token_types["||"] = .pipe_pipe
   fixed_token_types[","] = .comma
   fixed_token_types["^"] = .hat
   fixed_token_types["->"] = .dash_greater_than

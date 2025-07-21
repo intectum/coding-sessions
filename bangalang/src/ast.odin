@@ -15,6 +15,8 @@ ast_node_type :: enum
   none,
   add,
   add_assign,
+  and,
+  assign,
   assignment,
   boolean,
   call,
@@ -38,8 +40,10 @@ ast_node_type :: enum
   multiply_assign,
   negate,
   nil_,
+  not,
   not_equal,
   number,
+  or,
   reference,
   return_,
   scope,
@@ -49,7 +53,7 @@ ast_node_type :: enum
   type
 }
 
-statements: []ast_node_type = { .assignment, .for_, .if_, .return_, .scope }
-binary_operators: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal, .add, .add_assign, .subtract, .subtract_assign, .multiply, .multiply_assign, .divide, .divide_assign, .modulo, .modulo_assign }
-comparison_operators: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal }
-literals: []ast_node_type = { .boolean, .compound_literal, .cstring_, .nil_, .number, .string_ }
+statement_node_types: []ast_node_type = { .assignment, .for_, .if_, .return_, .scope }
+binary_operator_node_types: []ast_node_type = { .and, .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal, .add, .subtract, .multiply, .divide, .modulo, .or }
+comparison_operator_node_types: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal }
+literal_node_types: []ast_node_type = { .boolean, .compound_literal, .cstring_, .nil_, .number, .string_ }

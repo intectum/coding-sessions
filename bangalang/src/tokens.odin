@@ -12,6 +12,7 @@ token :: struct
 token_type :: enum
 {
   none,
+  ampersand_ampersand,
   asterisk,
   asterisk_equals,
   backslash,
@@ -30,6 +31,7 @@ token_type :: enum
   end_of_file,
   equals,
   equals_equals,
+  exclamation,
   exclamation_equals,
   hat,
   identifier,
@@ -46,12 +48,16 @@ token_type :: enum
   percent,
   percent_equals,
   period,
+  pipe_pipe,
   plus,
   plus_equals,
   string_
 }
 
 keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
+
+assignment_operator_token_types: []token_type = { .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .plus_equals }
+binary_operator_token_types: []token_type = { .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe_pipe, .plus }
 
 token_stream :: struct
 {

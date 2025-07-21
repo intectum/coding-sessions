@@ -6,11 +6,11 @@ if\ &\to\ \text{"if"}\ \text{"("}?\ rhs\_expression\ \text{")"}?\ statement\ (\ 
 for\ &\to\ \text{"for"}\ \text{"("}?\ (\ statement\ \&\ !rhs\_expression\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ statement\ )?\ \text{")"}?\ statement\\
 scope\ &\to\ \text{"\{"}\ statement*\ \text{"\}"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression\\
-assignment\ &\to\ lhs\_expression\ (\ \text{"="}\ statement\ )?\\
+assignment\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"+="}\ |\ \text{"-="}\ |\ \text{"*="}\ |\ \text{"/="}\ |\ \text{"%="}\ )\ statement\ )?\\
 lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ identifier\\
-rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"+="}\ |\ \text{"-"}\ |\ \text{"-="}\ |\ \text{"*"}\ |\ \text{"*="}\ |\ \text{"/"}\ |\ \text{"/="}\ |\ \text{"%"}\ |\ \text{"%="}\ )\ rhs\_primary\ )*\\
-rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ compound\_literal\ |\ \text{"nil"}\\
+rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"||"}\ |\ \text{"%%"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
+rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ compound\_literal\ |\ \text{"nil"}\\
 type\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ )\ type\_primary\ |\ type\_primary\ (\ \text{"["}\ number?\ \text{"]"}\ )\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\\
 call\ &\to\ \text{"("}\ (\ rhs\_expression\ (\ \text{","}\ rhs\_expression\ )*\ )?\ \text{")"}\\
 string\ &\to\ \text{"""}\ (\ !\text{"""}\ )*\ \text{"""}\\
