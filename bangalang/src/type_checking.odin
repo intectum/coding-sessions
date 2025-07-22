@@ -12,8 +12,9 @@ type_checking_context :: struct
     procedure: ast_node
 }
 
-numerical_types: []string = { "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "f32", "f64", "i8", "i16", "i32", "i64", "number" }
-float_types: []string = { "f32", "f64" }
+numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "f32", "f64", "i8", "i16", "i32", "i64" }
+float_types: []string = { "[any_float]", "f32", "f64" }
+integer_types: []string = { "[any_int]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "i8", "i16", "i32", "i64" }
 atomic_integer_types: []string = { "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64" }
 signed_integer_types: []string = { "cint", "i8", "i16", "i32", "i64" }
 
@@ -324,7 +325,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
     }
 
     lhs_type_node := get_type(lhs_node)
-    if lhs_type_node == nil || lhs_type_node.value == "number"
+    if lhs_type_node == nil || lhs_type_node.value == "[any_float]" || lhs_type_node.value == "[any_int]" || lhs_type_node.value == "[any_number]" || lhs_type_node.value == "[any_string]"
     {
         fmt.println("Failed to type check assignment")
         fmt.printfln("Could not determine type of '%s' at line %i, column %i", lhs_node.value, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
@@ -378,7 +379,7 @@ type_check_rhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context, 
         return false
     }
 
-    upgrade_types(node, coerced_type_node)
+    upgrade_types(node, coerced_type_node, ctx)
 
     return true
 }
@@ -421,22 +422,27 @@ type_check_rhs_expression_1 :: proc(node: ^ast_node, ctx: ^type_checking_context
     if comparison_operator
     {
         append(&node.children, ctx.identifiers["bool"])
-        if coerced_type_node.value == "number"
+        if coerced_type_node.value == "[any_float]"
         {
-            upgrade_types(lhs_node, &ctx.identifiers["f64"])
-            upgrade_types(rhs_node, &ctx.identifiers["f64"])
+            upgrade_types(lhs_node, &ctx.identifiers["f64"], ctx)
+            upgrade_types(rhs_node, &ctx.identifiers["f64"], ctx)
+        }
+        else if coerced_type_node.value == "[any_number]"
+        {
+            upgrade_types(lhs_node, &ctx.identifiers["i64"], ctx)
+            upgrade_types(rhs_node, &ctx.identifiers["i64"], ctx)
         }
         else
         {
-            upgrade_types(lhs_node, coerced_type_node)
-            upgrade_types(rhs_node, coerced_type_node)
+            upgrade_types(lhs_node, coerced_type_node, ctx)
+            upgrade_types(rhs_node, coerced_type_node, ctx)
         }
     }
     else
     {
         append(&node.children, coerced_type_node^)
-        upgrade_types(lhs_node, coerced_type_node)
-        upgrade_types(rhs_node, coerced_type_node)
+        upgrade_types(lhs_node, coerced_type_node, ctx)
+        upgrade_types(rhs_node, coerced_type_node, ctx)
     }
 
     _, numerical_type := slice.linear_search(numerical_types, coerced_type_node.value)
@@ -542,11 +548,15 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
 
         append(&node.children, child_type_node.children[0])
 
-        type_check_rhs_expression(&node.children[1], ctx, &ctx.identifiers["i64"]) or_return
+        any_int_type_node := ast_node { type = .type, value = "[any_int]" }
+
+        type_check_rhs_expression(&node.children[1], ctx, &any_int_type_node) or_return
+        upgrade_types(&node.children[1], &ctx.identifiers["i64"], ctx)
 
         if len(node.children) == 4
         {
-            type_check_rhs_expression(&node.children[2], ctx, &ctx.identifiers["i64"]) or_return
+            type_check_rhs_expression(&node.children[2], ctx, &any_int_type_node) or_return
+            upgrade_types(&node.children[2], &ctx.identifiers["i64"], ctx)
 
             type_node := ast_node { type = .type, value = "[slice]" }
             append(&type_node.children, get_type(node)^)
@@ -621,11 +631,10 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
             return false
         }
     case .string_:
-        append(&node.children, ctx.identifiers["string"])
-    case .cstring_:
-        append(&node.children, ctx.identifiers["cstring"])
+        append(&node.children, ast_node { type = .type, value = "[any_string]" })
     case .number:
-        append(&node.children, ast_node { type = .type, value = "number" })
+        type := strings.contains(node.value, ".") ? "[any_float]" : "[any_number]"
+        append(&node.children, ast_node { type = .type, value = type })
     case .boolean:
         append(&node.children, ctx.identifiers["bool"])
     case .compound_literal:
@@ -823,26 +832,74 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
         return nil, false
     }
 
+    compatible_value_types := false
+
     if a.value != b.value
     {
         if a.type == .type
         {
             _, a_numerical_type := slice.linear_search(numerical_types, a.value)
-            if b.value == "number" && !a_numerical_type
+            if b.value == "[any_number]" && !a_numerical_type
             {
                 return nil, false
             }
 
             _, b_numerical_type := slice.linear_search(numerical_types, b.value)
-            if a.value == "number" && !b_numerical_type
+            if a.value == "[any_number]" && !b_numerical_type
             {
                 return nil, false
             }
 
-            if a.value != "number" && b.value != "number"
+            if a.value != "[any_number]" && b.value != "[any_number]"
+            {
+                _, a_float_type := slice.linear_search(float_types, a.value)
+                if b.value == "[any_float]" && !a_float_type
+                {
+                    return nil, false
+                }
+
+                _, b_float_type := slice.linear_search(float_types, b.value)
+                if a.value == "[any_float]" && !b_float_type
+                {
+                    return nil, false
+                }
+
+                _, a_integer_type := slice.linear_search(integer_types, a.value)
+                if b.value == "[any_int]" && !a_integer_type
+                {
+                    return nil, false
+                }
+
+                _, b_integer_type := slice.linear_search(integer_types, b.value)
+                if a.value == "[any_int]" && !b_integer_type
+                {
+                    return nil, false
+                }
+            }
+
+            a_string := a.value == "[slice]" && a.children[0].value == "i8"
+            a_cstring := a.value == "cstring"
+            if b.value == "[any_string]" && !a_string && !a_cstring
             {
                 return nil, false
             }
+
+            b_string := b.value == "[slice]" && b.children[0].value == "i8"
+            b_cstring := b.value == "cstring"
+            if a.value == "[any_string]" && !b_string && !b_cstring
+            {
+                return nil, false
+            }
+
+            if a.value != "[any_number]" && b.value != "[any_number]" &&
+               a.value != "[any_float]" && b.value != "[any_float]" &&
+               a.value != "[any_int]" && b.value != "[any_int]" &&
+               a.value != "[any_string]" && b.value != "[any_string]"
+            {
+                return nil, false
+            }
+
+            compatible_value_types = true
         }
         else
         {
@@ -850,21 +907,33 @@ coerce_type :: proc(a: ^ast_node, b: ^ast_node) -> (^ast_node, bool)
         }
     }
 
-    if len(a.children) != len(b.children)
+    if !compatible_value_types
     {
-        return nil, false
-    }
-
-    for child_index := 0; child_index < len(a.children); child_index += 1
-    {
-        _, child_coerce_ok := coerce_type(&a.children[child_index], &b.children[child_index])
-        if !child_coerce_ok
+        if len(a.children) != len(b.children)
         {
             return nil, false
         }
+
+        for child_index := 0; child_index < len(a.children); child_index += 1
+        {
+            _, child_coerce_ok := coerce_type(&a.children[child_index], &b.children[child_index])
+            if !child_coerce_ok
+            {
+                return nil, false
+            }
+        }
     }
 
-    return a.value == "number" ? b : a, true
+    if a.value == "[any_number]"
+    {
+        return b, true
+    }
+    else if b.value == "[any_number]"
+    {
+        return a, true
+    }
+
+    return a.value == "[any_float]" || a.value == "[any_int]" || a.value == "[any_string]" ? b : a, true
 }
 
 type_name :: proc(type_node: ^ast_node) -> string
@@ -880,6 +949,14 @@ type_name :: proc(type_node: ^ast_node) -> string
 
     switch type_node.value
     {
+    case "[any_float]":
+        return strings.concatenate({ prefix, "<any float>" })
+    case "[any_int]":
+        return strings.concatenate({ prefix, "<any int>" })
+    case "[any_number]":
+        return strings.concatenate({ prefix, "<any number>" })
+    case "[any_string]":
+        return strings.concatenate({ prefix, "<any string>" })
     case "[array]":
         return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
     case "[procedure]":
@@ -973,11 +1050,15 @@ get_type_result :: proc(type_node: ^ast_node) -> ^ast_node
     return type_node
 }
 
-upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
+upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node, ctx: ^type_checking_context)
 {
     if node.type == .type
     {
-        if node.value == "nil" || node.value == "number" || node.directive == "#untyped"
+        if new_type_node.value == "[any_string]" && node.value == "[any_string]"
+        {
+            node^ = ctx.identifiers["string"]
+        }
+        else if node.value == "nil" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#untyped"
         {
             node^ = new_type_node^
         }
@@ -985,7 +1066,7 @@ upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node)
 
     for &child_node in node.children
     {
-        upgrade_types(&child_node, new_type_node)
+        upgrade_types(&child_node, new_type_node, ctx)
     }
 }
 

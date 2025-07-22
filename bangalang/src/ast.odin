@@ -21,7 +21,6 @@ ast_node_type :: enum
   boolean,
   call,
   compound_literal,
-  cstring_,
   dereference,
   divide,
   divide_assign,
@@ -56,4 +55,4 @@ ast_node_type :: enum
 statement_node_types: []ast_node_type = { .assignment, .for_, .if_, .return_, .scope }
 binary_operator_node_types: []ast_node_type = { .and, .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal, .add, .subtract, .multiply, .divide, .modulo, .or }
 comparison_operator_node_types: []ast_node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal }
-literal_node_types: []ast_node_type = { .boolean, .compound_literal, .cstring_, .nil_, .number, .string_ }
+literal_node_types: []ast_node_type = { .boolean, .compound_literal, .nil_, .number, .string_ }

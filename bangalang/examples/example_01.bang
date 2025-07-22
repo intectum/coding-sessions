@@ -37,15 +37,15 @@ glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized
 gluErrorString: #extern proc(error: i32) -> ^i8
 
 glfwInit()
-window = glfwCreateWindow(1920, 1080, c"Bangalang", nil, nil)
+window = glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
 glfwMakeContextCurrent(window)
 glfwSwapInterval(0)
 
-vertex_shader_src = c"#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
+vertex_shader_src: cstring = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
 vertex_shader_src_len: i32 = 86
 vertex_shader_name = compile_shader(GL_VERTEX_SHADER, vertex_shader_src, vertex_shader_src_len)
 
-fragment_shader_src = c"#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
+fragment_shader_src: cstring = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
 fragment_shader_src_len: i32 = 86
 fragment_shader_name = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, fragment_shader_src_len)
 
@@ -133,7 +133,7 @@ for glfwWindowShouldClose(window) == 0
     {
         string_buf: i8[100]
         print("FPS: ")
-        println(itoa(frame_count, string_buf[0:string_buf.length]))
+        println(itoa(frame_count, string_buf[:]))
 
         frame_count = 0
         fps_time = time
@@ -156,7 +156,7 @@ compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
     info_log_length: i32
     glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 println(info_log[0:i64(info_log_length)])
+    if info_log[0] != 0 println(info_log[:info_log_length])
     assert(compile_status != 0, "failed to compile shader")
 
     return name
@@ -177,7 +177,7 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
     info_log_length: i32
     glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 println(info_log[0:i64(info_log_length)])
+    if info_log[0] != 0 println(info_log[:info_log_length])
     assert(link_status != 0, "failed to link shaders")
 
     return name

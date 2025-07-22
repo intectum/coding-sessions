@@ -10,16 +10,16 @@ assignment\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"+="}\ |\ \text{"-
 lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"||"}\ |\ \text{"%%"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
-rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ compound\_literal\ |\ \text{"nil"}\\
+rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression?\ \text{":"}\ rhs\_expression?\ )\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ string\ |\ cstring\ |\ number\ |\ boolean\ |\ compound\_literal\ |\ \text{"nil"}\\
 type\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ )\ type\_primary\ |\ type\_primary\ (\ \text{"["}\ number?\ \text{"]"}\ )\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\\
 call\ &\to\ \text{"("}\ (\ rhs\_expression\ (\ \text{","}\ rhs\_expression\ )*\ )?\ \text{")"}\\
-string\ &\to\ \text{"""}\ (\ !\text{"""}\ )*\ \text{"""}\\
-cstring\ &\to\ \text{"c""}\ (\ !\text{"""}\ )*\ \text{"""}\\
-number\ &\to\ digit+\ (\ \text{"."}\ digit*\ )?\\
+string\ &\to\ \text{'"'}\ (\ !\text{'"'}\ )*\ \text{'"'}\\
+cstring\ &\to\ \text{'c'}\ (\ !\text{'"'}\ )*\ \text{'"'}\\
+number\ &\to\ \text{'-'}?\ digit+\ (\ \text{'.'}\ digit*\ )?\\
 boolean\ &\to\ \text{"false"}\ |\ \text{"true"}\\
 compound\_literal\ &\to\ \text{"\{"}\ (\ assignment\ (\ \text{","}\ assignment\ )*\ )?\ \text{"\}"}\\
 struct\_type\ &\to\ \text{"struct"}\ \text{"\{"}\ (\ identifier\ \text{":"}\ type\_primary\ (\ \text{","}\ identifier\ \text{":"}\ type\_primary\ )*\ )?\ \text{"\}"}\\
 procedure\_type\ &\to\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ type\_primary\ (\ \text{","}\ identifier\ \text{":"}\ type\_primary\ )*\ )?\ \text{")"}\ (\ \text{"->"}\ type\_primary\ )?\\
-digit\ &\to\ \text{"0"}\ |\ \text{"1"}\ |\ \text{"2"}\ |\ \text{"3"}\ |\ \text{"4"}\ |\ \text{"5"}\ |\ \text{"6"}\ |\ \text{"7"}\ |\ \text{"8"}\ |\ \text{"9"}\\
+digit\ &\to\ \text{'0'}\ |\ \text{'1'}\ |\ \text{'2'}\ |\ \text{'3'}\ |\ \text{'4'}\ |\ \text{'5'}\ |\ \text{'6'}\ |\ \text{'7'}\ |\ \text{'8'}\ |\ \text{'9'}\\
 \end{align}
 $$

@@ -202,5 +202,5 @@ itoa: proc(value: i64, buffer: i8[]) -> string =
     for index: i64, index < length, index += 1
         buffer[index] = reversed_buffer[length - 1 - index]
 
-    return buffer[0:length]
+    return buffer[:length]
 }

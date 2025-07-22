@@ -7,14 +7,14 @@ src_stream :: struct
   file_info: file_info
 }
 
-peek_rune :: proc(stream: ^src_stream) -> rune
+peek_rune :: proc(stream: ^src_stream, offset: int = 0) -> rune
 {
-  if stream.next_index >= len(stream.src)
+  if stream.next_index + offset >= len(stream.src)
   {
     return 0
   }
 
-  return rune(stream.src[stream.next_index])
+  return rune(stream.src[stream.next_index + offset])
 }
 
 peek_string :: proc(stream: ^src_stream, count: int) -> string

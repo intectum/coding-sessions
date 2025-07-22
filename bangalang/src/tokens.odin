@@ -25,7 +25,6 @@ token_type :: enum
   closing_square_bracket,
   colon,
   comma,
-  cstring_,
   dash_greater_than,
   directive,
   end_of_file,

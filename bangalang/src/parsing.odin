@@ -389,15 +389,6 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
         node.type = .string_
         node.value = (next_token(stream, .string_) or_return).value
-    case .cstring_:
-        if type != .rhs
-        {
-            stream.error = "Only a right-hand-side primary can contain a cstring literal"
-            return {}, false
-        }
-
-        node.type = .cstring_
-        node.value = (next_token(stream, .cstring_) or_return).value
     case .number:
         if type != .rhs
         {
@@ -483,15 +474,29 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
             }
             else
             {
-                start_expression_node := parse_rhs_expression(stream) or_return
-                append(&node.children, start_expression_node)
+                if peek_token(stream).type == .colon
+                {
+                    append(&node.children, ast_node { type = .nil_ })
+                }
+                else
+                {
+                    start_expression_node := parse_rhs_expression(stream) or_return
+                    append(&node.children, start_expression_node)
+                }
 
                 if peek_token(stream).type == .colon
                 {
                     next_token(stream, .colon) or_return
 
-                    end_expression_node := parse_rhs_expression(stream) or_return
-                    append(&node.children, end_expression_node)
+                    if peek_token(stream).type == .closing_square_bracket
+                    {
+                        append(&node.children, ast_node { type = .nil_ })
+                    }
+                    else
+                    {
+                        end_expression_node := parse_rhs_expression(stream) or_return
+                        append(&node.children, end_expression_node)
+                    }
                 }
             }
 

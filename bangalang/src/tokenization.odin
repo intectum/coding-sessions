@@ -107,18 +107,6 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
         }
       }
     }
-    else if peek_string(&stream, 2) in fixed_token_types
-    {
-      value := peek_string(&stream, 2)
-      append(tokens, token { fixed_token_types[value], value, stream.file_info })
-      next_string(&stream, 2)
-    }
-    else if peek_string(&stream, 1) in fixed_token_types
-    {
-      value := peek_string(&stream, 1)
-      append(tokens, token { fixed_token_types[value], value, stream.file_info })
-      next_string(&stream, 1)
-    }
     else if peek_rune(&stream) == '"'
     {
       initial_stream := stream
@@ -128,17 +116,6 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
       }
 
       append(tokens, token { .string_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
-    }
-    else if peek_string(&stream, 2) == "c\""
-    {
-      initial_stream := stream
-      next_rune(&stream)
-      if !read_string(&stream)
-      {
-        return false
-      }
-
-      append(tokens, token { .cstring_, src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
     else if peek_string(&stream, 2) == "0x"
     {
@@ -152,7 +129,7 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
 
       append(tokens, token { .number, stream.src[initial_stream.next_index:stream.next_index], initial_stream.file_info })
     }
-    else if peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9'
+    else if (peek_rune(&stream) >= '0' && peek_rune(&stream) <= '9') || (peek_rune(&stream) == '-' && peek_rune(&stream, 1) >= '0' && peek_rune(&stream, 1) <= '9')
     {
       initial_stream := stream
       next_rune(&stream)
@@ -210,6 +187,18 @@ tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
         }
       }
       append(tokens, token)
+    }
+    else if peek_string(&stream, 2) in fixed_token_types
+    {
+      value := peek_string(&stream, 2)
+      append(tokens, token { fixed_token_types[value], value, stream.file_info })
+      next_string(&stream, 2)
+    }
+    else if peek_string(&stream, 1) in fixed_token_types
+    {
+      value := peek_string(&stream, 1)
+      append(tokens, token { fixed_token_types[value], value, stream.file_info })
+      next_string(&stream, 1)
     }
     else
     {
