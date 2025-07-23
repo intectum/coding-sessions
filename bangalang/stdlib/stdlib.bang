@@ -22,24 +22,22 @@ futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg
     syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1, 0, 0)
 
 mutex_lock: proc(mutex: ^i32) =
-    for cmpxchg(mutex, 0, 1) == false
+    for !cmpxchg(mutex, 0, 1)
         futex(mutex, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
 
 mutex_unlock: proc(mutex: ^i32) =
     if cmpxchg(mutex, 1, 0)
         futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
 
-semaphore_wait: proc(semaphore: ^atomic_i32) -> bool =
+semaphore_wait: proc(semaphore: ^atomic_i32) =
     for true // spin
     {
         semaphore^ -= 1
-        if semaphore^ >= 0
-            return true
-        else
-            semaphore^ += 1
+        if semaphore^ >= 0 return
+        semaphore^ += 1
     }
 
-semaphore_signal: proc(semaphore: ^atomic_i32) = { semaphore^ += 1 }
+semaphore_signal: proc(semaphore: ^atomic_i32) = semaphore^ += 1
 
 start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
@@ -133,10 +131,9 @@ thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
     semaphore_signal(^pool.semaphore)
 }
 
-thread_pool_wait: proc(pool: ^thread_pool) -> bool =
+thread_pool_wait: proc(pool: ^thread_pool) =
     for true // spin
-        if pool.task_count == 0 && pool.current_worker_count == 0
-            return true
+        if pool.task_count == 0 && pool.current_worker_count == 0 return
 
 thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1
@@ -164,7 +161,7 @@ boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec3[], start: i64), data
 
 assert: proc(assertion: bool, message: string) =
 {
-    if assertion == false
+    if !assertion
     {
         print("Assertion failed: ")
         println(message)

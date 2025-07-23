@@ -1,3 +1,5 @@
+stdlib = import("stdlib")
+
 glfwInit: #extern proc() -> cint
 glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
 glfwMakeContextCurrent: #extern proc(window: ^i8)
@@ -61,7 +63,7 @@ glGenBuffers(1, ^buffer_name) check_opengl_error()
 glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
 buffer_data_raw = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
-buffer_data: vec3[] = { raw = #untyped buffer_data_raw, length = vertex_count }
+buffer_data: stdlib.vec3[] = { raw = #untyped buffer_data_raw, length = vertex_count }
 
 glUseProgram(program_name) check_opengl_error()
 
@@ -69,11 +71,11 @@ glEnableVertexAttribArray(0) check_opengl_error()
 glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nil) check_opengl_error()
 
 fps_timeval: i64[2]
-gettimeofday(^fps_timeval)
+stdlib.gettimeofday(^fps_timeval)
 fps_time = fps_timeval[0] * 1000000 + fps_timeval[1]
 frame_count: i64
 
-task_func: proc(data: vec3[], start: i64) =
+task_func: proc(data: stdlib.vec3[], start: i64) =
 {
     triangle_count_1d: i64 = 256
     triangle_size = 2 / f32(triangle_count_1d)
@@ -110,8 +112,8 @@ task_func: proc(data: vec3[], start: i64) =
     }
 }
 
-pool: thread_pool = { worker_count = 8 }
-thread_pool_start(^pool)
+pool: stdlib.thread_pool = { worker_count = 8 }
+stdlib.thread_pool_start(^pool)
 
 for glfwWindowShouldClose(window) == 0
 {
@@ -120,20 +122,20 @@ for glfwWindowShouldClose(window) == 0
 
     //task_func(buffer_data, 0)
 
-    boomstick(^pool, task_func, buffer_data)
-    thread_pool_wait(^pool)
+    stdlib.boomstick(^pool, task_func, buffer_data)
+    stdlib.thread_pool_wait(^pool)
 
     glClear(GL_COLOR_BUFFER_BIT) check_opengl_error()
     glDrawArrays(GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
 
     timeval: i64[2]
-    gettimeofday(^timeval)
+    stdlib.gettimeofday(^timeval)
     time = timeval[0] * 1000000 + timeval[1]
     if time > fps_time + 1000000
     {
         string_buf: i8[100]
-        print("FPS: ")
-        println(itoa(frame_count, string_buf[:]))
+        stdlib.print("FPS: ")
+        stdlib.println(stdlib.itoa(frame_count, string_buf[:]))
 
         frame_count = 0
         fps_time = time
@@ -156,8 +158,8 @@ compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
     info_log_length: i32
     glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 println(info_log[:info_log_length])
-    assert(compile_status != 0, "failed to compile shader")
+    if info_log[0] != 0 stdlib.println(info_log[:info_log_length])
+    stdlib.assert(compile_status != 0, "failed to compile shader")
 
     return name
 }
@@ -177,8 +179,8 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
     info_log_length: i32
     glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 println(info_log[:info_log_length])
-    assert(link_status != 0, "failed to link shaders")
+    if info_log[0] != 0 stdlib.println(info_log[:info_log_length])
+    stdlib.assert(link_status != 0, "failed to link shaders")
 
     return name
 }
@@ -190,6 +192,6 @@ check_opengl_error: proc() =
     if error != GL_NO_ERROR
     {
         error_buffer = gluErrorString(error)
-        println({ raw = error_buffer, length = 100 })
+        stdlib.println({ raw = error_buffer, length = 100 })
     }
 }

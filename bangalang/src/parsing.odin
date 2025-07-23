@@ -5,6 +5,11 @@ import "core:os"
 import "core:slice"
 import "core:strconv"
 
+parsing_context :: struct
+{
+    return_value_required: bool
+}
+
 primary_type :: enum
 {
     none,
@@ -13,39 +18,41 @@ primary_type :: enum
     type
 }
 
-parse_program :: proc(stream: ^token_stream) -> (nodes: [dynamic]ast_node, ok: bool)
+parse_module :: proc(stream: ^token_stream) -> (nodes: [dynamic]ast_node, ok: bool)
 {
+    ctx: parsing_context = { true }
+
     for stream.next_index < len(stream.tokens)
     {
-        statement_node := parse_statement(stream) or_return
+        statement_node := parse_statement(stream, &ctx) or_return
         append(&nodes, statement_node)
     }
 
     return nodes, true
 }
 
-parse_statement :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_statement :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     if peek_token(stream).type == .keyword
     {
         if peek_token(stream).value == "if"
         {
-            return parse_if(stream)
+            return parse_if(stream, ctx)
         }
         else if peek_token(stream).value == "for"
         {
-            return parse_for(stream)
+            return parse_for(stream, ctx)
         }
         else if peek_token(stream).value == "return"
         {
-            return parse_return(stream)
+            return parse_return(stream, ctx)
         }
     }
 
-    return parse_scope_or_assignment_or_rhs_expression(stream)
+    return parse_scope_or_assignment_or_rhs_expression(stream, ctx)
 }
 
-parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_if :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     node.type = .if_
     node.file_info = peek_token(stream).file_info
@@ -67,7 +74,7 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         next_token(stream, .closing_bracket) or_return
     }
 
-    statement_node := parse_statement(stream) or_return
+    statement_node := parse_statement(stream, ctx) or_return
     append(&node.children, statement_node)
 
     for peek_token(stream).value == "else" && peek_token(stream, 1).value == "if"
@@ -90,7 +97,7 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
             next_token(stream, .closing_bracket) or_return
         }
 
-        else_if_statement_node := parse_statement(stream) or_return
+        else_if_statement_node := parse_statement(stream, ctx) or_return
         append(&node.children, else_if_statement_node)
     }
 
@@ -98,14 +105,14 @@ parse_if :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     {
         next_token(stream, token_type.keyword, "else") or_return
 
-        else_statement_node := parse_statement(stream) or_return
+        else_statement_node := parse_statement(stream, ctx) or_return
         append(&node.children, else_statement_node)
     }
 
     return node, true
 }
 
-parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_for :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     node.type = .for_
     node.file_info = peek_token(stream).file_info
@@ -120,7 +127,7 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     }
 
     pre_statement_stream := stream^
-    pre_statement_node, pre_statement_ok := parse_statement(&pre_statement_stream)
+    pre_statement_node, pre_statement_ok := parse_statement(&pre_statement_stream, ctx)
 
     _, statement := slice.linear_search(statement_node_types, pre_statement_node.type)
     if pre_statement_ok && statement
@@ -138,7 +145,7 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     {
         next_token(stream, .comma) or_return
 
-        post_statement_node := parse_statement(stream) or_return
+        post_statement_node := parse_statement(stream, ctx) or_return
         append(&node.children, post_statement_node)
     }
 
@@ -147,32 +154,35 @@ parse_for :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         next_token(stream, .closing_bracket) or_return
     }
 
-    statement_node := parse_statement(stream) or_return
+    statement_node := parse_statement(stream, ctx) or_return
     append(&node.children, statement_node)
 
     return node, true
 }
 
-parse_return :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_return :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     node.type = .return_
     node.file_info = peek_token(stream).file_info
 
     next_token(stream, token_type.keyword, "return") or_return
 
-    expression_node := parse_rhs_expression(stream) or_return
-    append(&node.children, expression_node)
+    if ctx.return_value_required
+    {
+        expression_node := parse_rhs_expression(stream) or_return
+        append(&node.children, expression_node)
+    }
 
     return node, true
 }
 
-parse_scope_or_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_scope_or_assignment_or_rhs_expression :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     scope_stream := stream^
-    scope_node, scope_ok := parse_scope(&scope_stream)
+    scope_node, scope_ok := parse_scope(&scope_stream, ctx)
 
     assignment_stream := stream^
-    assignment_node, assignment_ok := parse_assignment(&assignment_stream)
+    assignment_node, assignment_ok := parse_assignment(&assignment_stream, ctx)
 
     rhs_expression_stream := stream^
     rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
@@ -195,7 +205,7 @@ parse_scope_or_assignment_or_rhs_expression :: proc(stream: ^token_stream) -> (n
     return assignment_node, assignment_ok
 }
 
-parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_scope :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     node.type = .scope
     node.file_info = peek_token(stream).file_info
@@ -210,7 +220,7 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
             return node, true
         }
 
-        statement_node := parse_statement(stream) or_return
+        statement_node := parse_statement(stream, ctx) or_return
         append(&node.children, statement_node)
     }
 
@@ -218,13 +228,19 @@ parse_scope :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
     return {}, false
 }
 
-parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
+parse_assignment :: proc(stream: ^token_stream, ctx: ^parsing_context) -> (node: ast_node, ok: bool)
 {
     node.type = .assignment
     node.file_info = peek_token(stream).file_info
 
     lhs_node := parse_lhs_expression(stream) or_return
     append(&node.children, lhs_node)
+
+    lhs_type_node := get_type(&lhs_node)
+    if !is_member(&lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+    {
+        ctx.return_value_required = len(lhs_type_node.children) == 2
+    }
 
     token_type := peek_token(stream).type
     _, assignment_operator := slice.linear_search(assignment_operator_token_types, token_type)
@@ -235,7 +251,7 @@ parse_assignment :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
         operator_node := ast_node { type = to_ast_node_type(token_type) }
         append(&node.children, operator_node)
 
-        statement_node := parse_statement(stream) or_return
+        statement_node := parse_statement(stream, ctx) or_return
         append(&node.children, statement_node)
     }
 
@@ -363,6 +379,11 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
         next_token(stream, .closing_bracket) or_return
     case .identifier:
         node = parse_identifier(stream) or_return
+
+        if type == .type
+        {
+            node.type = .type
+        }
     case .keyword:
         if type == .lhs
         {
@@ -502,12 +523,6 @@ parse_primary :: proc(stream: ^token_stream, type: primary_type) -> (node: ast_n
 
             next_token(stream, .closing_square_bracket) or_return
         case .period:
-            if type == .type
-            {
-                stream.error = "A type primary cannot access a member"
-                return {}, false
-            }
-
             next_token(stream, .period) or_return
 
             child_node := node
@@ -567,6 +582,8 @@ parse_call :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 
 parse_compound_literal :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool)
 {
+    dummy_ctx: parsing_context
+
     node.type = .compound_literal
     node.file_info = peek_token(stream).file_info
 
@@ -574,7 +591,7 @@ parse_compound_literal :: proc(stream: ^token_stream) -> (node: ast_node, ok: bo
 
     for peek_token(stream).type != .closing_curly_bracket
     {
-        member_node := parse_assignment(stream) or_return
+        member_node := parse_assignment(stream, &dummy_ctx) or_return
         append(&node.children, member_node)
 
         // TODO allows comma at end of params

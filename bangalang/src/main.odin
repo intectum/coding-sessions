@@ -8,7 +8,7 @@ import "core:sys/linux"
 
 main :: proc()
 {
-  /*failed_tests := run_test_suite()
+  failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -17,7 +17,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }*/
+  }
 
   name := "examples/example_01.bang"
   src_data, src_ok := os.read_entire_file(name)
@@ -64,45 +64,14 @@ build :: proc(name: string, src: string, out_path: string)
 
 compile :: proc(name: string, src: string, asm_path: string)
 {
-  tokens: [dynamic]token
-
-  stdlib_data, stdlib_ok := os.read_entire_file("src/stdlib.bang")
-  if !stdlib_ok
+  if !import_module(name, src)
   {
-    fmt.println("Failed to read stdlib file")
+    fmt.printfln("Failed to import module %s", name)
     os.exit(1)
   }
 
-  if !tokenize("src/stdlib.bang", string(stdlib_data), &tokens)
-  {
-    fmt.println("Failed to tokenize")
-    os.exit(1)
-  }
-
-  if !tokenize(name, src, &tokens)
-  {
-    fmt.println("Failed to tokenize")
-    os.exit(1)
-  }
-
-  stream := token_stream { tokens = tokens[:] }
-  ast_nodes, parse_ok := parse_program(&stream)
-  if !parse_ok
-  {
-    next_token := peek_token(&stream)
-    file_error("Failed to parse", next_token.file_info)
-    fmt.println(stream.error)
-    os.exit(1)
-  }
-
-  type_check_ok := type_check_program(ast_nodes)
-  if !type_check_ok
-  {
-    fmt.println("Failed to type check")
-    os.exit(1)
-  }
-
-  generate_program(asm_path, ast_nodes)
+  module := imported_modules[name]
+  generate_program(&module, asm_path)
 }
 
 exec :: proc(command: string) -> u32

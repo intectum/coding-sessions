@@ -44,9 +44,9 @@ extern_param_registers_numbered: []int = { -3, -2 }
 syscall_param_registers_named: []string = { "ax", "di", "si", "dx" }
 syscall_param_registers_numbered: []int = { -1, -3, -2 }
 
-generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
+generate_program :: proc(module: ^module, asm_path: string)
 {
-    file, file_error := os.open(file_name, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0o666)
+    file, file_error := os.open(asm_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0o666)
     if file_error != nil
     {
         fmt.println("Failed to open asm file")
@@ -60,20 +60,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
 
     ctx: gen_context
 
-    for &node in nodes
-    {
-        if node.type == .assignment
-        {
-            lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
-            {
-                continue
-            }
-        }
-
-        generate_statement(file, &node, &ctx)
-    }
+    generate_statements(file, module, &ctx)
 
     fmt.fprintln(file, "  ; default exit")
     fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
@@ -110,18 +97,7 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
-    for &node in nodes
-    {
-        if node.type == .assignment
-        {
-            lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
-            {
-                generate_procedure(file, &node, &ctx)
-            }
-        }
-    }
+    generate_procedures(file, module, &ctx)
 
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
@@ -157,6 +133,28 @@ generate_program :: proc(file_name: string, nodes: [dynamic]ast_node)
     {
         final_cstring, _ := strings.replace_all(data_section_cstring, "\\n", "\", 10, \"")
         fmt.fprintfln(file, "  cstring_%i: db %s, 0", index, final_cstring)
+    }
+}
+
+generate_procedures :: proc(file: os.Handle, module: ^module, ctx: ^gen_context)
+{
+    for reference in module.ctx.references
+    {
+        module := &imported_modules[module.ctx.references[reference]]
+        generate_procedures(file, module, ctx)
+    }
+
+    for &node in module.nodes
+    {
+        if node.type == .assignment
+        {
+            lhs_node := &node.children[0]
+            lhs_type_node := get_type(lhs_node)
+            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
+            {
+                generate_procedure(file, &node, ctx)
+            }
+        }
     }
 }
 
@@ -200,6 +198,30 @@ generate_procedure :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
     fmt.fprintln(file, "  ret ; return")
 }
 
+generate_statements :: proc(file: os.Handle, module: ^module, ctx: ^gen_context)
+{
+    for reference in module.ctx.references
+    {
+        module := &imported_modules[module.ctx.references[reference]]
+        generate_statements(file, module, ctx)
+    }
+
+    for &node in module.nodes
+    {
+        if node.type == .assignment
+        {
+            lhs_node := &node.children[0]
+            lhs_type_node := get_type(lhs_node)
+            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
+            {
+                continue
+            }
+        }
+
+        generate_statement(file, &node, ctx)
+    }
+}
+
 generate_statement :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, include_end_label := false)
 {
     #partial switch node.type
@@ -237,11 +259,11 @@ generate_if :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     child_index := 2
     else_index := 0
-    expression_type_node_result := get_type_result(get_type(expression_node))
-    expression_operation_size := operation_size(byte_size_of(expression_type_node_result))
+    expression_type_node := get_type(expression_node)
+    expression_operation_size := operation_size(byte_size_of(expression_type_node))
 
     expression_location := generate_expression(file, expression_node, ctx)
-    expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node_result)
+    expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node)
     fmt.fprintfln(file, "  cmp %s %s, 0 ; test expression", expression_operation_size, operand(expression_location))
     fmt.fprintfln(file, "  je .if_%i_%s ; skip if scope when false/zero", if_index, child_index < len(node.children) ? "else_0" : "end")
 
@@ -254,7 +276,7 @@ generate_if :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
         else_index += 1
 
         expression_location = generate_expression(file, &node.children[child_index], ctx)
-        expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node_result)
+        expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node)
         child_index += 1
 
         fmt.fprintfln(file, "  cmp %s %s, 0 ; test expression", expression_operation_size, operand(expression_location))
@@ -302,11 +324,11 @@ generate_for :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     fmt.fprintfln(file, ".for_%i:", for_index)
 
-    expression_type_node_result := get_type_result(get_type(child_node))
-    expression_operation_size := operation_size(byte_size_of(expression_type_node_result))
+    expression_type_node := get_type(child_node)
+    expression_operation_size := operation_size(byte_size_of(expression_type_node))
 
     expression_location := generate_expression(file, child_node, &for_ctx)
-    expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node_result)
+    expression_location = copy_to_non_immediate(file, expression_location, 0, expression_type_node)
     fmt.fprintfln(file, "  cmp %s %s, 0 ; test expression", expression_operation_size, operand(expression_location))
     fmt.fprintfln(file, "  je .for_%i_end ; skip for scope when false/zero", for_index)
 
@@ -331,22 +353,30 @@ generate_return :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 {
     fmt.fprintln(file, "  ; return")
 
-    expression_node := &node.children[0]
-    expression_type_node := get_type(expression_node)
-
-    expression_location := generate_expression(file, expression_node, ctx)
-
     if ctx.in_proc
     {
-        variable_position := ctx.stack_size - ctx.stack_variable_offsets["[return]"]
-        return_location := memory("rsp", variable_position)
+        if len(node.children) > 0
+        {
+            expression_node := &node.children[0]
+            expression_type_node := get_type(expression_node)
 
-        copy(file, expression_location, return_location, expression_type_node)
+            expression_location := generate_expression(file, expression_node, ctx)
+
+            variable_position := ctx.stack_size - ctx.stack_variable_offsets["[return]"]
+            return_location := memory("rsp", variable_position)
+
+            copy(file, expression_location, return_location, expression_type_node)
+        }
 
         fmt.fprintln(file, "  jmp .end ; skip to end")
     }
     else
     {
+        expression_node := &node.children[0]
+        expression_type_node := get_type(expression_node)
+
+        expression_location := generate_expression(file, expression_node, ctx)
+
         syscall_num_location := register("ax", expression_type_node)
         exit_code_location := register("di", expression_type_node)
 
@@ -386,9 +416,13 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
         return
     }
 
-    fmt.fprintln(file, "  ; assignment")
-
     lhs_type_node := get_type(lhs_node)
+    if lhs_type_node.value == "[module]"
+    {
+        return
+    }
+
+    fmt.fprintln(file, "  ; assignment")
 
     if lhs_node.type == .identifier && !is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
     {
@@ -537,7 +571,7 @@ generate_expression_1 :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_contex
     lhs_node := &node.children[0]
     rhs_node := &node.children[1]
 
-    operand_type_node := get_type_result(get_type(lhs_node))
+    operand_type_node := get_type(lhs_node)
     result_type_node := get_type(node)
 
     lhs_register_num := register_num
@@ -811,9 +845,9 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
             start_expression_location = generate_expression(file, start_expression_node, ctx, register_num + 1)
         }
 
-        start_expression_type_node_result := get_type_result(get_type(start_expression_node))
-        start_expression_location = copy_to_register(file, start_expression_location, register_num + 1, start_expression_type_node_result)
-        start_expression_location = convert(file, start_expression_location, register_num + 1, start_expression_type_node_result, &index_type_node)
+        start_expression_type_node := get_type(start_expression_node)
+        start_expression_location = copy_to_register(file, start_expression_location, register_num + 1, start_expression_type_node)
+        start_expression_location = convert(file, start_expression_location, register_num + 1, start_expression_type_node, &index_type_node)
 
         if start_expression_node.type != .nil_ && type_node.directive != "#boundless"
         {
@@ -860,9 +894,9 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
                 end_expression_location = generate_expression(file, end_expression_node, ctx, register_num + 2)
             }
 
-            end_expression_type_node_result := get_type_result(get_type(end_expression_node))
-            end_expression_location = copy_to_register(file, end_expression_location, register_num + 2, end_expression_type_node_result)
-            end_expression_location = convert(file, end_expression_location, register_num + 2, end_expression_type_node_result, &index_type_node)
+            end_expression_type_node := get_type(end_expression_node)
+            end_expression_location = copy_to_register(file, end_expression_location, register_num + 2, end_expression_type_node)
+            end_expression_location = convert(file, end_expression_location, register_num + 2, end_expression_type_node, &index_type_node)
 
             if end_expression_node.type != .nil_ && type_node.directive != "#boundless"
             {
@@ -1041,20 +1075,19 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
 generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int, child_location: location, deallocate_return: bool) -> location
 {
     procedure_node := &node.children[0]
-
     if is_type(procedure_node)
     {
         return generate_conversion_call(file, node, ctx, register_num)
     }
 
-    type_node := get_type(node)
+    procedure_type_node := get_type(procedure_node)
 
-    params_type_node := type_node.children[0]
-    return_type_node := len(type_node.children) == 2 ? &type_node.children[1] : nil
+    params_type_node := procedure_type_node.children[0]
+    return_type_node := len(procedure_type_node.children) == 2 ? &procedure_type_node.children[1] : nil
 
     call_stack_size := 0
     return_only_call_stack_size := 0
-    if type_node.directive != "#extern"
+    if procedure_type_node.directive != "#extern"
     {
         for &param_node in params_type_node.children
         {
@@ -1077,7 +1110,7 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
 
     allocate(file, call_stack_size, ctx)
 
-    if type_node.directive == "#extern"
+    if procedure_type_node.directive == "#extern"
     {
         for &param_node_from_type, param_index in params_type_node.children
         {
@@ -1142,7 +1175,7 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         return {}
     }
 
-    if type_node.directive == "#extern"
+    if procedure_type_node.directive == "#extern"
     {
         return register("ax", return_type_node)
     }
@@ -1154,10 +1187,11 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
 
 generate_conversion_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, register_num: int) -> location
 {
-    type_node := get_type(node)
+    procedure_node := &node.children[0]
+    procedure_type_node := get_type(procedure_node)
 
-    param_type_node := &type_node.children[0].children[0].children[0]
-    return_type_node := &type_node.children[1]
+    param_type_node := &procedure_type_node.children[0].children[0].children[0]
+    return_type_node := &procedure_type_node.children[1]
 
     param_location := generate_expression(file, &node.children[1], ctx, register_num)
 
@@ -1363,7 +1397,7 @@ contains_allocations :: proc(node: ^ast_node) -> bool
         return true
     }
 
-    if node.type == .call && get_type(node).directive != "#extern"
+    if node.type == .call && get_type(&node.children[0]).directive != "#extern"
     {
         return true
     }
