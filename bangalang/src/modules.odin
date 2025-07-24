@@ -4,8 +4,10 @@ import "core:fmt"
 
 module :: struct
 {
+    name: string,
     nodes: [dynamic]ast_node,
-    ctx: type_checking_context
+    imports: map[string]string,
+    identifiers: map[string]ast_node
 }
 
 imported_modules: map[string]module
@@ -34,7 +36,7 @@ import_module :: proc(name: string, src: string) -> bool
         return false
     }
 
-    module: module = { nodes = nodes }
+    module: module = { name = name, nodes = nodes }
     if !type_check_module(&module)
     {
         fmt.printfln("Failed to type check module %s", name)

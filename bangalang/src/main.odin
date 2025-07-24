@@ -19,8 +19,9 @@ main :: proc()
     os.exit(1)
   }
 
-  name := "examples/example_01.bang"
-  src_data, src_ok := os.read_entire_file(name)
+  name := "examples/example_01"
+  path := strings.concatenate({ name, ".bang" })
+  src_data, src_ok := os.read_entire_file(path)
   if !src_ok
   {
     fmt.println("Failed to read src file")
