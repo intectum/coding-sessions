@@ -457,6 +457,10 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
             {
                 generate_assignment_float(file, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
             }
+            else if lhs_type_node.value == "[array]"
+            {
+                generate_assignment_float_array(file, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
+            }
             else if atomic_integer_type
             {
                 generate_assignment_atomic_integer(file, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
@@ -493,6 +497,48 @@ generate_assignment_float :: proc(file: os.Handle, node: ^ast_node, lhs_location
     }
 
     copy(file, result_location, lhs_location, type_node)
+}
+
+generate_assignment_float_array :: proc(file: os.Handle, node: ^ast_node, lhs_location: location, rhs_location: location, type_node: ^ast_node, register_num: int)
+{
+    /*lhs_location := lhs_location
+    rhs_location := rhs_location
+
+    element_type_node := &type_node.children[0]
+    element_size := byte_size_of(element_type_node)
+    length := strconv.atoi(get_length_location(type_node, lhs_location).value)
+
+    for index := 0; index < length; index += 1
+    {
+        generate_assignment_float(file, node, lhs_location, rhs_location, element_type_node, register_num)
+        lhs_location.offset += element_size
+        rhs_location.offset += element_size
+    }*/
+
+    element_type_node := &type_node.children[0]
+    element_size := byte_size_of(element_type_node)
+    precision := precision(element_size)
+    length := strconv.atoi(get_length_location(type_node, lhs_location).value)
+    length_multiple_4 := ((length + 3) / 4) * 4
+
+    result_location := copy_to_register(file, lhs_location, register_num, element_type_node, length_multiple_4)
+    rhs_register_location := copy_to_register(file, rhs_location, register_num + 1, element_type_node, length_multiple_4)
+
+    #partial switch node.type
+    {
+    case .add_assign:
+        fmt.fprintfln(file, "  addp%s %s, %s ; add assign", precision, operand(result_location), operand(rhs_register_location))
+    case .subtract_assign:
+        fmt.fprintfln(file, "  subp%s %s, %s ; subtract assign", precision, operand(result_location), operand(rhs_register_location))
+    case .multiply_assign:
+        fmt.fprintfln(file, "  mulp%s %s, %s ; multiply assign", precision, operand(result_location), operand(rhs_register_location))
+    case .divide_assign:
+        fmt.fprintfln(file, "  divp%s %s, %s ; divide assign", precision, operand(result_location), operand(rhs_register_location))
+    case:
+        assert(false, "Failed to generate assignment")
+    }
+
+    copy(file, result_location, lhs_location, element_type_node, length)
 }
 
 generate_assignment_atomic_integer :: proc(file: os.Handle, node: ^ast_node, lhs_location: location, rhs_location: location, type_node: ^ast_node, register_num: int)
@@ -830,7 +876,7 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
         fmt.fprintfln(file, "  xor byte %s, 1 ; not", operand(location))
         return location
     case .dereference:
-        location := copy_to_register(file, child_location, register_num, &unknown_reference_type_node, "dereference")
+        location := copy_to_register(file, child_location, register_num, &unknown_reference_type_node, 1, "dereference")
         return memory(operand(location), 0)
     case .index:
         child_type_node := get_type(&node.children[0])
@@ -862,7 +908,7 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
             data_location := child_location
             if child_type_node.value == "[slice]"
             {
-                data_location = copy_to_register(file, data_location, register_num, &unknown_reference_type_node, "dereference")
+                data_location = copy_to_register(file, data_location, register_num, &unknown_reference_type_node, 1, "dereference")
                 data_location = memory(operand(data_location), 0)
             }
 
@@ -1251,7 +1297,7 @@ convert :: proc(file: os.Handle, src: location, register_num: int, src_type_node
     return dest_location
 }
 
-copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, type_node: ^ast_node, comment: string = "") -> location
+copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, type_node: ^ast_node, count: int = 1, comment: string = "") -> location
 {
     if src.type != .immediate
     {
@@ -1265,12 +1311,12 @@ copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, type_
     }
 
     register_dest := register(number, type_node)
-    copy(file, src, register_dest, type_node, final_comment)
+    copy(file, src, register_dest, type_node, count, final_comment)
     return register_dest
 }
 
 // TODO review, could change to copy_to_non_immediate in some places
-copy_to_register :: proc(file: os.Handle, src: location, number: int, type_node: ^ast_node, comment: string = "") -> location
+copy_to_register :: proc(file: os.Handle, src: location, number: int, type_node: ^ast_node, count: int = 1, comment: string = "") -> location
 {
     if src.type == .register
     {
@@ -1284,18 +1330,18 @@ copy_to_register :: proc(file: os.Handle, src: location, number: int, type_node:
     }
 
     register_dest := register(number, type_node)
-    copy(file, src, register_dest, type_node, final_comment)
+    copy(file, src, register_dest, type_node, count, final_comment)
     return register_dest
 }
 
 copy_stack_address :: proc(file: os.Handle, offset: int, register_num: int) -> location
 {
     dest := register(register_num, &unknown_reference_type_node)
-    copy(file, register("sp", &unknown_reference_type_node), dest, &unknown_reference_type_node, "copy stack address")
+    copy(file, register("sp", &unknown_reference_type_node), dest, &unknown_reference_type_node, 1, "copy stack address")
     return memory(operand(dest), offset)
 }
 
-copy :: proc(file: os.Handle, src: location, dest: location, type_node: ^ast_node, comment: string = "")
+copy :: proc(file: os.Handle, src: location, dest: location, type_node: ^ast_node, count: int = 1, comment: string = "")
 {
     assert(dest.type != .immediate, "Cannot copy to immediate")
 
@@ -1317,7 +1363,43 @@ copy :: proc(file: os.Handle, src: location, dest: location, type_node: ^ast_nod
     {
         if float_type
         {
-            fmt.fprintfln(file, "  movs%s %s, %s ; %s", precision(size), operand(dest), operand(src), final_comment)
+            count := count
+            for count >= 4
+            {
+                fmt.fprintfln(file, "  movup%s %s, %s ; %s", precision(size), operand(dest), operand(src), final_comment)
+                count -= 4
+            }
+
+            if count > 0
+            {
+                offset := 0
+                for count > 0
+                {
+                    src_copy := src
+                    if src.type == .register && offset > 0
+                    {
+                        fmt.fprintfln(file, "  shufp%s %s, %s, 0x39 ; %s", precision(size), operand(src), operand(src), final_comment)
+                    }
+                    else
+                    {
+                        src_copy.offset += offset
+                    }
+
+                    dest_copy := dest
+                    if dest.type == .register && offset > 0
+                    {
+                        fmt.fprintfln(file, "  shufp%s %s, %s, 0x39 ; %s", precision(size), operand(dest), operand(dest), final_comment)
+                    }
+                    else
+                    {
+                        dest_copy.offset += offset
+                    }
+
+                    fmt.fprintfln(file, "  movs%s %s, %s ; %s", precision(size), operand(dest_copy), operand(src_copy), final_comment)
+                    count -= 1
+                    offset += size
+                }
+            }
         }
         else
         {
@@ -1668,16 +1750,10 @@ get_data_section_name :: proc(data_section_values: ^[dynamic]string, prefix: str
 
 nilify :: proc(file: os.Handle, location: location, type_node: ^ast_node)
 {
-    if location.type == .memory
-    {
-        fmt.fprintfln(file, "  lea rdi, %s ; nil: dest", operand(location))
-        fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(type_node))
-        fmt.fprintln(file, "  mov rax, 0 ; nil: value")
-        fmt.fprintln(file, "  rep stosb ; nil")
-    }
-    else
-    {
-        assert(false, "huh?") // TODO
-        copy(file, immediate(0), location, type_node, "nil")
-    }
+    assert(location.type == .memory, "Cannot nilify a non-memory location")
+
+    fmt.fprintfln(file, "  lea rdi, %s ; nil: dest", operand(location))
+    fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(type_node))
+    fmt.fprintln(file, "  mov rax, 0 ; nil: value")
+    fmt.fprintln(file, "  rep stosb ; nil")
 }

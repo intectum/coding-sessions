@@ -29,15 +29,26 @@ mutex_unlock: proc(mutex: ^i32) =
     if cmpxchg(mutex, 1, 0)
         futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
 
-semaphore_wait: proc(semaphore: ^atomic_i32) =
-    for true // spin
+semaphore_t = struct
+{
+    value: atomic_i32,
+    waiter: i32
+}
+
+semaphore_wait: proc(semaphore: ^semaphore_t) =
+    for true
     {
-        semaphore^ -= 1
-        if semaphore^ >= 0 return
-        semaphore^ += 1
+        semaphore.value -= 1
+        if semaphore.value >= 0 return
+        semaphore.value += 1
+        futex(^semaphore.waiter, 0 /* FUTEX_WAIT */, 0 /* expected */, 0 /* timeout */)
     }
 
-semaphore_signal: proc(semaphore: ^atomic_i32) = semaphore^ += 1
+semaphore_signal: proc(semaphore: ^semaphore_t) =
+{
+    semaphore.value += 1
+    futex(^semaphore.waiter, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+}
 
 start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
@@ -83,7 +94,8 @@ thread_pool = struct
     tasks: thread_pool_task[100],
     task_count: i64,
     mutex: i32,
-    semaphore: atomic_i32
+    semaphore: semaphore_t,
+    working: i32
 }
 
 thread_pool_worker: proc(arg: i64) =
@@ -112,6 +124,11 @@ thread_pool_worker: proc(arg: i64) =
 
             mutex_lock(^pool.mutex)
             pool.current_worker_count -= 1
+            if pool.task_count == 0 && pool.current_worker_count == 0
+            {
+                pool.working = 0
+                futex(^pool.working, 1 /* FUTEX_WAKE */, 999 /* count TODO i64.max */, 0)
+            }
             mutex_unlock(^pool.mutex)
         }
     }
@@ -126,14 +143,14 @@ thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
     mutex_lock(^pool.mutex)
     pool.tasks[pool.task_count] = task^
     pool.task_count += 1
+    pool.working = 1
     mutex_unlock(^pool.mutex)
 
     semaphore_signal(^pool.semaphore)
 }
 
 thread_pool_wait: proc(pool: ^thread_pool) =
-    for true // spin
-        if pool.task_count == 0 && pool.current_worker_count == 0 return
+    futex(^pool.working, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
 
 thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1

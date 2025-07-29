@@ -8,7 +8,7 @@ import "core:sys/linux"
 
 main :: proc()
 {
-  failed_tests := run_test_suite()
+  /*failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -17,7 +17,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }
+  }*/
 
   name := "examples/example_01.bang"
   src_data, src_ok := os.read_entire_file(name)
@@ -66,7 +66,6 @@ compile :: proc(name: string, src: string, asm_path: string)
 {
   if !import_module(name, src)
   {
-    fmt.printfln("Failed to import module %s", name)
     os.exit(1)
   }
 

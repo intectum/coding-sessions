@@ -18,11 +18,7 @@ import_module :: proc(name: string, src: string) -> bool
     }
 
     tokens: [dynamic]token
-    if !tokenize(name, src, &tokens)
-    {
-        fmt.printfln("Failed to tokenize module %s", name)
-        return false
-    }
+    tokenize(name, src, &tokens) or_return
 
     stream := token_stream { tokens = tokens[:] }
     nodes, parse_ok := parse_module(&stream)
@@ -35,11 +31,7 @@ import_module :: proc(name: string, src: string) -> bool
     }
 
     module: module = { nodes = nodes }
-    if !type_check_module(&module)
-    {
-        fmt.printfln("Failed to type check module %s", name)
-        return false
-    }
+    type_check_module(&module) or_return
 
     imported_modules[name] = module
 

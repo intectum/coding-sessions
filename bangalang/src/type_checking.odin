@@ -98,11 +98,7 @@ type_check_module :: proc(module: ^module) -> bool
                     return false
                 }
 
-                if !import_module(name, string(src_data))
-                {
-                    fmt.printfln("Failed to import module %s", name)
-                    return false
-                }
+                import_module(name, string(src_data)) or_return
 
                 module.ctx.references[reference] = name
             }
@@ -332,7 +328,18 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         if operator_node.type != .assign
         {
             _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
-            if !numerical_type
+            if rhs_type_node.value == "[array]"
+            {
+                element_type_node := &rhs_type_node.children[0]
+                _, float_type := slice.linear_search(float_types, element_type_node.value)
+                if !float_type || operator_node.type == .modulo_assign
+                {
+                    fmt.println("Failed to type check assignment")
+                    file_error(fmt.aprintf("Assignment operator %s is not valid for type '%s' in", operator_node.type, type_name(rhs_type_node)), operator_node.file_info)
+                    return false
+                }
+            }
+            else if !numerical_type
             {
                 fmt.println("Failed to type check assignment")
                 file_error(fmt.aprintf("Assignment operator %s is not valid for type '%s' in", operator_node.type, type_name(rhs_type_node)), operator_node.file_info)

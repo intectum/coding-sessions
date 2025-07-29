@@ -53,7 +53,9 @@ fragment_shader_name = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src, f
 
 program_name = link_shaders(vertex_shader_name, fragment_shader_name)
 
-triangle_count: i64 = 65536
+triangle_count_1d: i64 = 64
+triangle_count = triangle_count_1d * triangle_count_1d
+triangle_size = 2 / f32(triangle_count_1d)
 vertex_count = triangle_count * 3
 
 buffer_name: i32
@@ -64,6 +66,31 @@ glBindBuffer(GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
 glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
 buffer_data_raw = glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
 buffer_data: stdlib.vec3[] = { raw = #untyped buffer_data_raw, length = vertex_count }
+
+vertex_index: i64
+for x: i64, x < triangle_count_1d, x += 1
+{
+    for y: i64, y < triangle_count_1d, y += 1
+    {
+        left = -1 + triangle_size * f32(x)
+        bottom = -1 + triangle_size * f32(y)
+
+        buffer_data[vertex_index][0] = left + triangle_size * 0.5
+        buffer_data[vertex_index][1] = bottom + triangle_size
+        buffer_data[vertex_index][2] = 0
+        vertex_index += 1
+
+        buffer_data[vertex_index][0] = left
+        buffer_data[vertex_index][1] = bottom
+        buffer_data[vertex_index][2] = 0
+        vertex_index += 1
+
+        buffer_data[vertex_index][0] = left + triangle_size
+        buffer_data[vertex_index][1] = bottom
+        buffer_data[vertex_index][2] = 0
+        vertex_index += 1
+    }
+}
 
 glUseProgram(program_name) check_opengl_error()
 
@@ -77,38 +104,14 @@ frame_count: i64
 
 task_func: proc(data: stdlib.vec3[], start: i64) =
 {
-    triangle_count_1d: i64 = 256
-    triangle_size = 2 / f32(triangle_count_1d)
+    delta: stdlib.vec3
+    delta[0] = 0.001
+    delta[1] = 0.001
+    delta[2] = 0
 
     for index: i64, index < data.length, index += 1
     {
-        triangle_index = (start + index) / 3
-        vertex_index = (start + index) % 3
-
-        column_count = triangle_index / triangle_count_1d
-        row_count = triangle_index % triangle_count_1d
-
-        x = -1 + triangle_size * f32(column_count)
-        y = -1 + triangle_size * f32(row_count)
-
-        if vertex_index == 0
-        {
-            data[index][0] = x + triangle_size * 0.5
-            data[index][1] = y + triangle_size
-            data[index][2] = 0
-        }
-        else if vertex_index == 1
-        {
-            data[index][0] = x
-            data[index][1] = y
-            data[index][2] = 0
-        }
-        else if vertex_index == 2
-        {
-            data[index][0] = x + triangle_size
-            data[index][1] = y
-            data[index][2] = 0
-        }
+        data[index] += delta
     }
 }
 
