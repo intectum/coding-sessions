@@ -328,7 +328,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
         if operator_node.type != .assign
         {
             _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
-            if rhs_type_node.value == "[array]"
+            if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
             {
                 element_type_node := &rhs_type_node.children[0]
                 _, float_type := slice.linear_search(float_types, element_type_node.value)

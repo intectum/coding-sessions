@@ -305,6 +305,254 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     value: bool // 'value' above is no longer in scope
   `
 
+  general_tests["add_assign_1"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[1]
+    array1[0] = 1
+    array2: f32[1]
+    array2[0] = 2
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+  `
+
+  general_tests["add_assign_2"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[2]
+    array1[0] = 1
+    array1[1] = 2
+    array2: f32[2]
+    array2[0] = 2
+    array2[1] = 4
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+  `
+
+  general_tests["add_assign_3"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[3]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array2: f32[3]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+  `
+
+  general_tests["add_assign_4"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[4]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array1[3] = 4
+    array2: f32[4]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array2[3] = 8
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+    stdlib.assert(array1[3] == 12, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+    stdlib.assert(slice1[3] == 20, "")
+  `
+
+  general_tests["add_assign_5"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[5]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array1[3] = 4
+    array1[4] = 5
+    array2: f32[5]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array2[3] = 8
+    array2[4] = 10
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+    stdlib.assert(array1[3] == 12, "")
+    stdlib.assert(array1[4] == 15, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+    stdlib.assert(slice1[3] == 20, "")
+    stdlib.assert(slice1[4] == 25, "")
+  `
+
+  general_tests["add_assign_6"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[6]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array1[3] = 4
+    array1[4] = 5
+    array1[5] = 6
+    array2: f32[6]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array2[3] = 8
+    array2[4] = 10
+    array2[5] = 12
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+    stdlib.assert(array1[3] == 12, "")
+    stdlib.assert(array1[4] == 15, "")
+    stdlib.assert(array1[5] == 18, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+    stdlib.assert(slice1[3] == 20, "")
+    stdlib.assert(slice1[4] == 25, "")
+    stdlib.assert(slice1[5] == 30, "")
+  `
+
+  general_tests["add_assign_7"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[7]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array1[3] = 4
+    array1[4] = 5
+    array1[5] = 6
+    array1[6] = 7
+    array2: f32[7]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array2[3] = 8
+    array2[4] = 10
+    array2[5] = 12
+    array2[6] = 14
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+    stdlib.assert(array1[3] == 12, "")
+    stdlib.assert(array1[4] == 15, "")
+    stdlib.assert(array1[5] == 18, "")
+    stdlib.assert(array1[6] == 21, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+    stdlib.assert(slice1[3] == 20, "")
+    stdlib.assert(slice1[4] == 25, "")
+    stdlib.assert(slice1[5] == 30, "")
+    stdlib.assert(slice1[6] == 35, "")
+  `
+
+  general_tests["add_assign_8"] =
+  `
+    stdlib = import("stdlib")
+
+    array1: f32[8]
+    array1[0] = 1
+    array1[1] = 2
+    array1[2] = 3
+    array1[3] = 4
+    array1[4] = 5
+    array1[5] = 6
+    array1[6] = 7
+    array1[7] = 8
+    array2: f32[8]
+    array2[0] = 2
+    array2[1] = 4
+    array2[2] = 6
+    array2[3] = 8
+    array2[4] = 10
+    array2[5] = 12
+    array2[6] = 14
+    array2[7] = 16
+    array1 += array2
+    stdlib.assert(array1[0] == 3, "")
+    stdlib.assert(array1[1] == 6, "")
+    stdlib.assert(array1[2] == 9, "")
+    stdlib.assert(array1[3] == 12, "")
+    stdlib.assert(array1[4] == 15, "")
+    stdlib.assert(array1[5] == 18, "")
+    stdlib.assert(array1[6] == 21, "")
+    stdlib.assert(array1[7] == 24, "")
+
+    slice1 = array1[:]
+    slice2 = array2[:]
+    slice1 += slice2
+    stdlib.assert(slice1[0] == 5, "")
+    stdlib.assert(slice1[1] == 10, "")
+    stdlib.assert(slice1[2] == 15, "")
+    stdlib.assert(slice1[3] == 20, "")
+    stdlib.assert(slice1[4] == 25, "")
+    stdlib.assert(slice1[5] == 30, "")
+    stdlib.assert(slice1[6] == 35, "")
+    stdlib.assert(slice1[7] == 40, "")
+  `
+
   value_tests: map[string]string
 
   // TODO
