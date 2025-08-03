@@ -64,13 +64,14 @@ build :: proc(name: string, src: string, out_path: string)
 
 compile :: proc(name: string, src: string, asm_path: string)
 {
-  if !import_module(name, src)
+  program: program
+  if !import_module(&program, name, src)
   {
     os.exit(1)
   }
 
-  module := imported_modules[name]
-  generate_program(&module, asm_path)
+  ctx: gen_context = { program = &program, procedure_name = name }
+  generate_program(&ctx, asm_path)
 }
 
 exec :: proc(command: string) -> u32

@@ -23,12 +23,13 @@ location :: struct
 
 gen_context :: struct
 {
+    program: ^program,
+    procedure_name: string,
+
     data_section_f32s: [dynamic]string,
     data_section_f64s: [dynamic]string,
     data_section_strings: [dynamic]string,
     data_section_cstrings: [dynamic]string,
-
-    in_proc: bool,
 
     stack_size: int,
     stack_variable_offsets: map[string]int,
@@ -44,7 +45,7 @@ extern_param_registers_numbered: []int = { -3, -2 }
 syscall_param_registers_named: []string = { "ax", "di", "si", "dx" }
 syscall_param_registers_numbered: []int = { -1, -3, -2 }
 
-generate_program :: proc(module: ^module, asm_path: string)
+generate_program :: proc(ctx: ^gen_context, asm_path: string)
 {
     file, file_error := os.open(asm_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0o666)
     if file_error != nil
@@ -58,9 +59,7 @@ generate_program :: proc(module: ^module, asm_path: string)
     fmt.fprintln(file, "global _start")
     fmt.fprintln(file, "_start:")
 
-    ctx: gen_context
-
-    generate_statements(file, module, &ctx)
+    generate_statements(file, ctx)
 
     fmt.fprintln(file, "  ; default exit")
     fmt.fprintln(file, "  mov rax, 60 ; syscall: exit")
@@ -97,7 +96,12 @@ generate_program :: proc(module: ^module, asm_path: string)
     fmt.fprintln(file, "  syscall ; call kernel")
     fmt.fprintln(file, "  ret ; return")
 
-    generate_procedures(file, module, &ctx)
+    generated_procedure_names: [dynamic]string
+    append(&generated_procedure_names, "import")
+    append(&generated_procedure_names, "cmpxchg") // TODO yuck
+
+    main_procedure := &ctx.program.procedures[ctx.procedure_name]
+    generate_procedures(file, &main_procedure.references, ctx, &generated_procedure_names)
 
     fmt.fprintln(file, "section .data")
     fmt.fprintln(file, "  f32_sign_mask: dd 0x80000000")
@@ -136,25 +140,23 @@ generate_program :: proc(module: ^module, asm_path: string)
     }
 }
 
-generate_procedures :: proc(file: os.Handle, module: ^module, ctx: ^gen_context)
+generate_procedures :: proc(file: os.Handle, procedure_names: ^[dynamic]string, ctx: ^gen_context, generated_procedure_names: ^[dynamic]string)
 {
-    for reference in module.ctx.references
+    for procedure_name in procedure_names
     {
-        module := &imported_modules[module.ctx.references[reference]]
-        generate_procedures(file, module, ctx)
-    }
-
-    for &node in module.nodes
-    {
-        if node.type == .assignment
+        _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], procedure_name)
+        if found_generated_procedure
         {
-            lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
-            {
-                generate_procedure(file, &node, ctx)
-            }
+            continue
         }
+
+        ctx.procedure_name = procedure_name
+        append(generated_procedure_names, procedure_name)
+
+        procedure := &ctx.program.procedures[procedure_name]
+        generate_procedure(file, &procedure.statements[0], ctx)
+
+        generate_procedures(file, &procedure.references, ctx, generated_procedure_names)
     }
 }
 
@@ -169,8 +171,7 @@ generate_procedure :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
         return
     }
 
-    procedure_ctx := copy_gen_context(ctx)
-    procedure_ctx.in_proc = true
+    procedure_ctx := copy_gen_context(ctx, false)
 
     offset := 0
     params_type_node := lhs_type_node.children[0]
@@ -198,27 +199,20 @@ generate_procedure :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
     fmt.fprintln(file, "  ret ; return")
 }
 
-generate_statements :: proc(file: os.Handle, module: ^module, ctx: ^gen_context)
+generate_statements :: proc(file: os.Handle, ctx: ^gen_context)
 {
-    for reference in module.ctx.references
+    for module_name in ctx.program.modules
     {
-        module := &imported_modules[module.ctx.references[reference]]
-        generate_statements(file, module, ctx)
-    }
-
-    for &node in module.nodes
-    {
-        if node.type == .assignment
+        main_procedure := &ctx.program.procedures[module_name]
+        for &statement in main_procedure.statements
         {
-            lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if !is_type(lhs_node) && lhs_type_node.value == "[procedure]" && lhs_type_node.allocator == "static"
+            if is_import_statement(&statement) || is_type_alias_statement(&statement) || is_procedure_statement(&statement)
             {
                 continue
             }
-        }
 
-        generate_statement(file, &node, ctx)
+            generate_statement(file, &statement, ctx)
+        }
     }
 }
 
@@ -353,7 +347,7 @@ generate_return :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 {
     fmt.fprintln(file, "  ; return")
 
-    if ctx.in_proc
+    if !(ctx.procedure_name in ctx.program.modules)
     {
         if len(node.children) > 0
         {
@@ -1480,17 +1474,21 @@ copy :: proc(file: os.Handle, src: location, dest: location, type_node: ^ast_nod
     }
 }
 
-copy_gen_context := proc(ctx: ^gen_context, inline := false) -> gen_context
+copy_gen_context := proc(ctx: ^gen_context, inline: bool) -> gen_context
 {
     ctx_copy: gen_context
+
+    ctx_copy.program = ctx.program
+
     ctx_copy.data_section_f32s = ctx.data_section_f32s
     ctx_copy.data_section_f64s = ctx.data_section_f64s
     ctx_copy.data_section_strings = ctx.data_section_strings
     ctx_copy.data_section_cstrings = ctx.data_section_cstrings
-    ctx_copy.in_proc = ctx.in_proc
 
     if inline
     {
+        ctx_copy.procedure_name = ctx.procedure_name
+
         ctx_copy.stack_size = ctx.stack_size
 
         for key in ctx.stack_variable_offsets

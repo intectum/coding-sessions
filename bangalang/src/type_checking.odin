@@ -8,9 +8,11 @@ import "core:strings"
 
 type_checking_context :: struct
 {
-    references: map[string]string,
-    identifiers: map[string]ast_node,
-    procedure: ast_node
+    program: ^program,
+    module_name: string,
+    procedure_name: string,
+
+    identifiers: map[string]ast_node
 }
 
 numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "f32", "f64", "i8", "i16", "i32", "i64" }
@@ -19,53 +21,33 @@ integer_types: []string = { "[any_int]", "atomic_i8", "atomic_i16", "atomic_i32"
 atomic_integer_types: []string = { "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64" }
 signed_integer_types: []string = { "cint", "i8", "i16", "i32", "i64" }
 
-type_check_module :: proc(module: ^module) -> bool
+type_check_module :: proc(ctx: ^type_checking_context) -> bool
 {
-    module.ctx.identifiers["atomic_i8"] = { type = .type, value = "atomic_i8" }
-    module.ctx.identifiers["atomic_i16"] = { type = .type, value = "atomic_i16" }
-    module.ctx.identifiers["atomic_i32"] = { type = .type, value = "atomic_i32" }
-    module.ctx.identifiers["atomic_i64"] = { type = .type, value = "atomic_i64" }
-    module.ctx.identifiers["bool"] = { type = .type, value = "bool" }
-    module.ctx.identifiers["cint"] = { type = .type, value = "cint" }
-    module.ctx.identifiers["cstring"] = { type = .type, value = "cstring" }
-    module.ctx.identifiers["f32"] = { type = .type, value = "f32" }
-    module.ctx.identifiers["f64"] = { type = .type, value = "f64" }
-    module.ctx.identifiers["i8"] = { type = .type, value = "i8" }
-    module.ctx.identifiers["i16"] = { type = .type, value = "i16" }
-    module.ctx.identifiers["i32"] = { type = .type, value = "i32" }
-    module.ctx.identifiers["i64"] = { type = .type, value = "i64" }
+    ctx.identifiers["atomic_i8"] = { type = .type, value = "atomic_i8" }
+    ctx.identifiers["atomic_i16"] = { type = .type, value = "atomic_i16" }
+    ctx.identifiers["atomic_i32"] = { type = .type, value = "atomic_i32" }
+    ctx.identifiers["atomic_i64"] = { type = .type, value = "atomic_i64" }
+    ctx.identifiers["bool"] = { type = .type, value = "bool" }
+    ctx.identifiers["cint"] = { type = .type, value = "cint" }
+    ctx.identifiers["cstring"] = { type = .type, value = "cstring" }
+    ctx.identifiers["f32"] = { type = .type, value = "f32" }
+    ctx.identifiers["f64"] = { type = .type, value = "f64" }
+    ctx.identifiers["i8"] = { type = .type, value = "i8" }
+    ctx.identifiers["i16"] = { type = .type, value = "i16" }
+    ctx.identifiers["i32"] = { type = .type, value = "i32" }
+    ctx.identifiers["i64"] = { type = .type, value = "i64" }
 
     string_type_node := ast_node { type = .type, value = "[slice]" }
     append(&string_type_node.children, ast_node { type = .type, value = "i8" })
-    module.ctx.identifiers["string"] = string_type_node
-
-    syscall := ast_node { type = .identifier, value = "syscall" }
-    append(&syscall.children, ast_node { type = .type, value = "[procedure]", allocator = "static", directive = "#extern" })
-    append(&syscall.children[0].children, ast_node { type = .type, value = "[parameters]" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "syscall_num" })
-    append(&syscall.children[0].children[0].children[0].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg0" })
-    append(&syscall.children[0].children[0].children[1].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg1" })
-    append(&syscall.children[0].children[0].children[2].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg2" })
-    append(&syscall.children[0].children[0].children[3].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg3" })
-    append(&syscall.children[0].children[0].children[4].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg4" })
-    append(&syscall.children[0].children[0].children[5].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children[0].children, ast_node { type = .identifier, value = "arg5" })
-    append(&syscall.children[0].children[0].children[6].children, ast_node { type = .type, value = "i64" })
-    append(&syscall.children[0].children, ast_node { type = .type, value = "i64" })
-    module.ctx.identifiers["syscall"] = syscall
+    ctx.identifiers["string"] = string_type_node
 
     import_proc := ast_node { type = .identifier, value = "import" }
     append(&import_proc.children, ast_node { type = .type, value = "[procedure]", allocator = "static" })
     append(&import_proc.children[0].children, ast_node { type = .type, value = "[parameters]" })
     append(&import_proc.children[0].children[0].children, ast_node { type = .identifier, value = "name" })
-    append(&import_proc.children[0].children[0].children[0].children, module.ctx.identifiers["string"])
+    append(&import_proc.children[0].children[0].children[0].children, ctx.identifiers["string"])
     append(&import_proc.children[0].children, ast_node { type = .type, value = "[module]" })
-    module.ctx.identifiers["import"] = import_proc
+    ctx.identifiers["import"] = import_proc
 
     cmpxchg := ast_node { type = .identifier, value = "cmpxchg" }
     append(&cmpxchg.children, ast_node { type = .type, value = "[procedure]", allocator = "static" })
@@ -78,70 +60,94 @@ type_check_module :: proc(module: ^module) -> bool
     append(&cmpxchg.children[0].children[0].children, ast_node { type = .identifier, value = "replacement" })
     append(&cmpxchg.children[0].children[0].children[2].children, ast_node { type = .type, value = "i32" })
     append(&cmpxchg.children[0].children, ast_node { type = .type, value = "bool" })
-    module.ctx.identifiers["cmpxchg"] = cmpxchg
+    ctx.identifiers["cmpxchg"] = cmpxchg
 
-    for &node in module.nodes
+    for &statement in ctx.program.procedures[ctx.module_name].statements
     {
-        if node.type == .assignment && len(node.children) > 1
-        {
-            rhs_node := &node.children[2]
-            if rhs_node.type == .call && rhs_node.children[0].value == "import"
-            {
-                lhs_node := &node.children[0]
-                reference := lhs_node.value
-                name := strings.concatenate({ "stdlib/", reference, ".bang" })
-
-                src_data, src_ok := os.read_entire_file(name)
-                if !src_ok
-                {
-                    fmt.printfln("Failed to read module file %s", name)
-                    return false
-                }
-
-                import_module(name, string(src_data)) or_return
-
-                module.ctx.references[reference] = name
-            }
-        }
-    }
-
-    for &node in module.nodes
-    {
-        resolve_types(&node, &module.ctx)
-
-        if node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
-        {
-            lhs_node := &node.children[0]
-            rhs_node := &node.children[2]
-
-            name := lhs_node.value
-            lhs_node^ = rhs_node^
-            module.ctx.identifiers[name] = lhs_node^
-        }
-    }
-
-    for &node in module.nodes
-    {
-        if node.type == .assignment
-        {
-            lhs_node := &node.children[0]
-            lhs_type_node := get_type(lhs_node)
-            if !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
-            {
-                lhs_type_node.allocator = "static"
-                module.ctx.identifiers[lhs_node.value] = lhs_node^
-            }
-        }
-    }
-
-    for &node in module.nodes
-    {
-        if node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
+        if !is_import_statement(&statement)
         {
             continue
         }
 
-        type_check_statement(&node, &module.ctx) or_return
+        lhs_node := &statement.children[0]
+        reference := lhs_node.value
+        name := strings.concatenate({ "stdlib/", reference, ".bang" })
+
+        src_data, src_ok := os.read_entire_file(name)
+        if !src_ok
+        {
+            fmt.printfln("Failed to read module file %s", name)
+            return false
+        }
+
+        import_module(ctx.program, name, string(src_data)) or_return
+
+        module := &ctx.program.modules[ctx.module_name]
+        module.imports[reference] = name
+    }
+
+    for &statement in ctx.program.procedures[ctx.module_name].statements
+    {
+        resolve_types(&statement, ctx)
+
+        if !is_type_alias_statement(&statement)
+        {
+            continue
+        }
+
+        lhs_node := &statement.children[0]
+        rhs_node := &statement.children[2]
+
+        name := lhs_node.value
+        lhs_node^ = rhs_node^
+        ctx.identifiers[name] = lhs_node^
+    }
+
+    procedure_names: [dynamic]string
+    for &statement in ctx.program.procedures[ctx.module_name].statements
+    {
+        if !is_procedure_statement(&statement)
+        {
+            continue
+        }
+
+        lhs_node := &statement.children[0]
+        lhs_type_node := get_type(lhs_node)
+
+        lhs_type_node.allocator = "static"
+        ctx.identifiers[lhs_node.value] = lhs_node^
+
+        procedure: procedure
+        append(&procedure.statements, statement)
+        ctx.program.procedures[lhs_node.value] = procedure
+
+        append(&procedure_names, lhs_node.value)
+    }
+
+    main_procedure := &ctx.program.procedures[ctx.module_name]
+    for &statement in main_procedure.statements
+    {
+        if is_type_alias_statement(&statement) || is_procedure_statement(&statement)
+        {
+            continue
+        }
+
+        type_check_statement(&statement, ctx) or_return
+    }
+
+    module := &ctx.program.modules[ctx.module_name]
+    module.identifiers = ctx.identifiers
+
+    for procedure_name in procedure_names
+    {
+        procedure := &ctx.program.procedures[procedure_name]
+        procedure_ctx := copy_type_checking_context(ctx, false)
+        procedure_ctx.procedure_name = procedure_name
+
+        for &statement in procedure.statements
+        {
+            type_check_statement(&statement, &procedure_ctx) or_return
+        }
     }
 
     return true
@@ -199,7 +205,7 @@ type_check_if :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 
 type_check_for :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
-    for_ctx := copy_type_checking_context(ctx^, true)
+    for_ctx := copy_type_checking_context(ctx, true)
 
     child_index := 0
     child_node := &node.children[child_index]
@@ -236,7 +242,8 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
     if len(node.children) > 0
     {
-        procedure_node := &ctx.procedure
+        // TODO does not work for main procedure...
+        procedure_node := &ctx.program.procedures[ctx.procedure_name].statements[0].children[0]
         procedure_type_node := get_type(procedure_node)
 
         expression_node := &node.children[0]
@@ -248,7 +255,7 @@ type_check_return :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 
 type_check_scope :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
-    scope_ctx := copy_type_checking_context(ctx^, true)
+    scope_ctx := copy_type_checking_context(ctx, true)
 
     for &child_node in node.children
     {
@@ -279,13 +286,10 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 return false
             }
 
-            procedure_ctx := copy_type_checking_context(ctx^)
-            procedure_ctx.procedure = lhs_node^
-
             params_type_node := lhs_type_node.children[0]
             for param_node in params_type_node.children
             {
-                procedure_ctx.identifiers[param_node.value] = param_node
+                ctx.identifiers[param_node.value] = param_node
             }
 
             return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil
@@ -299,7 +303,7 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
                 rhs_node^ = return_node
             }
 
-            type_check_statement(rhs_node, &procedure_ctx) or_return
+            type_check_statement(rhs_node, ctx) or_return
         }
         else
         {
@@ -637,22 +641,30 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
                     append(&node.children, ctx.identifiers["i64"])
                 }
             case "[module]":
-                if !(child_node.value in ctx.references)
+                module := &ctx.program.modules[ctx.module_name]
+                if !(child_node.value in module.imports)
                 {
                     fmt.println("Failed to type check primary")
                     file_error(fmt.aprintf("Module '%s' has not been imported in", child_node.value), node.file_info)
                     return false
                 }
 
-                module := &imported_modules[ctx.references[child_node.value]]
-                if !(node.value in module.ctx.identifiers)
+                imported_module := &ctx.program.modules[module.imports[child_node.value]]
+                if !(node.value in imported_module.identifiers)
                 {
                     fmt.println("Failed to type check primary")
                     file_error(fmt.aprintf("'%s' is not a member in", node.value), node.file_info)
                     return false
                 }
 
-                append(&node.children, get_type(&module.ctx.identifiers[node.value])^)
+                type_node := get_type(&imported_module.identifiers[node.value])
+                if type_node.value == "[procedure]" && type_node.allocator == "static"
+                {
+                    procedure := &ctx.program.procedures[ctx.procedure_name]
+                    append(&procedure.references, node.value)
+                }
+
+                append(&node.children, type_node^)
             case "[struct]":
                 found_member := false
                 for &member_node in child_type_node.children
@@ -679,11 +691,14 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         }
         else if node.value in ctx.identifiers
         {
-            append(&node.children, get_type(&ctx.identifiers[node.value])^)
-        }
-        else if node.value in ctx.references
-        {
-            append(&node.children, ast_node {  type = .type, value = "[module]"})
+            type_node := get_type(&ctx.identifiers[node.value])
+            if type_node.value == "[procedure]" && type_node.allocator == "static"
+            {
+                procedure := &ctx.program.procedures[ctx.procedure_name]
+                append(&procedure.references, node.value)
+            }
+
+            append(&node.children, type_node^)
         }
         else if !allow_undefined
         {
@@ -861,26 +876,25 @@ type_check_call :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
     return true
 }
 
-copy_type_checking_context := proc(ctx: type_checking_context, inline := false) -> type_checking_context
+copy_type_checking_context := proc(ctx: ^type_checking_context, inline: bool) -> type_checking_context
 {
     ctx_copy: type_checking_context
-    for key in ctx.references
+
+    ctx_copy.program = ctx.program
+    ctx_copy.module_name = ctx.module_name
+
+    if inline
     {
-        ctx_copy.references[key] = ctx.references[key]
+        ctx_copy.procedure_name = ctx.procedure_name
     }
 
     for key in ctx.identifiers
     {
         identifier_node := &ctx.identifiers[key]
-        if inline || is_type(identifier_node) || get_type(identifier_node).value == "[procedure]"
+        if inline || is_type(identifier_node) || get_type(identifier_node).value == "[module]" || get_type(identifier_node).value == "[procedure]"
         {
             ctx_copy.identifiers[key] = ctx.identifiers[key]
         }
-    }
-
-    if inline
-    {
-        ctx_copy.procedure = ctx.procedure
     }
 
     return ctx_copy
@@ -1131,12 +1145,13 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
         if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
         {
             child_node := &node.children[0]
-            if child_node.value in ctx.references
+            module := &ctx.program.modules[ctx.module_name]
+            if child_node.value in module.imports
             {
-                module := &imported_modules[ctx.references[child_node.value]]
-                if node.value in module.ctx.identifiers
+                imported_module := &ctx.program.modules[module.imports[child_node.value]]
+                if node.value in imported_module.identifiers
                 {
-                    identifier_node := &module.ctx.identifiers[node.value]
+                    identifier_node := &imported_module.identifiers[node.value]
                     if is_type(identifier_node)
                     {
                         node^ = identifier_node^
@@ -1214,4 +1229,32 @@ auto_dereference :: proc(node: ^ast_node)
 
     // TODO not sure if this best, propagates #boundless
     get_type(node).directive = type_node.directive
+}
+
+is_import_statement :: proc(node: ^ast_node) -> bool
+{
+    if node.type == .assignment && len(node.children) > 1
+    {
+        rhs_node := &node.children[2]
+        return rhs_node.type == .call && rhs_node.children[0].value == "import"
+    }
+
+    return false
+}
+
+is_type_alias_statement :: proc(node: ^ast_node) -> bool
+{
+   return node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
+}
+
+is_procedure_statement :: proc(node: ^ast_node) -> bool
+{
+    if node.type == .assignment
+    {
+        lhs_node := &node.children[0]
+        lhs_type_node := get_type(lhs_node)
+        return !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+    }
+
+    return false
 }

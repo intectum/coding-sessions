@@ -1077,6 +1077,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     stdlib.assert((var2 - var1) / var0 == 1, "")
   `
 
+  // TODO other simd operations and i64
   // TODO unknown identifier as type
   // TODO value used as type
   // TODO type used as value
