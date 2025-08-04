@@ -15,6 +15,7 @@ token_type :: enum
   ampersand_ampersand,
   asterisk,
   asterisk_equals,
+  at,
   backslash,
   backslash_equals,
   boolean,

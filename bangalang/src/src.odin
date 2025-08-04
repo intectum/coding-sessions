@@ -1,5 +1,7 @@
 package main
 
+import "core:fmt"
+
 src_stream :: struct
 {
   src: string,
@@ -64,4 +66,16 @@ next_string :: proc(stream: ^src_stream, count: int) -> string
   }
 
   return next_runes
+}
+
+file_info :: struct
+{
+  name: string,
+  line_number: int,
+  column_number: int
+}
+
+file_error :: proc(message: string, file_info: file_info)
+{
+  fmt.printfln("%s file %s at line %i, column %i", message, file_info.name, file_info.line_number, file_info.column_number)
 }

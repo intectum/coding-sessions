@@ -5,54 +5,43 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-file_info :: struct
-{
-  name: string,
-  line_number: int,
-  column_number: int
-}
-
-file_error :: proc(message: string, file_info: file_info)
-{
-  fmt.printfln("%s file %s at line %i, column %i", message, file_info.name, file_info.line_number, file_info.column_number)
-}
-
 tokenize :: proc(name: string, src: string, tokens: ^[dynamic]token) -> bool
 {
   stream := src_stream { src, 0, { name, 1, 1 } }
 
   fixed_token_types: map[string]token_type
   fixed_token_types["&&"] = .ampersand_ampersand
-  fixed_token_types["("] = .opening_bracket
-  fixed_token_types[")"] = .closing_bracket
-  fixed_token_types["<"] = .opening_angle_bracket
-  fixed_token_types["<="] = .opening_angle_bracket_equals
+  fixed_token_types["*"] = .asterisk
+  fixed_token_types["*="] = .asterisk_equals
+  fixed_token_types["@"] = .at
+  fixed_token_types["/"] = .backslash
+  fixed_token_types["/="] = .backslash_equals
   fixed_token_types[">"] = .closing_angle_bracket
   fixed_token_types[">="] = .closing_angle_bracket_equals
-  fixed_token_types["["] = .opening_square_bracket
-  fixed_token_types["]"] = .closing_square_bracket
-  fixed_token_types["{"] = .opening_curly_bracket
+  fixed_token_types[")"] = .closing_bracket
   fixed_token_types["}"] = .closing_curly_bracket
+  fixed_token_types["]"] = .closing_square_bracket
   fixed_token_types[":"] = .colon
+  fixed_token_types[","] = .comma
+  fixed_token_types["->"] = .dash_greater_than
   fixed_token_types["="] = .equals
   fixed_token_types["=="] = .equals_equals
   fixed_token_types["!"] = .exclamation
   fixed_token_types["!="] = .exclamation_equals
-  fixed_token_types["+"] = .plus
-  fixed_token_types["+="] = .plus_equals
+  fixed_token_types["^"] = .hat
   fixed_token_types["-"] = .minus
   fixed_token_types["-="] = .minus_equals
-  fixed_token_types["*"] = .asterisk
-  fixed_token_types["*="] = .asterisk_equals
-  fixed_token_types["/"] = .backslash
-  fixed_token_types["/="] = .backslash_equals
+  fixed_token_types["<"] = .opening_angle_bracket
+  fixed_token_types["<="] = .opening_angle_bracket_equals
+  fixed_token_types["("] = .opening_bracket
+  fixed_token_types["{"] = .opening_curly_bracket
+  fixed_token_types["["] = .opening_square_bracket
   fixed_token_types["%"] = .percent
   fixed_token_types["%="] = .percent_equals
   fixed_token_types["."] = .period
   fixed_token_types["||"] = .pipe_pipe
-  fixed_token_types[","] = .comma
-  fixed_token_types["^"] = .hat
-  fixed_token_types["->"] = .dash_greater_than
+  fixed_token_types["+"] = .plus
+  fixed_token_types["+="] = .plus_equals
 
   for peek_rune(&stream) != 0
   {

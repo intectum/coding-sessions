@@ -138,6 +138,23 @@ generate_program :: proc(ctx: ^gen_context, asm_path: string)
         final_cstring, _ := strings.replace_all(data_section_cstring, "\\n", "\", 10, \"")
         fmt.fprintfln(file, "  cstring_%i: db %s, 0", index, final_cstring)
     }
+
+    generate_static_vars(file, main_procedure.statements[:], ctx)
+}
+
+generate_static_vars :: proc(file: os.Handle, statements: []ast_node, ctx: ^gen_context)
+{
+    for &statement in statements
+    {
+        if is_static_assignment_statement(&statement) && !is_static_procedure_statement(&statement)
+        {
+            lhs_node := &statement.children[0]
+            rhs_node := &statement.children[2]
+
+            size := byte_size_of(get_type(lhs_node))
+            fmt.fprintfln(file, "  %s: %s %s", lhs_node.value, to_define_size(size), rhs_node.value)
+        }
+    }
 }
 
 generate_procedures :: proc(file: os.Handle, procedure_names: ^[dynamic]string, ctx: ^gen_context, generated_procedure_names: ^[dynamic]string)
@@ -206,7 +223,7 @@ generate_statements :: proc(file: os.Handle, ctx: ^gen_context)
         main_procedure := &ctx.program.procedures[module_name]
         for &statement in main_procedure.statements
         {
-            if is_import_statement(&statement) || is_type_alias_statement(&statement) || is_procedure_statement(&statement)
+            if is_import_statement(&statement) || is_type_alias_statement(&statement) || is_static_assignment_statement(&statement)
             {
                 continue
             }
@@ -418,9 +435,23 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     fmt.fprintln(file, "  ; assignment")
 
+    allocator := get_allocator(lhs_node)
+
     if lhs_node.type == .identifier && !is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
     {
-        allocate(file, byte_size_of(lhs_type_node), ctx)
+        if allocator == "heap"
+        {
+            allocate_heap(file, byte_size_of(&lhs_type_node.children[0]), ctx)
+        }
+        else if allocator == "stack"
+        {
+            allocate_stack(file, byte_size_of(lhs_type_node), ctx)
+        }
+        else
+        {
+            assert(false, "Failed to generate assignment")
+        }
+
         ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
     }
 
@@ -428,7 +459,10 @@ generate_assignment :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context)
 
     if len(node.children) == 1
     {
-        nilify(file, lhs_location, lhs_type_node)
+        if allocator == "stack"
+        {
+            nilify(file, lhs_location, lhs_type_node)
+        }
     }
     else
     {
@@ -1016,7 +1050,7 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
 
         if type_node.value == "[slice]"
         {
-            allocate(file, byte_size_of(type_node), ctx)
+            allocate_stack(file, byte_size_of(type_node), ctx)
             slice_address_location := memory("rsp", 0)
             slice_length_location := memory("rsp", address_size)
 
@@ -1055,9 +1089,13 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
     case .call:
         return generate_call(file, node, ctx, register_num, child_location, false)
     case .identifier:
-        if type_node.allocator == "static"
+        if is_static_procedure(node)
         {
             return immediate(node.value)
+        }
+        else if get_allocator(node) == "static"
+        {
+            return memory(node.value, 0)
         }
 
         if is_member(node)
@@ -1128,7 +1166,7 @@ generate_primary :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, re
     case .boolean:
         return immediate(node.value == "true" ? 1 : 0)
     case .compound_literal:
-        allocate(file, byte_size_of(type_node), ctx)
+        allocate_stack(file, byte_size_of(type_node), ctx)
 
         if type_node.value == "[struct]"
         {
@@ -1243,7 +1281,7 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         return_only_call_stack_size += misalignment
     }
 
-    allocate(file, call_stack_size, ctx)
+    allocate_stack(file, call_stack_size, ctx)
 
     if procedure_type_node.directive == "#extern"
     {
@@ -1303,7 +1341,7 @@ generate_call :: proc(file: os.Handle, node: ^ast_node, ctx: ^gen_context, regis
         fmt.fprintfln(file, "  call %s ; call procedure (%s)", operand(child_location), procedure_node.value)
     }
 
-    deallocate(file, call_stack_size, ctx)
+    deallocate_stack(file, call_stack_size, ctx)
 
     if return_type_node == nil
     {
@@ -1518,7 +1556,7 @@ close_gen_context :: proc(file: os.Handle, parent_ctx: ^gen_context, ctx: ^gen_c
     if stack_size > 0
     {
         fmt.fprintfln(file, "  ; close %s", name)
-        deallocate(file, stack_size, ctx)
+        deallocate_stack(file, stack_size, ctx)
     }
 }
 
@@ -1732,7 +1770,25 @@ byte_size_of :: proc(type_node: ^ast_node) -> int
     return 0
 }
 
-allocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
+allocate_heap :: proc(file: os.Handle, size: int, ctx: ^gen_context)
+{
+    if size > 0
+    {
+        allocate_stack(file, address_size, ctx)
+
+        fmt.fprintln(file, "  mov rax, 9 ; allocate (heap): syscall_num")
+        fmt.fprintln(file, "  mov rdi, 0 ; allocate (heap): address")
+        fmt.fprintfln(file, "  mov rsi, %i ; allocate (heap): length", size)
+        fmt.fprintln(file, "  mov rdx, 0x3 ; allocate (heap): prot") // PROT_READ | PROT_WRITE
+        fmt.fprintln(file, "  mov r10, 0x22 ; allocate (heap): flags") // MAP_PRIVATE | MAP_ANONYMOUS
+        fmt.fprintln(file, "  mov r8, -1 ; allocate (heap): file_descriptor")
+        fmt.fprintln(file, "  mov r9, 0 ; allocate (heap): offset")
+        fmt.fprintln(file, "  syscall ; allocate (heap)")
+        fmt.fprintln(file, "  mov [rsp], rax ; allocate (heap): assign pointer")
+    }
+}
+
+allocate_stack :: proc(file: os.Handle, size: int, ctx: ^gen_context)
 {
     if size > 0
     {
@@ -1741,7 +1797,7 @@ allocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
     }
 }
 
-deallocate :: proc(file: os.Handle, size: int, ctx: ^gen_context)
+deallocate_stack :: proc(file: os.Handle, size: int, ctx: ^gen_context)
 {
     if size > 0
     {
@@ -1811,4 +1867,18 @@ nilify :: proc(file: os.Handle, location: location, type_node: ^ast_node)
     fmt.fprintfln(file, "  mov rcx, %i ; nil: count", byte_size_of(type_node))
     fmt.fprintln(file, "  mov rax, 0 ; nil: value")
     fmt.fprintln(file, "  rep stosb ; nil")
+}
+
+to_define_size :: proc(size: int) -> string
+{
+    switch size
+    {
+    case 1: return "db"
+    case 2: return "dw"
+    case 4: return "dd"
+    case 8: return "dq"
+    }
+
+    assert(false, "Unsupported define size")
+    return ""
 }

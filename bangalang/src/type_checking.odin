@@ -42,7 +42,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     ctx.identifiers["string"] = string_type_node
 
     import_proc := ast_node { type = .identifier, value = "import" }
-    append(&import_proc.children, ast_node { type = .type, value = "[procedure]", allocator = "static" })
+    append(&import_proc.children, ast_node { type = .type, value = "[procedure]" })
     append(&import_proc.children[0].children, ast_node { type = .type, value = "[parameters]" })
     append(&import_proc.children[0].children[0].children, ast_node { type = .identifier, value = "name" })
     append(&import_proc.children[0].children[0].children[0].children, ctx.identifiers["string"])
@@ -50,7 +50,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     ctx.identifiers["import"] = import_proc
 
     cmpxchg := ast_node { type = .identifier, value = "cmpxchg" }
-    append(&cmpxchg.children, ast_node { type = .type, value = "[procedure]", allocator = "static" })
+    append(&cmpxchg.children, ast_node { type = .type, value = "[procedure]" })
     append(&cmpxchg.children[0].children, ast_node { type = .type, value = "[parameters]" })
     append(&cmpxchg.children[0].children[0].children, ast_node { type = .identifier, value = "value" })
     append(&cmpxchg.children[0].children[0].children[0].children, ast_node { type = .reference })
@@ -106,7 +106,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     procedure_names: [dynamic]string
     for &statement in ctx.program.procedures[ctx.module_name].statements
     {
-        if !is_procedure_statement(&statement)
+        if !is_static_procedure_statement(&statement)
         {
             continue
         }
@@ -114,7 +114,6 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
         lhs_node := &statement.children[0]
         lhs_type_node := get_type(lhs_node)
 
-        lhs_type_node.allocator = "static"
         ctx.identifiers[lhs_node.value] = lhs_node^
 
         procedure: procedure
@@ -127,7 +126,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     main_procedure := &ctx.program.procedures[ctx.module_name]
     for &statement in main_procedure.statements
     {
-        if is_type_alias_statement(&statement) || is_procedure_statement(&statement)
+        if is_type_alias_statement(&statement) || is_static_procedure_statement(&statement)
         {
             continue
         }
@@ -287,8 +286,9 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
             }
 
             params_type_node := lhs_type_node.children[0]
-            for param_node in params_type_node.children
+            for &param_node in params_type_node.children
             {
+                get_type(&param_node).allocator = "stack"
                 ctx.identifiers[param_node.value] = param_node
             }
 
@@ -378,6 +378,34 @@ type_check_assignment :: proc(node: ^ast_node, ctx: ^type_checking_context) -> b
 
     if !is_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
     {
+        allocator := get_allocator(lhs_node)
+        if allocator == "heap"
+        {
+            if lhs_type_node.type != .reference
+            {
+                fmt.println("Failed to type check assignment")
+                fmt.printfln("Cannot allocate non-reference type '%s' with allocator '%s' at line %i, column %i", lhs_type_node.value, allocator, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
+                return false
+            }
+        }
+        else if allocator == "static"
+        {
+            _, integer_type := slice.linear_search(integer_types, lhs_type_node.value)
+            if !integer_type
+            {
+                fmt.println("Failed to type check assignment")
+                fmt.printfln("Cannot allocate non-integer type '%s' with allocator '%s' at line %i, column %i", lhs_type_node.value, allocator, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
+                return false
+            }
+
+            if len(node.children) == 1 || node.children[2].type != .number
+            {
+                fmt.println("Failed to type check assignment")
+                fmt.printfln("Must explicitly assign integer literal when using allocator '%s' at line %i, column %i", allocator, lhs_node.file_info.line_number, lhs_node.file_info.column_number)
+                return false
+            }
+        }
+
         ctx.identifiers[lhs_node.value] = lhs_node^
     }
 
@@ -390,7 +418,7 @@ type_check_lhs_expression :: proc(node: ^ast_node, ctx: ^type_checking_context) 
     {
         type_node := get_type(node)
 
-        if type_node != nil && (type_node.value != "[procedure]" || type_node.allocator != "static")
+        if type_node != nil && !is_static_procedure(node)
         {
             fmt.println("Failed to type check left-hand-side expression")
             file_error(fmt.aprintf("Cannot redefine type of '%s' in", node.value), node.file_info)
@@ -657,14 +685,14 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
                     return false
                 }
 
-                type_node := get_type(&imported_module.identifiers[node.value])
-                if type_node.value == "[procedure]" && type_node.allocator == "static"
+                identifier_node := &imported_module.identifiers[node.value]
+                if is_static_procedure(identifier_node)
                 {
                     procedure := &ctx.program.procedures[ctx.procedure_name]
                     append(&procedure.references, node.value)
                 }
 
-                append(&node.children, type_node^)
+                append(&node.children, get_type(identifier_node)^)
             case "[struct]":
                 found_member := false
                 for &member_node in child_type_node.children
@@ -691,14 +719,14 @@ type_check_primary :: proc(node: ^ast_node, ctx: ^type_checking_context, allow_u
         }
         else if node.value in ctx.identifiers
         {
-            type_node := get_type(&ctx.identifiers[node.value])
-            if type_node.value == "[procedure]" && type_node.allocator == "static"
+            identifier_node := &ctx.identifiers[node.value]
+            if is_static_procedure(identifier_node)
             {
                 procedure := &ctx.program.procedures[ctx.procedure_name]
                 append(&procedure.references, node.value)
             }
 
-            append(&node.children, type_node^)
+            append(&node.children, get_type(identifier_node)^)
         }
         else if !allow_undefined
         {
@@ -1140,6 +1168,8 @@ upgrade_types :: proc(node: ^ast_node, new_type_node: ^ast_node, ctx: ^type_chec
 
 resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
 {
+    allocator := node.allocator
+
     if node.type == .identifier || node.type == .type
     {
         if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
@@ -1155,6 +1185,7 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
                     if is_type(identifier_node)
                     {
                         node^ = identifier_node^
+                        node.allocator = allocator
                         return true
                     }
                 }
@@ -1166,6 +1197,7 @@ resolve_types :: proc(node: ^ast_node, ctx: ^type_checking_context) -> bool
             if is_type(identifier_node)
             {
                 node^ = identifier_node^
+                node.allocator = allocator
                 return true
             }
         }
@@ -1247,14 +1279,44 @@ is_type_alias_statement :: proc(node: ^ast_node) -> bool
    return node.type == .assignment && len(node.children) > 1 && is_type(&node.children[2])
 }
 
-is_procedure_statement :: proc(node: ^ast_node) -> bool
+is_static_procedure_statement :: proc(node: ^ast_node) -> bool
 {
-    if node.type == .assignment
+    return node.type == .assignment && is_static_procedure(&node.children[0])
+}
+
+is_static_assignment_statement :: proc(node: ^ast_node) -> bool
+{
+    return node.type == .assignment && get_allocator(&node.children[0]) == "static"
+}
+
+is_static_procedure :: proc(node: ^ast_node) -> bool
+{
+    if is_member(node) && get_type(&node.children[0]).value != "[module]"
     {
-        lhs_node := &node.children[0]
-        lhs_type_node := get_type(lhs_node)
-        return !is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+        return false
     }
 
-    return false
+    type_node := get_type(node)
+    if type_node == nil || type_node.value != "[procedure]"
+    {
+        return false
+    }
+
+    return get_allocator(node) == "static"
+}
+
+get_allocator :: proc(identifier_node: ^ast_node) -> string
+{
+    type_node := get_type(identifier_node)
+    if type_node.allocator != ""
+    {
+        return type_node.allocator
+    }
+
+    if is_member(identifier_node) && get_type(&identifier_node.children[0]).value != "[module]"
+    {
+        return get_allocator(&identifier_node.children[0])
+    }
+
+    return type_node.value == "[procedure]" ? "static" : "stack"
 }

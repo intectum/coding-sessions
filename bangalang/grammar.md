@@ -7,7 +7,7 @@ for\ &\to\ \text{"for"}\ \text{"("}?\ (\ statement\ \&\ !rhs\_expression\ \text{
 scope\ &\to\ \text{"\{"}\ statement*\ \text{"\}"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression\\
 assignment\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"+="}\ |\ \text{"-="}\ |\ \text{"*="}\ |\ \text{"/="}\ |\ \text{"%="}\ )\ statement\ )?\\
-lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ )?\\
+lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ (\ \text{"@"}\ identifier\ )?\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"||"}\ |\ \text{"%%"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
 rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression?\ \text{":"}\ rhs\_expression?\ )\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ boolean\_literal\ |\ number\_literal\ |\ string\_literal\ |\ compound\_literal\ |\ \text{"nil"}\\

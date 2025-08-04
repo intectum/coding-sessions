@@ -267,6 +267,14 @@ parse_lhs_expression :: proc(stream: ^token_stream) -> (node: ast_node, ok: bool
         next_token(stream, .colon) or_return
 
         type_node := parse_primary(stream, .type) or_return
+
+        if peek_token(stream).type == .at
+        {
+            next_token(stream, .at) or_return
+
+            type_node.allocator = (next_token(stream, .identifier) or_return).value
+        }
+
         append(&node.children, type_node)
     }
 
