@@ -1,12 +1,14 @@
-package main
+package tokens
 
 import "core:fmt"
+
+import "../src"
 
 token :: struct
 {
   type: token_type,
   value: string,
-  file_info: file_info
+  src_position: src.position
 }
 
 token_type :: enum
@@ -56,17 +58,17 @@ token_type :: enum
 
 keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
 
-assignment_operator_token_types: []token_type = { .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .plus_equals }
-binary_operator_token_types: []token_type = { .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe_pipe, .plus }
+assignment_operators: []token_type = { .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .plus_equals }
+binary_operators: []token_type = { .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe_pipe, .plus }
 
-token_stream :: struct
+stream :: struct
 {
   tokens: []token,
   next_index: int,
   error: string
 }
 
-peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
+peek_token :: proc(stream: ^stream, offset: int = 0) -> token
 {
   if stream.next_index + offset >= len(stream.tokens)
   {
@@ -76,19 +78,19 @@ peek_token :: proc(stream: ^token_stream, offset: int = 0) -> token
   return stream.tokens[stream.next_index + offset]
 }
 
-next_token :: proc(stream: ^token_stream, type: token_type, value: string = "") -> (token, bool)
+next_token :: proc(stream: ^stream, type: token_type, value: string = "") -> (token, bool)
 {
   next_token := peek_token(stream)
 
   if next_token.type != type
   {
-    stream.error = fmt.aprintf("Expected type: %s, Found type: %s", type, next_token.type)
+    stream.error = src.to_position_message(next_token.src_position, "Invalid token (expected type: %s, found type: %s)", type, next_token.type)
     return {}, false
   }
 
   if value != "" && next_token.value != value
   {
-    stream.error = fmt.aprintf("Expected: %s, Found: %s", value, next_token.value)
+    stream.error = src.to_position_message(next_token.src_position, "Invalid token (expected: '%s', found: '%s')", value, next_token.value)
     return {}, false
   }
 

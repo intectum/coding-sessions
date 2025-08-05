@@ -5,6 +5,8 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
+import "./type_checking"
+
 non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "multiply", "multiply_assign", "divide", "divide_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
 
 run_test_suite :: proc() -> (failed_tests: [dynamic]string)
@@ -1092,25 +1094,25 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   for value_test in value_tests
   {
-    bool_src, _ := strings.replace_all(value_tests[value_test], "<type>", "bool")
-    bool_src, _ = strings.replace_all(bool_src, "<value0>", "true")
-    bool_src, _ = strings.replace_all(bool_src, "<value1>", "false")
-    if !run_test(value_test, bool_src)
+    bool_code, _ := strings.replace_all(value_tests[value_test], "<type>", "bool")
+    bool_code, _ = strings.replace_all(bool_code, "<value0>", "true")
+    bool_code, _ = strings.replace_all(bool_code, "<value1>", "false")
+    if !run_test(value_test, bool_code)
     {
       append(&failed_tests, fmt.aprintf("%s (%s)", value_test, "bool"))
     }
 
-    for numerical_type in numerical_types
+    for numerical_type in type_checking.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
         continue
       }
 
-      numerical_src, _ := strings.replace_all(value_tests[value_test], "<type>", numerical_type)
-      numerical_src, _ = strings.replace_all(numerical_src, "<value0>", "1")
-      numerical_src, _ = strings.replace_all(numerical_src, "<value1>", "2")
-      if !run_test(value_test, numerical_src)
+      numerical_code, _ := strings.replace_all(value_tests[value_test], "<type>", numerical_type)
+      numerical_code, _ = strings.replace_all(numerical_code, "<value0>", "1")
+      numerical_code, _ = strings.replace_all(numerical_code, "<value1>", "2")
+      if !run_test(value_test, numerical_code)
       {
         append(&failed_tests, fmt.aprintf("%s (%s)", value_test, numerical_type))
       }
@@ -1119,10 +1121,10 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   for bool_test in bool_tests
   {
-    bool_src, _ := strings.replace_all(bool_tests[bool_test], "<type>", "bool")
-    bool_src, _ = strings.replace_all(bool_src, "<value0>", "true")
-    bool_src, _ = strings.replace_all(bool_src, "<value1>", "false")
-    if !run_test(bool_test, bool_src)
+    bool_code, _ := strings.replace_all(bool_tests[bool_test], "<type>", "bool")
+    bool_code, _ = strings.replace_all(bool_code, "<value0>", "true")
+    bool_code, _ = strings.replace_all(bool_code, "<value1>", "false")
+    if !run_test(bool_test, bool_code)
     {
       append(&failed_tests, fmt.aprintf("%s (%s)", bool_test, "bool"))
     }
@@ -1130,7 +1132,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   for numerical_test in numerical_tests
   {
-    for numerical_type in numerical_types
+    for numerical_type in type_checking.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
@@ -1143,13 +1145,13 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         continue
       }
 
-      _, float_type := slice.linear_search(float_types, numerical_type)
+      _, float_type := slice.linear_search(type_checking.float_types, numerical_type)
       if float_type && (numerical_test == "modulo" || numerical_test == "modulo_assign")
       {
         continue
       }
 
-      _, atomic_integer_type := slice.linear_search(atomic_integer_types, numerical_type)
+      _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, numerical_type)
       if atomic_integer_type
       {
         _, non_atomic_integer_test := slice.linear_search(non_atomic_integer_tests, numerical_test)
@@ -1159,11 +1161,11 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         }
       }
 
-      numerical_src, _ := strings.replace_all(numerical_tests[numerical_test], "<type>", numerical_type)
-      numerical_src, _ = strings.replace_all(numerical_src, "<value0>", "2")
-      numerical_src, _ = strings.replace_all(numerical_src, "<value1>", "4")
-      numerical_src, _ = strings.replace_all(numerical_src, "<value2>", "6")
-      if !run_test(numerical_test, numerical_src)
+      numerical_code, _ := strings.replace_all(numerical_tests[numerical_test], "<type>", numerical_type)
+      numerical_code, _ = strings.replace_all(numerical_code, "<value0>", "2")
+      numerical_code, _ = strings.replace_all(numerical_code, "<value1>", "4")
+      numerical_code, _ = strings.replace_all(numerical_code, "<value2>", "6")
+      if !run_test(numerical_test, numerical_code)
       {
         append(&failed_tests, fmt.aprintf("%s (%s)", numerical_test, numerical_type))
       }
@@ -1173,8 +1175,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   return
 }
 
-run_test :: proc(name: string, src: string) -> bool
+run_test :: proc(name: string, code: string) -> bool
 {
-  build(name, src, "bin/test")
+  build(name, code, "bin/test")
   return exec("bin/test") == 0
 }

@@ -6,9 +6,13 @@ import "core:os"
 import "core:strings"
 import "core:sys/linux"
 
+import "./generation"
+import "./program"
+import "./type_checking"
+
 main :: proc()
 {
-  /*failed_tests := run_test_suite()
+  failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -17,32 +21,32 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }*/
+  }
 
   name := "examples/example_01.bang"
-  src_data, src_ok := os.read_entire_file(name)
-  if !src_ok
+  code_data, code_ok := os.read_entire_file(name)
+  if !code_ok
   {
-    fmt.println("Failed to read src file")
+    fmt.println("Failed to read module file")
     os.exit(1)
   }
 
-  run(name, string(src_data), "bin/example_01")
+  run(name, string(code_data), "bin/example_01")
 }
 
-run :: proc(name: string, src: string, out_path: string)
+run :: proc(name: string, code: string, out_path: string)
 {
-  build(name, src, out_path)
+  build(name, code, out_path)
 
   os.exit(int(exec(out_path)))
 }
 
-build :: proc(name: string, src: string, out_path: string)
+build :: proc(name: string, code: string, out_path: string)
 {
   asm_path := strings.concatenate({ out_path, ".asm" })
   object_path := strings.concatenate({ out_path, ".o" })
 
-  compile(name, src, asm_path)
+  compile(name, code, asm_path)
 
   nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
   nasm_code := exec(nasm_command)
@@ -62,16 +66,31 @@ build :: proc(name: string, src: string, out_path: string)
   }
 }
 
-compile :: proc(name: string, src: string, asm_path: string)
+compile :: proc(name: string, code: string, asm_path: string)
 {
-  program: program
-  if !import_module(&program, name, src)
+  the_program: program.program
+  if !program.load_module(&the_program, name, code)
   {
     os.exit(1)
   }
 
-  ctx: gen_context = { program = &program, procedure_name = name }
-  generate_program(&ctx, asm_path)
+  type_checking_ctx: type_checking.type_checking_context =
+  {
+    program = &the_program,
+    module_name = name,
+    procedure_name = name
+  }
+  if !type_checking.type_check_module(&type_checking_ctx)
+  {
+    os.exit(1)
+  }
+
+  gen_ctx: generation.gen_context =
+  {
+    program = &the_program,
+    procedure_name = name
+  }
+  generation.generate_program(&gen_ctx, asm_path)
 }
 
 exec :: proc(command: string) -> u32
