@@ -1,5 +1,6 @@
 package generation
 
+import "core:c"
 import "core:os"
 import "core:strconv"
 
@@ -34,7 +35,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
     }
 
     return size
-  case "cint": return 4 // TODO platform dependant
+  case "cint": return size_of(c.int)
   }
 
   assert(false, "Unsupported byte size")

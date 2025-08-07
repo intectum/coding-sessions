@@ -1,0 +1,9 @@
+link("glfw")
+
+glfwInit: #extern proc() -> cint
+glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^i8, share: ^i8) -> ^i8
+glfwMakeContextCurrent: #extern proc(window: ^i8)
+glfwWindowShouldClose: #extern proc(window: ^i8) -> cint
+glfwPollEvents: #extern proc()
+glfwSwapBuffers: #extern proc(window: ^i8)
+glfwSwapInterval: #extern proc(interval: cint)

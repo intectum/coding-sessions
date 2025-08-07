@@ -101,7 +101,7 @@ generate_program :: proc(ctx: ^gen_context, asm_path: string)
     fmt.fprintfln(file, "  cstring_%i: db %s, 0", index, final_cstring)
   }
 
-  generate_static_vars(file, main_procedure.statements[:], ctx)
+  generate_static_vars(file, ctx)
 }
 
 generate_statements :: proc(file: os.Handle, ctx: ^gen_context)
@@ -111,7 +111,7 @@ generate_statements :: proc(file: os.Handle, ctx: ^gen_context)
     main_procedure := &ctx.program.procedures[module_name]
     for &statement in main_procedure.statements
     {
-      if ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_assignment_statement(&statement)
+      if ast.is_link_statement(&statement) || ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_assignment_statement(&statement)
       {
         continue
       }
@@ -141,17 +141,21 @@ generate_procedures :: proc(file: os.Handle, procedure_names: ^[dynamic]string, 
   }
 }
 
-generate_static_vars :: proc(file: os.Handle, statements: []ast.node, ctx: ^gen_context)
+generate_static_vars :: proc(file: os.Handle, ctx: ^gen_context)
 {
-  for &statement in statements
+  for module_name in ctx.program.modules
   {
-    if ast.is_static_assignment_statement(&statement) && !ast.is_static_procedure_statement(&statement)
+    main_procedure := &ctx.program.procedures[module_name]
+    for &statement in main_procedure.statements
     {
-      lhs_node := &statement.children[0]
-      rhs_node := &statement.children[2]
+      if ast.is_static_assignment_statement(&statement) && !ast.is_static_procedure_statement(&statement)
+      {
+        lhs_node := &statement.children[0]
+        rhs_node := &statement.children[2]
 
-      size := to_byte_size(ast.get_type(lhs_node))
-      fmt.fprintfln(file, "  %s: %s %s", lhs_node.value, to_define_size(size), rhs_node.value)
+        size := to_byte_size(ast.get_type(lhs_node))
+        fmt.fprintfln(file, "  %s: %s %s", lhs_node.value, to_define_size(size), rhs_node.value)
+      }
     }
   }
 }

@@ -5,6 +5,11 @@ import "core:slice"
 import "../ast"
 import "../tokens"
 
+is_link_statement :: proc(statement: ^node) -> bool
+{
+  return statement.type == .call && statement.children[0].value == "link"
+}
+
 is_import_statement :: proc(statement: ^node) -> bool
 {
   if statement.type == .assignment && len(statement.children) > 1

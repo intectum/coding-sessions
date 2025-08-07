@@ -22,7 +22,8 @@ module :: struct
 program :: struct
 {
   modules: map[string]module,
-  procedures: map[string]procedure
+  procedures: map[string]procedure,
+  links: [dynamic]string
 }
 
 load_module :: proc(program: ^program, name: string, code: string) -> bool

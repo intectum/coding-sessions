@@ -1,0 +1,32 @@
+link("GL")
+
+GL_ARRAY_BUFFER: i32@static = 34962
+GL_COLOR_BUFFER_BIT: i32@static = 16384
+GL_COMPILE_STATUS: i32@static = 35713
+GL_FLOAT: i32@static = 5126
+GL_FRAGMENT_SHADER: i32@static = 35632
+GL_LINK_STATUS: i32@static = 35714
+GL_NO_ERROR: i32@static = 0
+GL_TRIANGLES: i32@static = 4
+GL_VERTEX_SHADER: i32@static = 35633
+
+glAttachShader: #extern proc(program: i32, shader: i32)
+glBindBuffer: #extern proc(target: i32, buffer: i32)
+glClear: #extern proc(mask: i32)
+glCompileShader: #extern proc(shader: i32)
+glCreateProgram: #extern proc() -> i32
+glCreateShader: #extern proc(shader_type: i32) -> i32
+glDrawArrays: #extern proc(mode: i32, first: i32, count: i32)
+glEnableVertexAttribArray: #extern proc(index: i32)
+glGenBuffers: #extern proc(n: i32, buffers: ^i32)
+glGetError: #extern proc() -> i32
+glGetProgramiv: #extern proc(program: i32, pname: i32, params: ^i32)
+glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: ^i8)
+glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: ^i8)
+glGetShaderiv: #extern proc(shader: i32, pname: i32, params: ^i32)
+glLinkProgram: #extern proc(program: i32)
+glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^i8
+glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^i8, flags: i32)
+glShaderSource: #extern proc(shader: i32, count: i32, src: ^cstring, length: ^i32)
+glUseProgram: #extern proc(program: i32)
+glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^i8)

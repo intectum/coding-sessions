@@ -28,9 +28,16 @@ generate_assignment :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context)
 
   if lhs_node.type == .identifier && !ast.is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
   {
-    if allocator == "heap"
+    if allocator == "heap" || allocator == "vram"
     {
-      allocate_heap(file, to_byte_size(&lhs_type_node.children[0]), ctx)
+      allocate_stack(file, to_byte_size(lhs_type_node), ctx)
+
+      rhs_node := &node.children[2]
+      param_node := &rhs_node.children[1]
+
+      // TODO a bit hacky, adds the size info to the allocator call
+      buf: [8]byte
+      param_node.value = strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
     }
     else if allocator == "stack"
     {

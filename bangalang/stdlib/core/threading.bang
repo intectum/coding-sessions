@@ -1,35 +1,12 @@
-syscall: #extern proc(syscall_num: i64, param0: i64, param1: i64, param2: i64, param3: i64, param4: i64, param5: i64) -> i64
-
-write: proc(file_descriptor: i64, message: string) =
-    syscall(1, file_descriptor, #untyped message.raw, message.length, 0, 0, 0)
-
-print: proc(message: string) = write(1, message)
-println: proc(message: string) =
-{
-    write(1, message)
-    write(1, "\n")
-}
-
-mmap: proc(address: ^i8, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^i8 =
-{
-    address_i64 = syscall(9, #untyped address, length, prot, flags, file_descriptor, offset)
-    return #untyped address_i64
-}
-
-exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
-
-gettimeofday: proc(timeval: ^i64[2]) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
-
-futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
-    syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1, 0, 0)
+linux = import("core/os/linux")
 
 mutex_lock: proc(mutex: ^i32) =
     for !cmpxchg(mutex, 0, 1)
-        futex(mutex, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
+        linux.futex(mutex, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
 
 mutex_unlock: proc(mutex: ^i32) =
     if cmpxchg(mutex, 1, 0)
-        futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+        linux.futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
 
 semaphore_t = struct
 {
@@ -43,20 +20,20 @@ semaphore_wait: proc(semaphore: ^semaphore_t) =
         semaphore.value -= 1
         if semaphore.value >= 0 return
         semaphore.value += 1
-        futex(^semaphore.waiter, 0 /* FUTEX_WAIT */, 0 /* expected */, 0 /* timeout */)
+        linux.futex(^semaphore.waiter, 0 /* FUTEX_WAIT */, 0 /* expected */, 0 /* timeout */)
     }
 
 semaphore_signal: proc(semaphore: ^semaphore_t) =
 {
     semaphore.value += 1
-    futex(^semaphore.waiter, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+    linux.futex(^semaphore.waiter, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
 }
 
 start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
     mmap_prot: i64 = 0x3 // PROT_READ | PROT_WRITE
     mmap_flags: i64 = 0x22 // MAP_PRIVATE | MAP_ANONYMOUS
-    stack = mmap(nil, 4096, mmap_prot, mmap_flags, -1, 0)
+    stack = linux.mmap(nil, 4096, mmap_prot, mmap_flags, -1, 0)
 
     stack_i64: i64 = #untyped stack
     stack_i64 += 4096
@@ -68,12 +45,12 @@ start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
     stack_i64 -= 7 * 8 // account for local vars declared before clone
 
     clone_flags: i64 = 0x10d00 // CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD
-    pid = syscall(56, clone_flags, stack_i64, 0, 0, 0, 0)
+    pid = linux.syscall(56, clone_flags, stack_i64, 0, 0, 0, 0)
 
     if pid == 0
     {
         func(arg)
-        exit(0)
+        linux.exit(0)
     }
 
     return pid
@@ -129,7 +106,7 @@ thread_pool_worker: proc(arg: i64) =
             if pool.task_count == 0 && pool.current_worker_count == 0
             {
                 pool.working = 0
-                futex(^pool.working, 1 /* FUTEX_WAKE */, 999 /* count TODO i64.max */, 0)
+                linux.futex(^pool.working, 1 /* FUTEX_WAKE */, 999 /* count TODO i64.max */, 0)
             }
             mutex_unlock(^pool.mutex)
         }
@@ -152,7 +129,7 @@ thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
 }
 
 thread_pool_wait: proc(pool: ^thread_pool) =
-    futex(^pool.working, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
+    linux.futex(^pool.working, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
 
 thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1
@@ -176,47 +153,4 @@ boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec3[], start: i64), data
 
         thread_pool_enqueue(pool, ^task)
     }
-}
-
-assert: proc(assertion: bool, message: string) =
-{
-    if !assertion
-    {
-        print("Assertion failed: ")
-        println(message)
-        exit(1)
-    }
-}
-
-itoa: proc(value: i64, buffer: i8[]) -> string =
-{
-    length: i64 = 0
-    reversed_buffer: i8[100]
-
-    if value < 0
-    {
-        reversed_buffer[length] = 45 // '-'
-
-        value = -value
-        length += 1
-    }
-    else if value == 0
-    {
-        reversed_buffer[length] = 48 // '0'
-
-        length += 1
-    }
-
-    for value > 0
-    {
-        reversed_buffer[length] = i8(value % 10) + 48 // '0'
-
-        value /= 10
-        length += 1
-    }
-
-    for index: i64, index < length, index += 1
-        buffer[index] = reversed_buffer[length - 1 - index]
-
-    return buffer[:length]
 }

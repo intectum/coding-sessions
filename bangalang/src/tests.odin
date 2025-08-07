@@ -15,7 +15,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["comments"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     uncommented_code: i8 = 1
 
@@ -39,61 +39,61 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_false_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0 = false
     if false
     {
         var0 = true
     }
-    stdlib.assert(var0 == false, "")
+    debug.assert(var0 == false, "")
   `
 
   general_tests["if_false_scope_brackets"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0 = false
     if (false)
     {
         var0 = true
     }
-    stdlib.assert(var0 == false, "")
+    debug.assert(var0 == false, "")
   `
 
   general_tests["if_true_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0 = false
     if true
     {
         var0 = true
     }
-    stdlib.assert(var0, "")
+    debug.assert(var0, "")
   `
 
   general_tests["if_false_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0 = false
     if false var0 = true
-    stdlib.assert(var0 == false, "")
+    debug.assert(var0 == false, "")
   `
 
   general_tests["if_true_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0 = false
     if true var0 = true
-    stdlib.assert(var0, "")
+    debug.assert(var0, "")
   `
 
   general_tests["if_else_true_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if true
@@ -104,12 +104,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 2
     }
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   general_tests["if_else_false_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false
@@ -120,32 +120,32 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 2
     }
-    stdlib.assert(var0 == 2, "")
+    debug.assert(var0 == 2, "")
   `
 
   general_tests["if_else_true_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if true var0 = 1
     else var0 = 2
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   general_tests["if_else_false_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false var0 = 1
     else var0 = 2
-    stdlib.assert(var0 == 2, "")
+    debug.assert(var0 == 2, "")
   `
 
   general_tests["if_else_if_true_true_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if true
@@ -160,12 +160,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 3
     }
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   general_tests["if_else_if_true_true_scope_brackets"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if (true)
@@ -180,12 +180,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 3
     }
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   general_tests["if_else_if_false_true_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false
@@ -200,12 +200,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 3
     }
-    stdlib.assert(var0 == 2, "")
+    debug.assert(var0 == 2, "")
   `
 
   general_tests["if_else_if_false_false_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false
@@ -220,45 +220,45 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     {
         var0 = 3
     }
-    stdlib.assert(var0 == 3, "")
+    debug.assert(var0 == 3, "")
   `
 
   general_tests["if_else_if_true_true_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if true var0 = 1
     else if true var0 = 2
     else var0 = 3
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   general_tests["if_else_if_false_true_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false var0 = 1
     else if true var0 = 2
     else var0 = 3
-    stdlib.assert(var0 == 2, "")
+    debug.assert(var0 == 2, "")
   `
 
   general_tests["if_else_if_false_false_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: i8 = 0
     if false var0 = 1
     else if false var0 = 2
     else var0 = 3
-    stdlib.assert(var0 == 3, "")
+    debug.assert(var0 == 3, "")
   `
 
   general_tests["for_expression_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     sum: i64 = 0
     value: i64 = 10
@@ -267,12 +267,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         sum += value
         value -= 1
     }
-    stdlib.assert(sum == 55, "")
+    debug.assert(sum == 55, "")
   `
 
   general_tests["for_pre_expression_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0
@@ -280,53 +280,53 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         sum += value
         value -= 1
     }
-    stdlib.assert(sum == 55, "")
+    debug.assert(sum == 55, "")
     value: bool // 'value' above is no longer in scope
   `
 
   general_tests["for_pre_expression_post_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0, value = value - 1
     {
         sum += value
     }
-    stdlib.assert(sum == 55, "")
+    debug.assert(sum == 55, "")
     value: bool // 'value' above is no longer in scope
   `
 
   general_tests["for_pre_expression_post_non_scope_brackets"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     sum: i64 = 0
     for (value: i64 = 10, value > 0, value = value - 1) sum += value
-    stdlib.assert(sum == 55, "")
+    debug.assert(sum == 55, "")
     value: bool // 'value' above is no longer in scope
   `
 
   general_tests["add_assign_1"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[1]
     array1[0] = 1
     array2: f32[1]
     array2[0] = 2
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
+    debug.assert(array1[0] == 3, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
+    debug.assert(slice1[0] == 5, "")
   `
 
   general_tests["add_assign_2"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[2]
     array1[0] = 1
@@ -335,19 +335,19 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[0] = 2
     array2[1] = 4
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
   `
 
   general_tests["add_assign_3"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[3]
     array1[0] = 1
@@ -358,21 +358,21 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[1] = 4
     array2[2] = 6
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
   `
 
   general_tests["add_assign_4"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[4]
     array1[0] = 1
@@ -385,23 +385,23 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[2] = 6
     array2[3] = 8
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
-    stdlib.assert(array1[3] == 12, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
+    debug.assert(array1[3] == 12, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
-    stdlib.assert(slice1[3] == 20, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
+    debug.assert(slice1[3] == 20, "")
   `
 
   general_tests["add_assign_5"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[5]
     array1[0] = 1
@@ -416,25 +416,25 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[3] = 8
     array2[4] = 10
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
-    stdlib.assert(array1[3] == 12, "")
-    stdlib.assert(array1[4] == 15, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
+    debug.assert(array1[3] == 12, "")
+    debug.assert(array1[4] == 15, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
-    stdlib.assert(slice1[3] == 20, "")
-    stdlib.assert(slice1[4] == 25, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
+    debug.assert(slice1[3] == 20, "")
+    debug.assert(slice1[4] == 25, "")
   `
 
   general_tests["add_assign_6"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[6]
     array1[0] = 1
@@ -451,27 +451,27 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[4] = 10
     array2[5] = 12
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
-    stdlib.assert(array1[3] == 12, "")
-    stdlib.assert(array1[4] == 15, "")
-    stdlib.assert(array1[5] == 18, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
+    debug.assert(array1[3] == 12, "")
+    debug.assert(array1[4] == 15, "")
+    debug.assert(array1[5] == 18, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
-    stdlib.assert(slice1[3] == 20, "")
-    stdlib.assert(slice1[4] == 25, "")
-    stdlib.assert(slice1[5] == 30, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
+    debug.assert(slice1[3] == 20, "")
+    debug.assert(slice1[4] == 25, "")
+    debug.assert(slice1[5] == 30, "")
   `
 
   general_tests["add_assign_7"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[7]
     array1[0] = 1
@@ -490,29 +490,29 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[5] = 12
     array2[6] = 14
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
-    stdlib.assert(array1[3] == 12, "")
-    stdlib.assert(array1[4] == 15, "")
-    stdlib.assert(array1[5] == 18, "")
-    stdlib.assert(array1[6] == 21, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
+    debug.assert(array1[3] == 12, "")
+    debug.assert(array1[4] == 15, "")
+    debug.assert(array1[5] == 18, "")
+    debug.assert(array1[6] == 21, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
-    stdlib.assert(slice1[3] == 20, "")
-    stdlib.assert(slice1[4] == 25, "")
-    stdlib.assert(slice1[5] == 30, "")
-    stdlib.assert(slice1[6] == 35, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
+    debug.assert(slice1[3] == 20, "")
+    debug.assert(slice1[4] == 25, "")
+    debug.assert(slice1[5] == 30, "")
+    debug.assert(slice1[6] == 35, "")
   `
 
   general_tests["add_assign_8"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     array1: f32[8]
     array1[0] = 1
@@ -533,26 +533,26 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array2[6] = 14
     array2[7] = 16
     array1 += array2
-    stdlib.assert(array1[0] == 3, "")
-    stdlib.assert(array1[1] == 6, "")
-    stdlib.assert(array1[2] == 9, "")
-    stdlib.assert(array1[3] == 12, "")
-    stdlib.assert(array1[4] == 15, "")
-    stdlib.assert(array1[5] == 18, "")
-    stdlib.assert(array1[6] == 21, "")
-    stdlib.assert(array1[7] == 24, "")
+    debug.assert(array1[0] == 3, "")
+    debug.assert(array1[1] == 6, "")
+    debug.assert(array1[2] == 9, "")
+    debug.assert(array1[3] == 12, "")
+    debug.assert(array1[4] == 15, "")
+    debug.assert(array1[5] == 18, "")
+    debug.assert(array1[6] == 21, "")
+    debug.assert(array1[7] == 24, "")
 
     slice1 = array1[:]
     slice2 = array2[:]
     slice1 += slice2
-    stdlib.assert(slice1[0] == 5, "")
-    stdlib.assert(slice1[1] == 10, "")
-    stdlib.assert(slice1[2] == 15, "")
-    stdlib.assert(slice1[3] == 20, "")
-    stdlib.assert(slice1[4] == 25, "")
-    stdlib.assert(slice1[5] == 30, "")
-    stdlib.assert(slice1[6] == 35, "")
-    stdlib.assert(slice1[7] == 40, "")
+    debug.assert(slice1[0] == 5, "")
+    debug.assert(slice1[1] == 10, "")
+    debug.assert(slice1[2] == 15, "")
+    debug.assert(slice1[3] == 20, "")
+    debug.assert(slice1[4] == 25, "")
+    debug.assert(slice1[5] == 30, "")
+    debug.assert(slice1[6] == 35, "")
+    debug.assert(slice1[7] == 40, "")
   `
 
   value_tests: map[string]string
@@ -560,523 +560,523 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO
   /*value_tests["declare"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>
-    stdlib.assert(var0 == nil, "")
+    debug.assert(var0 == nil, "")
   `*/
 
   value_tests["declare_and_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
-    stdlib.assert(var0 == <value0>, "")
+    debug.assert(var0 == <value0>, "")
   `
 
   value_tests["declare_then_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>
     var0 = <value0>
-    stdlib.assert(var0 == <value0>, "")
+    debug.assert(var0 == <value0>, "")
   `
 
   value_tests["declare_then_assign_array"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
-    stdlib.assert(var0[5] == <value0>, "")
+    debug.assert(var0[5] == <value0>, "")
   `
 
   value_tests["declare_then_assign_array_of_arrays"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
-    stdlib.assert(var0[5][5] == <value0>, "")
+    debug.assert(var0[5][5] == <value0>, "")
   `
 
   // TODO
   /*value_tests["declare_then_assign_array_of_structs"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: struct { member0: <type>, member1: <type> }[10]
     var0[5].member0 = <value0>
     var0[5].member1 = <value1>
-    stdlib.assert(var0[5].member0 == <value0>, "")
-    stdlib.assert(var0[5].member1 == <value1>, "")
+    debug.assert(var0[5].member0 == <value0>, "")
+    debug.assert(var0[5].member1 == <value1>, "")
   `*/
 
   value_tests["declare_and_assign_slice"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1 = var0[2:8]
-    stdlib.assert(var1[3] == <value0>, "")
+    debug.assert(var1[3] == <value0>, "")
   `
 
   value_tests["declare_then_assign_slice"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1: <type>[]
     var1 = var0[2:8]
-    stdlib.assert(var1[3] == <value0>, "")
+    debug.assert(var1[3] == <value0>, "")
   `
 
   value_tests["declare_and_assign_slice_from_literal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1: <type>[] = { raw = ^var0[0], length = 10 }
-    stdlib.assert(var1[5] == <value0>, "")
+    debug.assert(var1[5] == <value0>, "")
   `
 
   value_tests["declare_then_assign_slice_from_literal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1: <type>[]
     var1 = { raw = ^var0[0], length = 10 }
-    stdlib.assert(var1[5] == <value0>, "")
+    debug.assert(var1[5] == <value0>, "")
   `
 
   value_tests["declare_and_assign_slice_of_arrays"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
     var1 = var0[2:8]
-    stdlib.assert(var1[3][5] == <value0>, "")
+    debug.assert(var1[3][5] == <value0>, "")
   `
 
   value_tests["declare_then_assign_slice_of_arrays"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
     var1: <type>[10][]
     var1 = var0[2:8]
-    stdlib.assert(var1[3][5] == <value0>, "")
+    debug.assert(var1[3][5] == <value0>, "")
   `
 
   value_tests["declare_and_assign_struct"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: struct { member0: <type>, member1: <type> } = { member0 = <value0>, member1 = <value1> }
-    stdlib.assert(var0.member0 == <value0>, "")
-    stdlib.assert(var0.member1 == <value1>, "")
+    debug.assert(var0.member0 == <value0>, "")
+    debug.assert(var0.member1 == <value1>, "")
   `
 
   value_tests["declare_then_assign_struct"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: struct { member0: <type>, member1: <type> }
     var0 = { member0 = <value0>, member1 = <value1> }
-    stdlib.assert(var0.member0 == <value0>, "")
-    stdlib.assert(var0.member1 == <value1>, "")
+    debug.assert(var0.member0 == <value0>, "")
+    debug.assert(var0.member1 == <value1>, "")
   `
 
   value_tests["declare_then_assign_struct_member"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: struct { member0: <type>, member1: <type> }
     var0.member0 = <value0>
     var0.member1 = <value1>
-    stdlib.assert(var0.member0 == <value0>, "")
-    stdlib.assert(var0.member1 == <value1>, "")
+    debug.assert(var0.member0 == <value0>, "")
+    debug.assert(var0.member1 == <value1>, "")
   `
 
   value_tests["declare_and_assign_pointer"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1 = ^var0
-    stdlib.assert(var1^ == <value0>, "")
+    debug.assert(var1^ == <value0>, "")
   `
 
   value_tests["declare_and_assign_pointer_to_array"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1 = ^var0
-    stdlib.assert(var1[5] == <value0>, "")
+    debug.assert(var1[5] == <value0>, "")
   `
 
   value_tests["declare_and_assign_pointer_to_slice"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type>[10]
     var0[5] = <value0>
     var1 = var0[2:8]
     var2 = ^var1
-    stdlib.assert(var2[3] == <value0>, "")
+    debug.assert(var2[3] == <value0>, "")
   `
 
   value_tests["proc_param_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     proc0: proc(param0: <type>) =
     {
-      stdlib.assert(param0 == <value0>, "")
+      debug.assert(param0 == <value0>, "")
     }
     proc0(<value0>)
   `
 
   value_tests["proc_return_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     proc0: proc() -> <type> =
     {
       return <value0>
     }
-    stdlib.assert(proc0() == <value0>, "")
+    debug.assert(proc0() == <value0>, "")
   `
 
   value_tests["proc_param_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
-    proc0: proc(param0: <type>) = stdlib.assert(param0 == <value0>, "")
+    proc0: proc(param0: <type>) = debug.assert(param0 == <value0>, "")
     proc0(<value0>)
   `
 
   value_tests["proc_return_non_scope"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     proc0: proc() -> <type> = return <value0>
-    stdlib.assert(proc0() == <value0>, "")
+    debug.assert(proc0() == <value0>, "")
   `
 
   value_tests["proc_return_non_scope_expression_only"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     proc0: proc() -> <type> = <value0>
-    stdlib.assert(proc0() == <value0>, "")
+    debug.assert(proc0() == <value0>, "")
   `
 
   value_tests["type_alias"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     type0 = <type>
     var0: type0 = <value0>
-    stdlib.assert(var0 == <value0>, "")
+    debug.assert(var0 == <value0>, "")
   `
 
   value_tests["type_alias_array"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     type0 = <type>[10]
     var0: type0
     var0[5] = <value0>
-    stdlib.assert(var0[5] == <value0>, "")
+    debug.assert(var0[5] == <value0>, "")
   `
 
   // TODO
   /*value_tests["type_alias_slice"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     type0 = <type>[]
     var0: <type>[10]
     var0[5] = <value0>
     var1: type0 = var0[2:8]
-    stdlib.assert(var1[3] == <value0>, "")
+    debug.assert(var1[3] == <value0>, "")
   `*/
 
   value_tests["type_alias_struct"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     type0 = struct { member0: <type>, member1: <type> }
     var0: type0
     var0.member0 = <value0>
     var0.member1 = <value1>
-    stdlib.assert(var0.member0 == <value0>, "")
-    stdlib.assert(var0.member1 == <value1>, "")
+    debug.assert(var0.member0 == <value0>, "")
+    debug.assert(var0.member1 == <value1>, "")
   `
 
   bool_tests: map[string]string
 
   bool_tests["equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
-    stdlib.assert(var0 == var0, "")
+    debug.assert(var0 == var0, "")
   `
 
   bool_tests["not_equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 != var1, "")
+    debug.assert(var0 != var1, "")
   `
 
   bool_tests["and"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 && var0, "")
-    stdlib.assert((var0 && var1) == false, "")
-    stdlib.assert((var1 && var1) == false, "")
+    debug.assert(var0 && var0, "")
+    debug.assert((var0 && var1) == false, "")
+    debug.assert((var1 && var1) == false, "")
   `
 
   bool_tests["or"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 || var0, "")
-    stdlib.assert(var0 || var1, "")
-    stdlib.assert(var1 || var1 == false, "")
+    debug.assert(var0 || var0, "")
+    debug.assert(var0 || var1, "")
+    debug.assert(var1 || var1 == false, "")
   `
 
   bool_tests["not"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(!var0 == false, "")
-    stdlib.assert(!var1 == true, "")
+    debug.assert(!var0 == false, "")
+    debug.assert(!var1 == true, "")
   `
 
   numerical_tests: map[string]string
 
   numerical_tests["equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
-    stdlib.assert(var0 == var0, "")
+    debug.assert(var0 == var0, "")
   `
 
   numerical_tests["not_equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 != var1, "")
+    debug.assert(var0 != var1, "")
   `
 
   numerical_tests["less_than"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 < var1, "")
-    stdlib.assert(var0 < var0 == false, "")
-    stdlib.assert(var1 < var0 == false, "")
+    debug.assert(var0 < var1, "")
+    debug.assert(var0 < var0 == false, "")
+    debug.assert(var1 < var0 == false, "")
   `
 
   numerical_tests["greater_than"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 > var1 == false, "")
-    stdlib.assert(var0 > var0 == false, "")
-    stdlib.assert(var1 > var0, "")
+    debug.assert(var0 > var1 == false, "")
+    debug.assert(var0 > var0 == false, "")
+    debug.assert(var1 > var0, "")
   `
 
   numerical_tests["less_than_or_equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 <= var1, "")
-    stdlib.assert(var0 <= var0, "")
-    stdlib.assert(var1 <= var0 == false, "")
+    debug.assert(var0 <= var1, "")
+    debug.assert(var0 <= var0, "")
+    debug.assert(var1 <= var0 == false, "")
   `
 
   numerical_tests["greater_than_or_equal"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var0 >= var1 == false, "")
-    stdlib.assert(var0 >= var0, "")
-    stdlib.assert(var1 >= var0, "")
+    debug.assert(var0 >= var1 == false, "")
+    debug.assert(var0 >= var0, "")
+    debug.assert(var1 >= var0, "")
   `
 
   numerical_tests["negate"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var1 + -var0 == 2, "")
+    debug.assert(var1 + -var0 == 2, "")
   `
 
   numerical_tests["add"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var1 + var0 == 6, "")
+    debug.assert(var1 + var0 == 6, "")
   `
 
   numerical_tests["add_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var0 += 2
-    stdlib.assert(var0 == 4, "")
+    debug.assert(var0 == 4, "")
   `
 
   numerical_tests["subtract"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var1 - var0 == 2, "")
+    debug.assert(var1 - var0 == 2, "")
   `
 
   numerical_tests["subtract_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var0 -= 2
-    stdlib.assert(var0 == 0, "")
+    debug.assert(var0 == 0, "")
   `
 
   numerical_tests["multiply"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var1 * var0 == 8, "")
+    debug.assert(var1 * var0 == 8, "")
   `
 
   numerical_tests["multiply_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var0 *= 2
-    stdlib.assert(var0 == 4, "")
+    debug.assert(var0 == 4, "")
   `
 
   numerical_tests["divide"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
-    stdlib.assert(var1 / var0 == 2, "")
+    debug.assert(var1 / var0 == 2, "")
   `
 
   numerical_tests["divide_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var0 /= 2
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   numerical_tests["modulo"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value1>
-    stdlib.assert(var0 % 3 == 1, "")
+    debug.assert(var0 % 3 == 1, "")
   `
 
   numerical_tests["modulo_assign"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value1>
     var0 /= 3
-    stdlib.assert(var0 == 1, "")
+    debug.assert(var0 == 1, "")
   `
 
   numerical_tests["bedmas_1"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
     var2: <type> = <value2>
-    stdlib.assert(var2 + var1 * var0 == 14, "")
+    debug.assert(var2 + var1 * var0 == 14, "")
   `
 
   numerical_tests["bedmas_2"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
     var2: <type> = <value2>
-    stdlib.assert(var2 - var1 / var0 == 4, "")
+    debug.assert(var2 - var1 / var0 == 4, "")
   `
 
   numerical_tests["bedmas_3"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
     var2: <type> = <value2>
-    stdlib.assert((var2 + var1) * var0 == 20, "")
+    debug.assert((var2 + var1) * var0 == 20, "")
   `
 
   numerical_tests["bedmas_4"] =
   `
-    stdlib = import("stdlib")
+    debug = import("core/debug")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
     var2: <type> = <value2>
-    stdlib.assert((var2 - var1) / var0 == 1, "")
+    debug.assert((var2 - var1) / var0 == 1, "")
   `
 
   // TODO other simd operations and i64

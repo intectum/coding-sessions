@@ -6,6 +6,7 @@ import "core:strings"
 
 import "../ast"
 import "../program"
+import slice "core:slice"
 
 type_check_module :: proc(ctx: ^type_checking_context) -> bool
 {
@@ -26,6 +27,13 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
   string_type_node := ast.node { type = .type, value = "[slice]" }
   append(&string_type_node.children, ast.node { type = .type, value = "i8" })
   ctx.identifiers["string"] = string_type_node
+
+  link := ast.node { type = .identifier, value = "link" }
+  append(&link.children, ast.node { type = .type, value = "[procedure]" })
+  append(&link.children[0].children, ast.node { type = .type, value = "[parameters]" })
+  append(&link.children[0].children[0].children, ast.node { type = .identifier, value = "name" })
+  append(&link.children[0].children[0].children[0].children, ctx.identifiers["string"])
+  ctx.identifiers["link"] = link
 
   import_proc := ast.node { type = .identifier, value = "import" }
   append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
@@ -50,6 +58,24 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
 
   for &statement in ctx.program.procedures[ctx.module_name].statements
   {
+    if !ast.is_link_statement(&statement)
+    {
+      continue
+    }
+
+    link := statement.children[1].value
+
+    _, found_link := slice.linear_search(ctx.program.links[:], link)
+    if found_link
+    {
+      continue
+    }
+
+    append(&ctx.program.links, link)
+  }
+
+  for &statement in ctx.program.procedures[ctx.module_name].statements
+  {
     if !ast.is_import_statement(&statement)
     {
       continue
@@ -57,17 +83,24 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
 
     lhs_node := &statement.children[0]
     reference := lhs_node.value
-    name := strings.concatenate({ "stdlib/", reference, ".bang" })
+
+    rhs_node := &statement.children[2]
+    name := rhs_node.children[1].value
+    name = name[1:len(name) - 1]
+    path := strings.concatenate({ "stdlib/", name, ".bang" })
 
     if name in ctx.program.modules
     {
+      module := &ctx.program.modules[ctx.module_name]
+      module.imports[reference] = name
+
       continue
     }
 
-    code_data, code_ok := os.read_entire_file(name)
+    code_data, code_ok := os.read_entire_file(path)
     if !code_ok
     {
-      fmt.printfln("Failed to read module file %s", name)
+      fmt.printfln("Failed to read module file '%s' imported by '%s'", name, ctx.module_name)
       return false
     }
 

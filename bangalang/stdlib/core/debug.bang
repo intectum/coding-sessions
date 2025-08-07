@@ -1,0 +1,12 @@
+linux = import("core/os/linux")
+strings = import("core/strings")
+
+assert: proc(assertion: bool, message: string) =
+{
+    if !assertion
+    {
+        strings.print("Assertion failed: ")
+        strings.println(message)
+        linux.exit(1)
+    }
+}

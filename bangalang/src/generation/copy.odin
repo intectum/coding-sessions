@@ -32,7 +32,6 @@ copy_to_non_immediate :: proc(file: os.Handle, src: location, number: int, type_
   return register_dest
 }
 
-// TODO review, could change to copy_to_non_immediate in some places
 copy_to_register :: proc(file: os.Handle, src: location, number: int, type_node: ^ast.node, comment: string = "") -> location
 {
   if src.type == .register

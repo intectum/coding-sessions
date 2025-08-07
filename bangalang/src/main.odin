@@ -23,11 +23,12 @@ main :: proc()
     os.exit(1)
   }
 
-  name := "examples/example_01.bang"
-  code_data, code_ok := os.read_entire_file(name)
+  name := "examples/example_01"
+  path := strings.concatenate({ name, ".bang" })
+  code_data, code_ok := os.read_entire_file(path)
   if !code_ok
   {
-    fmt.println("Failed to read module file")
+    fmt.printfln("Failed to read entry module file '%s'", name)
     os.exit(1)
   }
 
@@ -46,7 +47,7 @@ build :: proc(name: string, code: string, out_path: string)
   asm_path := strings.concatenate({ out_path, ".asm" })
   object_path := strings.concatenate({ out_path, ".o" })
 
-  compile(name, code, asm_path)
+  the_program := compile(name, code, asm_path)
 
   nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
   nasm_code := exec(nasm_command)
@@ -56,8 +57,13 @@ build :: proc(name: string, code: string, out_path: string)
     os.exit(int(nasm_code))
   }
 
-  // TODO don't hardcode this stuff...
-  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", out_path, " -lglfw -lGL -lGLU" })
+  links: string
+  for link in the_program.links
+  {
+    links = strings.concatenate({ links, " -l", link })
+  }
+
+  ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", out_path, links })
   ld_code := exec(ld_command)
   if ld_code > 0
   {
@@ -66,7 +72,7 @@ build :: proc(name: string, code: string, out_path: string)
   }
 }
 
-compile :: proc(name: string, code: string, asm_path: string)
+compile :: proc(name: string, code: string, asm_path: string) -> program.program
 {
   the_program: program.program
   if !program.load_module(&the_program, name, code)
@@ -91,6 +97,8 @@ compile :: proc(name: string, code: string, asm_path: string)
     procedure_name = name
   }
   generation.generate_program(&gen_ctx, asm_path)
+
+  return the_program
 }
 
 exec :: proc(command: string) -> u32

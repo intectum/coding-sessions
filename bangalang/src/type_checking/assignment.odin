@@ -4,6 +4,7 @@ import "core:slice"
 
 import "../ast"
 import "../src"
+import strings "core:strings"
 
 type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
@@ -113,13 +114,30 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
   if !ast.is_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
   {
     allocator := ast.get_allocator(lhs_node)
-    if allocator == "heap"
+    if allocator == "heap" || allocator == "vram"
     {
       if lhs_type_node.type != .reference
       {
         src.print_position_message(lhs_node.src_position, "Cannot allocate non-reference type '%s' with allocator '%s'", lhs_type_node.value, allocator)
         return false
       }
+
+      if len(node.children) > 1
+      {
+        src.print_position_message(lhs_node.src_position, "Cannot assign when using allocator '%s'", allocator)
+        return false
+      }
+
+      operator_node := ast.node { type = .assign }
+      append(&node.children, operator_node)
+
+      allocator_node := ast.node { type = .call, src_position = node.src_position }
+      append(&allocator_node.children, ast.node { type = .identifier, value = strings.concatenate({ "allocate_", allocator }), src_position = node.src_position })
+      append(&allocator_node.children[0].children, ast.node { type = .identifier, value = "memory", src_position = node.src_position })
+      append(&allocator_node.children, ast.node { type = .number, src_position = node.src_position })
+      append(&node.children, allocator_node)
+
+      type_check_rhs_expression(&node.children[2], ctx, nil)
     }
     else if allocator == "static"
     {
