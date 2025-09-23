@@ -1,11 +1,11 @@
-package generation
+package x86_64
 
 import "core:slice"
 import "core:strconv"
 import "core:strings"
 
-import "../ast"
-import "../type_checking"
+import "../../ast"
+import "../../type_checking"
 
 location :: struct
 {

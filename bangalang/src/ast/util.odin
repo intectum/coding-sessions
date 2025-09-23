@@ -33,7 +33,7 @@ is_static_procedure_statement :: proc(statement: ^node) -> bool
 
 is_static_assignment_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment && !is_type(&statement.children[0]) && get_allocator(&statement.children[0]) == "static"
+  return statement.type == .assignment && !is_type(&statement.children[0]) && (get_allocator(&statement.children[0]) == "glsl" || get_allocator(&statement.children[0]) == "static") // TODO glsl is temp here
 }
 
 is_static_procedure :: proc(identifier: ^node) -> bool
@@ -49,7 +49,8 @@ is_static_procedure :: proc(identifier: ^node) -> bool
     return false
   }
 
-  return get_allocator(identifier) == "static"
+  allocator := get_allocator(identifier)
+  return allocator == "glsl" || allocator == "static" // TODO glsl is temp here
 }
 
 is_member :: proc(identifier: ^node) -> bool

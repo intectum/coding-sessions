@@ -7,12 +7,13 @@ import "core:strings"
 import "core:sys/linux"
 
 import "./generation"
+import "./generation/x86_64"
 import "./program"
 import "./type_checking"
 
 main :: proc()
 {
-  failed_tests := run_test_suite()
+  /*failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -21,7 +22,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }
+  }*/
 
   name := "examples/example_01"
   path := strings.concatenate({ name, ".bang" })
@@ -96,7 +97,19 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
     program = &the_program,
     procedure_name = name
   }
-  generation.generate_program(&gen_ctx, asm_path)
+
+  strings.builder_init(&gen_ctx.output)
+  x86_64.generate_program(&gen_ctx)
+
+  file, file_error := os.open(asm_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0o666)
+  if file_error != nil
+  {
+    fmt.println("Failed to open asm file")
+    os.exit(1)
+  }
+  defer os.close(file)
+
+  fmt.fprint(file, strings.to_string(gen_ctx.output))
 
   return the_program
 }

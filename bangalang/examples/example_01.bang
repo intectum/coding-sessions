@@ -78,6 +78,21 @@ task_func: proc(data: threading.vec3[], start: i64) =
     }
 }
 
+task_func_glsl: proc(data: threading.vec3[], start: i64)@glsl =
+{
+    delta: threading.vec3
+    delta[0] = 0.001
+    delta[1] = 0.001
+    delta[2] = 0
+
+    for index: i64, index < data.length, index += 1
+    {
+        data[index] += delta
+    }
+}
+
+task_func_glsl_ref = task_func_glsl
+
 pool: threading.thread_pool = { worker_count = 8 }
 threading.thread_pool_start(^pool)
 

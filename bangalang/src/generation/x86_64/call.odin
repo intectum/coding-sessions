@@ -1,21 +1,21 @@
-package generation
+package x86_64
 
 import "core:fmt"
-import "core:os"
 
-import "../ast"
+import "../../ast"
+import ".."
 
 extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
 extern_param_registers_numbered: []int = { -3, -2 }
 syscall_param_registers_named: []string = { "ax", "di", "si", "dx" }
 syscall_param_registers_numbered: []int = { -1, -3, -2 }
 
-generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, register_num: int, child_location: location, deallocate_return: bool) -> location
+generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, deallocate_return: bool) -> location
 {
   procedure_node := &node.children[0]
   if ast.is_type(procedure_node)
   {
-    return generate_conversion_call(file, node, ctx, register_num)
+    return generate_conversion_call(ctx, node, register_num)
   }
 
   procedure_type_node := ast.get_type(procedure_node)
@@ -46,7 +46,7 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
     return_only_call_stack_size += misalignment
   }
 
-  allocate_stack(file, call_stack_size, ctx)
+  allocate_stack(ctx, call_stack_size)
 
   if procedure_type_node.directive == "#extern"
   {
@@ -58,7 +58,7 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
       param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
       param_registers_numbered := procedure_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
 
-      expression_location := generate_expression(file, param_node, ctx, register_num)
+      expression_location := generate_expression(ctx, param_node, register_num)
 
       param_location: location
       if param_index < len(param_registers_named)
@@ -74,7 +74,7 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
         assert(false, "Pass by stack not yet supported when calling c")
       }
 
-      copy(file, expression_location, param_location, param_type_node)
+      copy(ctx, expression_location, param_location, param_type_node)
     }
   }
   else
@@ -87,8 +87,8 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
 
       offset -= to_byte_size(param_type_node)
 
-      expression_location := generate_expression(file, param_node, ctx, register_num)
-      copy(file, expression_location, memory("rsp", offset), param_type_node)
+      expression_location := generate_expression(ctx, param_node, register_num)
+      copy(ctx, expression_location, memory("rsp", offset), param_type_node)
     }
 
     if !deallocate_return
@@ -99,14 +99,14 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
 
   if procedure_node.value == "syscall"
   {
-    fmt.fprintln(file, "  syscall ; call kernal")
+    fmt.sbprintln(&ctx.output, "  syscall ; call kernal")
   }
   else
   {
-    fmt.fprintfln(file, "  call %s ; call procedure (%s)", to_operand(child_location), procedure_node.value)
+    fmt.sbprintfln(&ctx.output, "  call %s ; call procedure (%s)", to_operand(child_location), procedure_node.value)
   }
 
-  deallocate_stack(file, call_stack_size, ctx)
+  deallocate_stack(ctx, call_stack_size)
 
   if return_type_node == nil
   {
@@ -119,11 +119,11 @@ generate_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, regis
   }
   else
   {
-    return copy_stack_address(file, 0, register_num)
+    return copy_stack_address(ctx, 0, register_num)
   }
 }
 
-generate_conversion_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, register_num: int) -> location
+generate_conversion_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int) -> location
 {
   procedure_node := &node.children[0]
   procedure_type_node := ast.get_type(procedure_node)
@@ -131,7 +131,7 @@ generate_conversion_call :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_con
   param_type_node := &procedure_type_node.children[0].children[0].children[0]
   return_type_node := &procedure_type_node.children[1]
 
-  param_location := generate_expression(file, &node.children[1], ctx, register_num)
+  param_location := generate_expression(ctx, &node.children[1], register_num)
 
-  return convert(file, param_location, register_num, param_type_node, return_type_node)
+  return convert(ctx, param_location, register_num, param_type_node, return_type_node)
 }

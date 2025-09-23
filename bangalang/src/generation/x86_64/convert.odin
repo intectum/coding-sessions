@@ -1,13 +1,13 @@
-package generation
+package x86_64
 
 import "core:fmt"
-import "core:os"
 import "core:slice"
 
-import "../ast"
-import "../type_checking"
+import "../../ast"
+import "../../type_checking"
+import ".."
 
-convert :: proc(file: os.Handle, src: location, register_num: int, src_type_node: ^ast.node, dest_type_node: ^ast.node) -> location
+convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, src_type_node: ^ast.node, dest_type_node: ^ast.node) -> location
 {
   if dest_type_node.value == src_type_node.value
   {
@@ -33,7 +33,7 @@ convert :: proc(file: os.Handle, src: location, register_num: int, src_type_node
     {
       if dest_size > src_size
       {
-        fmt.fprintfln(file, "  movsx %s, %s %s ; convert", to_operand(dest_location), to_operation_size(src_size), to_operand(src))
+        fmt.sbprintfln(&ctx.output, "  movsx %s, %s %s ; convert", to_operand(dest_location), to_operation_size(src_size), to_operand(src))
       }
       else if src.type != .register
       {
@@ -42,18 +42,18 @@ convert :: proc(file: os.Handle, src: location, register_num: int, src_type_node
     }
     else if dest_float_type
     {
-      fmt.fprintfln(file, "  cvtsi2s%s %s, %s ; convert", to_precision_size(dest_size), to_operand(dest_location), to_operand(src))
+      fmt.sbprintfln(&ctx.output, "  cvtsi2s%s %s, %s ; convert", to_precision_size(dest_size), to_operand(dest_location), to_operand(src))
     }
   }
   else if src_float_type
   {
     if dest_atomic_integer_type || dest_signed_integer_type
     {
-      fmt.fprintfln(file, "  cvtts%s2si %s, %s ; convert", to_precision_size(src_size), to_operand(dest_location), to_operand(src))
+      fmt.sbprintfln(&ctx.output, "  cvtts%s2si %s, %s ; convert", to_precision_size(src_size), to_operand(dest_location), to_operand(src))
     }
     else if dest_float_type
     {
-      fmt.fprintfln(file, "  cvts%s2s%s %s, %s ; convert", to_precision_size(src_size), to_precision_size(dest_size), to_operand(dest_location), to_operand(src))
+      fmt.sbprintfln(&ctx.output, "  cvts%s2s%s %s, %s ; convert", to_precision_size(src_size), to_precision_size(dest_size), to_operand(dest_location), to_operand(src))
     }
   }
 

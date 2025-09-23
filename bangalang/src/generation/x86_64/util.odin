@@ -1,11 +1,11 @@
-package generation
+package x86_64
 
 import "core:fmt"
-import "core:os"
 import "core:strconv"
 import "core:strings"
 
-import "../ast"
+import "../../ast"
+import ".."
 
 index_type_node := ast.node { type = .type, value = "i64" }
 unknown_reference_type_node: ast.node = { type = .reference }
@@ -38,13 +38,13 @@ contains_allocations :: proc(node: ^ast.node) -> bool
   return false
 }
 
-get_raw_location :: proc(file: os.Handle, container_type_node: ^ast.node, container_location: location, register_num: int) -> location
+get_raw_location :: proc(ctx: ^generation.gen_context, container_type_node: ^ast.node, container_location: location, register_num: int) -> location
 {
   switch container_type_node.value
   {
   case "[array]":
     location := register(register_num, &unknown_reference_type_node)
-    fmt.fprintfln(file, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
+    fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
     return location
   case "[slice]":
     return container_location
@@ -70,10 +70,10 @@ get_length_location :: proc(container_type_node: ^ast.node, container_location: 
   return immediate(1)
 }
 
-get_data_section_name :: proc(data_section_values: ^[dynamic]string, prefix: string, value: string) -> string
+get_literal_name :: proc(literal_values: ^[dynamic]string, prefix: string, value: string) -> string
 {
-  index := len(data_section_values)
-  for existing_value, existing_index in data_section_values
+  index := len(literal_values)
+  for existing_value, existing_index in literal_values
   {
     if existing_value == value
     {
@@ -82,21 +82,21 @@ get_data_section_name :: proc(data_section_values: ^[dynamic]string, prefix: str
     }
   }
 
-  if index == len(data_section_values)
+  if index == len(literal_values)
   {
-    append(data_section_values, value)
+    append(literal_values, value)
   }
 
   buf: [8]byte
   return strings.concatenate({ prefix, strconv.itoa(buf[:], index) })
 }
 
-nilify :: proc(file: os.Handle, location: location, type_node: ^ast.node)
+nilify :: proc(ctx: ^generation.gen_context, location: location, type_node: ^ast.node)
 {
   assert(location.type == .memory, "Cannot nilify a non-memory location")
 
-  fmt.fprintfln(file, "  lea rdi, %s ; nil: dest", to_operand(location))
-  fmt.fprintfln(file, "  mov rcx, %i ; nil: count", to_byte_size(type_node))
-  fmt.fprintln(file, "  mov rax, 0 ; nil: value")
-  fmt.fprintln(file, "  rep stosb ; nil")
+  fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; nil: dest", to_operand(location))
+  fmt.sbprintfln(&ctx.output, "  mov rcx, %i ; nil: count", to_byte_size(type_node))
+  fmt.sbprintln(&ctx.output, "  mov rax, 0 ; nil: value")
+  fmt.sbprintln(&ctx.output, "  rep stosb ; nil")
 }

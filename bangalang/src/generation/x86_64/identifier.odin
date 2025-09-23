@@ -1,10 +1,9 @@
-package generation
+package x86_64
 
-import "core:os"
+import "../../ast"
+import ".."
 
-import "../ast"
-
-generate_identifier :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context, register_num: int, child_location: location, contains_allocations: bool) -> location
+generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
 {
   if ast.is_static_procedure(node)
   {
@@ -37,7 +36,7 @@ generate_identifier :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context,
     case "[array]", "[slice]":
       if node.value == "raw"
       {
-        return get_raw_location(file, child_type_node, child_location, register_num)
+        return get_raw_location(ctx, child_type_node, child_location, register_num)
       }
       else if node.value == "length"
       {
@@ -51,7 +50,7 @@ generate_identifier :: proc(file: os.Handle, node: ^ast.node, ctx: ^gen_context,
   variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]
   if contains_allocations
   {
-    return copy_stack_address(file, variable_position, register_num)
+    return copy_stack_address(ctx, variable_position, register_num)
   }
   else
   {

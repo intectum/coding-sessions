@@ -1,10 +1,9 @@
-package generation
+package x86_64
 
 import "core:c"
-import "core:os"
 import "core:strconv"
 
-import "../ast"
+import "../../ast"
 
 address_size :: 8
 

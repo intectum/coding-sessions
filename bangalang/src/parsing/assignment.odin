@@ -25,7 +25,7 @@ parse_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node
   {
     tokens.next_token(stream, token.type) or_return
 
-    operator_node := ast.node { type = ast.to_node_type(token.type), src_position = token.src_position }
+    operator_node := ast.node { type = ast.to_node_type(token.type), value = token.value, src_position = token.src_position }
     append(&node.children, operator_node)
 
     statement_node := parse_statement(stream, ctx) or_return

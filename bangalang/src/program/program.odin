@@ -23,7 +23,13 @@ program :: struct
 {
   modules: map[string]module,
   procedures: map[string]procedure,
-  links: [dynamic]string
+  links: [dynamic]string,
+
+  f32_literals: [dynamic]string,
+  f64_literals: [dynamic]string,
+  string_literals: [dynamic]string,
+  cstring_literals: [dynamic]string,
+  static_vars: map[string]string
 }
 
 load_module :: proc(program: ^program, name: string, code: string) -> bool
