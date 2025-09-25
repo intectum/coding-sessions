@@ -29,7 +29,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       params_type_node := lhs_type_node.children[0]
       for &param_node in params_type_node.children
       {
-        ast.get_type(&param_node).allocator = "stack"
+        param_node.allocator = "stack"
         ctx.identifiers[param_node.value] = param_node
       }
 

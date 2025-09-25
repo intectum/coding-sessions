@@ -19,18 +19,12 @@ type_name :: proc(type_node: ^ast.node) -> string
             return strings.concatenate({ "vec", type_node.children[1].value })
         }
         return strings.concatenate({ type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
-    case "[procedure]":
-        assert(false, "Unsupported type name")
     case "[slice]":
-        assert(false, "Unsupported type name")
-    case "i8":
-        return "int8_t"
-    case "i16":
-        return "int16_t"
+        return type_name(&type_node.children[0])
     case "i32":
-        return "int32_t"
-    case "i64":
-        return "int64_t"
+        return "int"
+    case "[procedure]", "i8", "i16", "i64":
+        assert(false, "Unsupported type name")
     }
 
     return type_node.value

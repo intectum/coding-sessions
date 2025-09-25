@@ -221,8 +221,6 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
 
 resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  allocator := node.allocator
-
   if node.type == .identifier || node.type == .type
   {
     if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
@@ -238,7 +236,6 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
           if ast.is_type(identifier_node)
           {
             node^ = identifier_node^
-            node.allocator = allocator
             return true
           }
         }
@@ -250,7 +247,6 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       if ast.is_type(identifier_node)
       {
         node^ = identifier_node^
-        node.allocator = allocator
         return true
       }
     }

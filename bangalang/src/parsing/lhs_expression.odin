@@ -17,7 +17,7 @@ parse_lhs_expression :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: boo
     {
       tokens.next_token(stream, .at) or_return
 
-      type_node.allocator = (tokens.next_token(stream, .identifier) or_return).value
+      node.allocator = (tokens.next_token(stream, .identifier) or_return).value
     }
 
     append(&node.children, type_node)

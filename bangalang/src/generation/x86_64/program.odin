@@ -134,8 +134,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
     procedure := &ctx.program.procedures[procedure_name]
     node := &procedure.statements[0]
     lhs_node := &node.children[0]
-    lhs_type_node := ast.get_type(lhs_node)
-    if lhs_type_node.allocator == "glsl"
+    if lhs_node.allocator == "glsl"
     {
       procedure_ctx: generation.gen_context =
       {

@@ -32,12 +32,6 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     type_node := ast.get_type(node)
     assert(type_node.value != "[slice]", "Failed to generate primary")
 
-    child_type_node := ast.get_type(&node.children[0])
-    if child_type_node.value == "[slice]"
-    {
-      fmt.sbprintf(&ctx.output, ".raw")
-    }
-
     fmt.sbprintf(&ctx.output, "[")
     start_expression_node := &node.children[1]
     generate_expression(ctx, start_expression_node)

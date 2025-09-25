@@ -57,12 +57,12 @@ start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 }
 
 // TODO move out of here
-vec3 = f32[3]
+vec4 = f32[4]
 
 thread_pool_task = struct
 {
-    func: proc(data: vec3[], start: i64),
-    data: vec3[],
+    func: proc(data: vec4[], start: i64),
+    data: vec4[],
     start: i64
 }
 
@@ -135,7 +135,7 @@ thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1
         semaphore_signal(^pool.semaphore)
 
-boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec3[], start: i64), data: vec3[]) =
+boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec4[], start: i64), data: vec4[]) =
 {
     worker_data_length = data.length / pool.worker_count
 

@@ -52,6 +52,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
       }
 
       append(&node.children, ast.get_type(identifier_node)^)
+      node.allocator = identifier_node.allocator
     case "[struct]":
       found_member := false
       for &member_node in child_type_node.children
@@ -83,6 +84,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
     }
 
     append(&node.children, ast.get_type(identifier_node)^)
+    node.allocator = identifier_node.allocator
   }
   else if !allow_undefined
   {

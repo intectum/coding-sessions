@@ -71,10 +71,9 @@ is_member :: proc(identifier: ^node) -> bool
 
 get_allocator :: proc(identifier: ^node) -> string
 {
-  type := get_type(identifier)
-  if type.allocator != ""
+  if identifier.allocator != ""
   {
-    return type.allocator
+    return identifier.allocator
   }
 
   if is_member(identifier) && get_type(&identifier.children[0]).value != "[module]"
@@ -82,7 +81,7 @@ get_allocator :: proc(identifier: ^node) -> string
     return get_allocator(&identifier.children[0])
   }
 
-  return type.value == "[procedure]" ? "static" : "stack"
+  return get_type(identifier).value == "[procedure]" ? "static" : "stack"
 }
 
 is_type :: proc(type: ^node) -> bool

@@ -5,12 +5,14 @@ import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
 {
-  if ast.is_static_procedure(node)
+  if ast.get_allocator(node) == "glsl" || ast.get_allocator(node) == "static" // TODO glsl is temp here
   {
-    return immediate(node.value)
-  }
-  else if ast.get_allocator(node) == "static"
-  {
+    type_node := ast.get_type(node)
+    if type_node.value == "[procedure]" || type_node.value == "cstring"
+    {
+      return immediate(node.value)
+    }
+
     return memory(node.value, 0)
   }
 

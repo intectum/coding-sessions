@@ -1,8 +1,10 @@
 package glsl
 
 import "core:fmt"
+import "core:slice"
 
 import "../../ast"
+import "../../type_checking"
 import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
@@ -37,8 +39,13 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if len(node.children) == 1
   {
+    // TODO non-integers
     //nilify(ctx, lhs_location, lhs_type_node)
-    fmt.sbprint(&ctx.output, " = 0")
+    _, signed_integer := slice.linear_search(type_checking.signed_integer_types, lhs_type_node.value)
+    if signed_integer
+    {
+      fmt.sbprint(&ctx.output, " = 0")
+    }
   }
   else
   {
