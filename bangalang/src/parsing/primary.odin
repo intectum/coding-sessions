@@ -69,15 +69,16 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
     primary_node := parse_primary(stream, type) or_return
     append(&node.children, primary_node)
   case .opening_bracket:
-    if type != .rhs
-    {
-      stream.error = src.to_position_message(node.src_position, "Only a right-hand-side primary can contain a sub-expression")
-      return {}, false
-    }
-
     tokens.next_token(stream, .opening_bracket) or_return
 
-    node = parse_rhs_expression(stream) or_return
+    if type == .rhs
+    {
+      node = parse_rhs_expression(stream) or_return
+    }
+    else
+    {
+      node = parse_primary(stream, type) or_return
+    }
 
     tokens.next_token(stream, .closing_bracket) or_return
   case .identifier:

@@ -5,22 +5,22 @@ import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
 {
-  if ast.get_allocator(node) == "glsl" || ast.get_allocator(node) == "static" // TODO glsl is temp here
-  {
-    type_node := ast.get_type(node)
-    if type_node.value == "[procedure]" || type_node.value == "cstring"
-    {
-      return immediate(node.value)
-    }
-
-    return memory(node.value, 0)
-  }
-
   if ast.is_member(node)
   {
     child_type_node := ast.get_type(&node.children[0])
     switch child_type_node.value
     {
+    case "[array]", "[slice]":
+      if node.value == "raw"
+      {
+        return get_raw_location(ctx, child_type_node, child_location, register_num)
+      }
+      else if node.value == "length"
+      {
+        return get_length_location(child_type_node, child_location)
+      }
+    case "[module]":
+      // Do nothing
     case "[struct]":
       location := child_location
 
@@ -35,18 +35,20 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       }
 
       return location
-    case "[array]", "[slice]":
-      if node.value == "raw"
-      {
-        return get_raw_location(ctx, child_type_node, child_location, register_num)
-      }
-      else if node.value == "length"
-      {
-        return get_length_location(child_type_node, child_location)
-      }
     case:
       assert(false, "Failed to generate identifier")
     }
+  }
+
+  if ast.get_allocator(node) == "glsl" || ast.get_allocator(node) == "static" // TODO glsl is temp here
+  {
+    type_node := ast.get_type(node)
+    if type_node.value == "[procedure]" || type_node.value == "cstring"
+    {
+      return immediate(node.value)
+    }
+
+    return memory(node.value, 0)
   }
 
   variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]

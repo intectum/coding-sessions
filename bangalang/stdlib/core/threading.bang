@@ -134,23 +134,3 @@ thread_pool_wait: proc(pool: ^thread_pool) =
 thread_pool_stop: proc(pool: ^thread_pool) =
     for index: i64, index < pool.worker_count, index += 1
         semaphore_signal(^pool.semaphore)
-
-boomstick: proc(pool: ^thread_pool, kernel: proc(data: vec4[], start: i64), data: vec4[]) =
-{
-    worker_data_length = data.length / pool.worker_count
-
-    for index: i64, index < pool.worker_count, index += 1
-    {
-        start = index * worker_data_length
-        end = start + worker_data_length
-
-        task: thread_pool_task =
-        {
-            func = kernel,
-            data = data[start:end],
-            start = start
-        }
-
-        thread_pool_enqueue(pool, ^task)
-    }
-}

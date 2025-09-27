@@ -27,7 +27,7 @@ copy_type_checking_context := proc(ctx: ^type_checking_context, inline: bool) ->
   for key in ctx.identifiers
   {
     identifier_node := &ctx.identifiers[key]
-    if inline || ast.is_type(identifier_node) || ast.get_type(identifier_node).value == "[module]" || ast.get_type(identifier_node).value == "[procedure]"
+    if inline || ast.is_type(identifier_node) || ast.get_type(identifier_node).value == "[module]" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
     {
       ctx_copy.identifiers[key] = ctx.identifiers[key]
     }

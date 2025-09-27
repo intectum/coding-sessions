@@ -14,7 +14,9 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "global _start")
   fmt.sbprintln(&ctx.output, "_start:")
 
-  generate_statements(ctx)
+  generated_import_names: [dynamic]string
+
+  generate_statements(ctx, ctx.procedure_name, &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -52,11 +54,15 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  ret ; return")
 
   generated_procedure_names: [dynamic]string
-  append(&generated_procedure_names, "import")
   append(&generated_procedure_names, "cmpxchg") // TODO yuck
+  append(&generated_procedure_names, "import")
+  append(&generated_procedure_names, "link")
 
-  main_procedure := &ctx.program.procedures[ctx.procedure_name]
-  generate_procedures(ctx, &main_procedure.references, &generated_procedure_names)
+  for module_name in ctx.program.modules
+  {
+    main_procedure := &ctx.program.procedures[module_name]
+    generate_procedures(ctx, &main_procedure.references, &generated_procedure_names)
+  }
 
   fmt.sbprintln(&ctx.output, "section .data")
   fmt.sbprintln(&ctx.output, "  f32_sign_mask: dd 0x80000000")
@@ -84,38 +90,43 @@ generate_program :: proc(ctx: ^generation.gen_context)
   for string_literal, index in ctx.program.string_literals
   {
     final_string, _ := strings.replace_all(string_literal, "\\n", "\", 10, \"")
-    fmt.sbprintfln(&ctx.output, "  string_%i_data: db %s", index, final_string)
-    fmt.sbprintfln(&ctx.output, "  string_%i_data_len: equ $ - string_%i_data", index, index)
-    fmt.sbprintfln(&ctx.output, "  string_%i: dq string_%i_data, string_%i_data_len", index, index, index)
+    fmt.sbprintfln(&ctx.output, "  string_%i$raw: db %s", index, final_string)
+    fmt.sbprintfln(&ctx.output, "  string_%i: dq string_%i$raw, $ - string_%i$raw", index, index, index)
   }
   for cstring_literal, index in ctx.program.cstring_literals
   {
     final_cstring, _ := strings.replace_all(cstring_literal, "\\n", "\", 10, \"")
     fmt.sbprintfln(&ctx.output, "  cstring_%i: db %s, 0", index, final_cstring)
   }
-  for static_var, index in ctx.program.static_vars
-  {
-    final_cstring, _ := strings.replace_all(ctx.program.static_vars[static_var], "\n", "\", 10, \"")
-    fmt.sbprintfln(&ctx.output, "  %s: db \"%s\", 0", static_var, final_cstring)
-  }
 
   generate_static_vars(ctx)
 }
 
-generate_statements :: proc(ctx: ^generation.gen_context)
+generate_statements :: proc(ctx: ^generation.gen_context, module_name: string, generated_import_names: ^[dynamic]string)
 {
-  for module_name in ctx.program.modules
+  _, found_generated_module := slice.linear_search(generated_import_names[:], module_name)
+  if found_generated_module
   {
-    main_procedure := &ctx.program.procedures[module_name]
-    for &statement in main_procedure.statements
-    {
-      if ast.is_link_statement(&statement) || ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_assignment_statement(&statement)
-      {
-        continue
-      }
+    return
+  }
 
-      generate_statement(ctx, &statement)
+  append(generated_import_names, module_name)
+
+  module := &ctx.program.modules[module_name]
+  for import_name in module.imports
+  {
+    generate_statements(ctx, module.imports[import_name], generated_import_names)
+  }
+
+  main_procedure := &ctx.program.procedures[module_name]
+  for &statement in main_procedure.statements
+  {
+    if ast.is_link_statement(&statement) || ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
+    {
+      continue
     }
+
+    generate_statement(ctx, &statement)
   }
 }
 
@@ -145,7 +156,12 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
       strings.builder_init(&procedure_ctx.output)
 
       glsl.generate_program(&procedure_ctx, node)
-      ctx.program.static_vars[procedure_name] = strings.to_string(procedure_ctx.output)
+
+      static_var_node: ast.node = { type = .assignment }
+      append(&static_var_node.children, ast.node { type = .identifier, value = procedure_name, allocator = "glsl" })
+      append(&static_var_node.children, ast.node { type = .assign, value = "=" })
+      append(&static_var_node.children, ast.node { type = .string_, value = strings.to_string(procedure_ctx.output) })
+      append(&ctx.program.static_vars, static_var_node)
     }
     else
     {
@@ -167,19 +183,22 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
 
 generate_static_vars :: proc(ctx: ^generation.gen_context)
 {
-  for module_name in ctx.program.modules
+  for static_var_node in ctx.program.static_vars
   {
-    main_procedure := &ctx.program.procedures[module_name]
-    for &statement in main_procedure.statements
-    {
-      if ast.is_static_assignment_statement(&statement) && !ast.is_static_procedure_statement(&statement)
-      {
-        lhs_node := &statement.children[0]
-        rhs_node := &statement.children[2]
+    lhs_node := &static_var_node.children[0]
 
-        size := to_byte_size(ast.get_type(lhs_node))
-        fmt.sbprintfln(&ctx.output, "  %s: %s %s", lhs_node.value, to_define_size(size), rhs_node.value)
-      }
+    if lhs_node.allocator == "glsl"
+    {
+      rhs_node := &static_var_node.children[2]
+
+      final_string, _ := strings.replace_all(rhs_node.value, "\n", "\", 10, \"")
+      fmt.sbprintfln(&ctx.output, "  %s$raw: db \"%s\"", lhs_node.value, final_string)
+      fmt.sbprintfln(&ctx.output, "  %s: dq %s$raw, $ - %s$raw", lhs_node.value, lhs_node.value, lhs_node.value)
+    }
+    else
+    {
+      size := to_byte_size(ast.get_type(lhs_node))
+      fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", lhs_node.value, size)
     }
   }
 }

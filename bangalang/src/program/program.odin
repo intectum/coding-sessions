@@ -29,7 +29,7 @@ program :: struct
   f64_literals: [dynamic]string,
   string_literals: [dynamic]string,
   cstring_literals: [dynamic]string,
-  static_vars: map[string]string
+  static_vars: [dynamic]ast.node
 }
 
 load_module :: proc(program: ^program, name: string, code: string) -> bool

@@ -139,21 +139,6 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
       type_check_rhs_expression(&node.children[2], ctx, nil)
     }
-    else if allocator == "static"
-    {
-      _, integer_type := slice.linear_search(integer_types, lhs_type_node.value)
-      if !integer_type
-      {
-        src.print_position_message(lhs_node.src_position, "Cannot allocate non-integer type '%s' with allocator '%s'", lhs_type_node.value, allocator)
-        return false
-      }
-
-      if len(node.children) == 1 || node.children[2].type != .number
-      {
-        src.print_position_message(lhs_node.src_position, "Must explicitly assign integer literal when using allocator '%s'", allocator)
-        return false
-      }
-    }
 
     ctx.identifiers[lhs_node.value] = lhs_node^
   }

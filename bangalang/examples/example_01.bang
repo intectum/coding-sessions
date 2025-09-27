@@ -1,3 +1,4 @@
+boomstick = import("core/boomstick")
 debug = import("core/debug")
 memory = import("core/memory") // TODO needed for allocators to work
 linux = import("core/os/linux")
@@ -28,15 +29,7 @@ triangle_count = triangle_count_1d * triangle_count_1d
 triangle_size = 2 / f32(triangle_count_1d)
 vertex_count = triangle_count * 3
 
-//buffer_data: ^threading.vec4[12288]@vram
-buffer_size: i64 = 12288 * 4 * 4
-buffer_name: i32
-buffer_access_hints: i32 = 194
-gl.glGenBuffers(1, ^buffer_name) check_opengl_error()
-gl.glBindBuffer(gl.GL_ARRAY_BUFFER, buffer_name) check_opengl_error()
-gl.glNamedBufferStorage(buffer_name, buffer_size, nil, buffer_access_hints) check_opengl_error()
-buffer_data_raw = gl.glMapNamedBufferRange(buffer_name, 0, buffer_size, buffer_access_hints) check_opengl_error()
-buffer_data: ^threading.vec4[12288] = #untyped buffer_data_raw
+buffer_data: ^threading.vec4[12288]@vram
 
 vertex_index: i64
 for x: i64, x < triangle_count_1d, x += 1
@@ -99,12 +92,10 @@ task_func_glsl: proc(index: i32, data: threading.vec4[])@glsl =
 }
 
 task_func_glsl_program_name = gl.glCreateProgram() check_opengl_error()
-task_func_glsl_shader_name = compile_shader(gl.GL_COMPUTE_SHADER, #untyped task_func_glsl, 313)
+task_func_glsl_string: string = #untyped task_func_glsl
+task_func_glsl_shader_name = compile_shader(gl.GL_COMPUTE_SHADER, #untyped task_func_glsl_string.raw, i32(task_func_glsl_string.length))
 gl.glAttachShader(task_func_glsl_program_name, task_func_glsl_shader_name) check_opengl_error()
 gl.glLinkProgram(task_func_glsl_program_name) check_opengl_error()
-
-pool: threading.thread_pool = { worker_count = 8 }
-threading.thread_pool_start(^pool)
 
 for glfw.glfwWindowShouldClose(window) == 0
 {
@@ -113,12 +104,11 @@ for glfw.glfwWindowShouldClose(window) == 0
 
     //task_func(buffer_data[:], 0)
 
-    //threading.boomstick(^pool, task_func, buffer_data[:])
-    //threading.thread_pool_wait(^pool)
+    //boomstick.bang(task_func, buffer_data[:])
 
     gl.glUseProgram(task_func_glsl_program_name) check_opengl_error()
 
-    gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, buffer_name) check_opengl_error()
+    gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, memory.vram_allocator_names[0]) check_opengl_error()
     gl.glDispatchCompute(i32(buffer_data.length / 64), 1, 1) check_opengl_error()
 
     sync = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()

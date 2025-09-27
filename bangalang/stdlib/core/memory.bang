@@ -11,12 +11,23 @@ allocate_heap: allocator =
     return linux.mmap(nil, size, mmap_prot, mmap_flags, -1, 0)
 }
 
+// TODO proper map?!
+vram_allocator_count: i32@static
+vram_allocator_addresses: (^i8)[100]@static
+vram_allocator_names: i32[100]@static
+
 allocate_vram: allocator =
 {
-    buffer_name: i32
-    buffer_access_hints: i32 = 194
-    gl.glGenBuffers(1, ^buffer_name)
-    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, buffer_name)
-    gl.glNamedBufferStorage(buffer_name, size, nil, buffer_access_hints)
-    return gl.glMapNamedBufferRange(buffer_name, 0, size, buffer_access_hints)
+    name: i32
+    gl.glGenBuffers(1, ^name)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, name)
+    vram_allocator_names[vram_allocator_count] = name
+
+    access_hints: i32 = 194
+    gl.glNamedBufferStorage(name, size, nil, access_hints)
+    address = gl.glMapNamedBufferRange(name, 0, size, access_hints)
+    vram_allocator_addresses[vram_allocator_count] = address
+
+    vram_allocator_count += 1
+    return address
 }

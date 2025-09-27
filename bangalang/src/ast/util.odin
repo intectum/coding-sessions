@@ -31,11 +31,6 @@ is_static_procedure_statement :: proc(statement: ^node) -> bool
   return statement.type == .assignment && !is_type(&statement.children[0]) && is_static_procedure(&statement.children[0])
 }
 
-is_static_assignment_statement :: proc(statement: ^node) -> bool
-{
-  return statement.type == .assignment && !is_type(&statement.children[0]) && (get_allocator(&statement.children[0]) == "glsl" || get_allocator(&statement.children[0]) == "static") // TODO glsl is temp here
-}
-
 is_static_procedure :: proc(identifier: ^node) -> bool
 {
   type := get_type(identifier)

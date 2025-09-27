@@ -43,6 +43,24 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     {
       allocate_stack(ctx, to_byte_size(lhs_type_node))
     }
+    else if allocator == "static"
+    {
+      static_var_found := false
+      for static_var_node in ctx.program.static_vars
+      {
+        static_var_lhs_node := &static_var_node.children[0]
+        if static_var_lhs_node.value == lhs_node.value
+        {
+          static_var_found = true
+          break
+        }
+      }
+
+      if !static_var_found
+      {
+        append(&ctx.program.static_vars, node^)
+      }
+    }
     else
     {
       assert(false, "Failed to generate assignment")
@@ -55,7 +73,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if len(node.children) == 1
   {
-    if allocator == "stack"
+    if allocator == "stack" || allocator == "static"
     {
       nilify(ctx, lhs_location, lhs_type_node)
     }

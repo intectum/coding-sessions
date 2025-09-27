@@ -1,0 +1,26 @@
+threading = import("core/threading")
+
+pool: threading.thread_pool@static = { worker_count = 8 } // TODO query core count from kernel
+threading.thread_pool_start(^pool)
+
+bang: proc(kernel: proc(data: threading.vec4[], start: i64), data: threading.vec4[]) =
+{
+    worker_data_length = data.length / pool.worker_count
+
+    for index: i64, index < pool.worker_count, index += 1
+    {
+        start = index * worker_data_length
+        end = start + worker_data_length
+
+        task: threading.thread_pool_task =
+        {
+            func = kernel,
+            data = data[start:end],
+            start = start
+        }
+
+        threading.thread_pool_enqueue(^pool, ^task)
+    }
+
+    threading.thread_pool_wait(^pool) // TODO we probably don't always want to wait...
+}
