@@ -40,7 +40,8 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     }
   }
 
-  if ast.get_allocator(node) == "glsl" || ast.get_allocator(node) == "static" // TODO glsl is temp here
+  allocator := ast.get_allocator(node)
+  if allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
   {
     type_node := ast.get_type(node)
     if type_node.value == "[procedure]" || type_node.value == "cstring"

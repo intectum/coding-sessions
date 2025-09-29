@@ -6,9 +6,9 @@ allocator = proc(size: i64) -> ^i8
 
 allocate_heap: allocator =
 {
-    mmap_prot: i64 = 0x3 // PROT_READ | PROT_WRITE
-    mmap_flags: i64 = 0x22 // MAP_PRIVATE | MAP_ANONYMOUS
-    return linux.mmap(nil, size, mmap_prot, mmap_flags, -1, 0)
+  mmap_prot: i64 = 0x3 // PROT_READ | PROT_WRITE
+  mmap_flags: i64 = 0x22 // MAP_PRIVATE | MAP_ANONYMOUS
+  return linux.mmap(nil, size, mmap_prot, mmap_flags, -1, 0)
 }
 
 // TODO proper map?!
@@ -18,16 +18,16 @@ vram_allocator_names: i32[100]@static
 
 allocate_vram: allocator =
 {
-    name: i32
-    gl.glGenBuffers(1, ^name)
-    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, name)
-    vram_allocator_names[vram_allocator_count] = name
+  name: i32
+  gl.glGenBuffers(1, ^name)
+  gl.glBindBuffer(gl.GL_ARRAY_BUFFER, name)
+  vram_allocator_names[vram_allocator_count] = name
 
-    access_hints: i32 = 194
-    gl.glNamedBufferStorage(name, size, nil, access_hints)
-    address = gl.glMapNamedBufferRange(name, 0, size, access_hints)
-    vram_allocator_addresses[vram_allocator_count] = address
+  access_hints: i32 = 194
+  gl.glNamedBufferStorage(name, size, nil, access_hints)
+  address = gl.glMapNamedBufferRange(name, 0, size, access_hints)
+  vram_allocator_addresses[vram_allocator_count] = address
 
-    vram_allocator_count += 1
-    return address
+  vram_allocator_count += 1
+  return address
 }

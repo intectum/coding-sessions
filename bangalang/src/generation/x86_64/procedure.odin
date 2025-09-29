@@ -16,8 +16,6 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     return
   }
 
-  initial_stack_size := ctx.stack_size
-
   offset := 0
   params_type_node := lhs_type_node.children[0]
   for param_index := len(params_type_node.children) - 1; param_index >= 0; param_index -= 1
@@ -36,10 +34,10 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   ctx.stack_size += address_size
 
   rhs_node := &node.children[2]
-  generate_statement(ctx, rhs_node, true)
+  generate_statement(ctx, rhs_node)
 
+  // Account for the instruction pointer pushed to the stack by 'call'
   ctx.stack_size -= address_size
-  deallocate_stack(ctx, ctx.stack_size - initial_stack_size)
-
-  fmt.sbprintln(&ctx.output, "  ret ; return")
+  deallocate_stack(ctx, ctx.stack_size)
+  fmt.sbprintln(&ctx.output, "  ret ; default return")
 }

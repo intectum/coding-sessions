@@ -42,7 +42,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
     return location
   case .not:
-    location := copy_to_non_immediate(ctx, child_location, register_num, type_node)
+    location := copy_to_register(ctx, child_location, register_num, type_node)
     fmt.sbprintfln(&ctx.output, "  xor byte %s, 1 ; not", to_operand(location))
     return location
   case .dereference:

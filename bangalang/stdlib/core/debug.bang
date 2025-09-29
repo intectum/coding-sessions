@@ -3,10 +3,10 @@ strings = import("core/strings")
 
 assert: proc(assertion: bool, message: string) =
 {
-    if !assertion
-    {
-        strings.print("Assertion failed: ")
-        strings.println(message)
-        linux.exit(1)
-    }
+  if !assertion
+  {
+    strings.print("Assertion failed: ")
+    strings.println(message)
+    linux.exit(1)
+  }
 }

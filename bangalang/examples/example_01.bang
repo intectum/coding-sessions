@@ -14,6 +14,8 @@ window = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
 glfw.glfwMakeContextCurrent(window)
 glfw.glfwSwapInterval(0)
 
+boomstick.init()
+
 vertex_shader_src: cstring = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
 vertex_shader_src_len: i32 = 86
 vertex_shader_name = compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src, vertex_shader_src_len)
@@ -34,26 +36,26 @@ buffer_data: ^threading.vec4[12288]@vram
 vertex_index: i64
 for x: i64, x < triangle_count_1d, x += 1
 {
-    for y: i64, y < triangle_count_1d, y += 1
-    {
-        left = -1 + triangle_size * f32(x)
-        bottom = -1 + triangle_size * f32(y)
+  for y: i64, y < triangle_count_1d, y += 1
+  {
+    left = -1 + triangle_size * f32(x)
+    bottom = -1 + triangle_size * f32(y)
 
-        buffer_data[vertex_index][0] = left + triangle_size * 0.5
-        buffer_data[vertex_index][1] = bottom + triangle_size
-        buffer_data[vertex_index][2] = 0
-        vertex_index += 1
+    buffer_data[vertex_index][0] = left + triangle_size * 0.5
+    buffer_data[vertex_index][1] = bottom + triangle_size
+    buffer_data[vertex_index][2] = 0
+    vertex_index += 1
 
-        buffer_data[vertex_index][0] = left
-        buffer_data[vertex_index][1] = bottom
-        buffer_data[vertex_index][2] = 0
-        vertex_index += 1
+    buffer_data[vertex_index][0] = left
+    buffer_data[vertex_index][1] = bottom
+    buffer_data[vertex_index][2] = 0
+    vertex_index += 1
 
-        buffer_data[vertex_index][0] = left + triangle_size
-        buffer_data[vertex_index][1] = bottom
-        buffer_data[vertex_index][2] = 0
-        vertex_index += 1
-    }
+    buffer_data[vertex_index][0] = left + triangle_size
+    buffer_data[vertex_index][1] = bottom
+    buffer_data[vertex_index][2] = 0
+    vertex_index += 1
+  }
 }
 
 gl.glUseProgram(program_name) check_opengl_error()
@@ -66,122 +68,98 @@ linux.gettimeofday(^fps_timeval)
 fps_time = fps_timeval[0] * 1000000 + fps_timeval[1]
 frame_count: i64
 
-task_func: proc(data: threading.vec4[], start: i64) =
+move_triangles: boomstick.kernel_t@glsl =
 {
-    delta: threading.vec4
-    delta[0] = 0.0001
-    delta[1] = 0.0001
-    delta[2] = 0
-    delta[3] = 0
+  delta: threading.vec4
+  delta[0] = 0.0001
+  delta[1] = 0.0001
+  delta[2] = 0
+  delta[3] = 0
 
-    for index: i64, index < data.length, index += 1
-    {
-        data[index] += delta
-    }
+  data[index] += delta
 }
-
-task_func_glsl: proc(index: i32, data: threading.vec4[])@glsl =
-{
-    delta: threading.vec4
-    delta[0] = 0.0001
-    delta[1] = 0.0001
-    delta[2] = 0
-    delta[3] = 0
-
-    data[index] += delta
-}
-
-task_func_glsl_program_name = gl.glCreateProgram() check_opengl_error()
-task_func_glsl_string: string = #untyped task_func_glsl
-task_func_glsl_shader_name = compile_shader(gl.GL_COMPUTE_SHADER, #untyped task_func_glsl_string.raw, i32(task_func_glsl_string.length))
-gl.glAttachShader(task_func_glsl_program_name, task_func_glsl_shader_name) check_opengl_error()
-gl.glLinkProgram(task_func_glsl_program_name) check_opengl_error()
 
 for glfw.glfwWindowShouldClose(window) == 0
 {
-    glfw.glfwPollEvents()
-    glfw.glfwSwapBuffers(window)
+  glfw.glfwPollEvents()
+  glfw.glfwSwapBuffers(window)
 
-    //task_func(buffer_data[:], 0)
+  /*for index: i32 = 0, index < i32(buffer_data.length), index += 1
+    move_triangles(index, buffer_data[:])*/
 
-    //boomstick.bang(task_func, buffer_data[:])
+  boomstick.bang(move_triangles, buffer_data[:])
 
-    gl.glUseProgram(task_func_glsl_program_name) check_opengl_error()
+  sync = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
+  gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) check_opengl_error()
+  gl.glClientWaitSync(sync, 0, 1000 * 1000 * 1000) check_opengl_error()
+  gl.glDeleteSync(sync)
 
-    gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, memory.vram_allocator_names[0]) check_opengl_error()
-    gl.glDispatchCompute(i32(buffer_data.length / 64), 1, 1) check_opengl_error()
+  gl.glUseProgram(program_name) check_opengl_error()
 
-    sync = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
-    gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) check_opengl_error()
-    gl.glClientWaitSync(sync, 0, 1000 * 1000 * 1000) check_opengl_error()
-    gl.glDeleteSync(sync)
+  gl.glClear(gl.GL_COLOR_BUFFER_BIT) check_opengl_error()
+  gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
 
-    gl.glUseProgram(program_name) check_opengl_error()
+  timeval: i64[2]
+  linux.gettimeofday(^timeval)
+  time = timeval[0] * 1000000 + timeval[1]
+  if time > fps_time + 1000000
+  {
+    string_buf: i8[100]
+    strings.print("FPS: ")
+    strings.println(strings.itoa(frame_count, string_buf[:]))
 
-    gl.glClear(gl.GL_COLOR_BUFFER_BIT) check_opengl_error()
-    gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
+    frame_count = 0
+    fps_time = time
+  }
 
-    timeval: i64[2]
-    linux.gettimeofday(^timeval)
-    time = timeval[0] * 1000000 + timeval[1]
-    if time > fps_time + 1000000
-    {
-        string_buf: i8[100]
-        strings.print("FPS: ")
-        strings.println(strings.itoa(frame_count, string_buf[:]))
-
-        frame_count = 0
-        fps_time = time
-    }
-
-    frame_count += 1
+  frame_count += 1
 }
 
 compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
 {
-    name = gl.glCreateShader(type) check_opengl_error()
-    gl.glShaderSource(name, 1, ^src, ^src_len) check_opengl_error()
-    gl.glCompileShader(name) check_opengl_error()
+  name = gl.glCreateShader(type) check_opengl_error()
+  gl.glShaderSource(name, 1, ^src, ^src_len) check_opengl_error()
+  gl.glCompileShader(name) check_opengl_error()
 
-    compile_status: i32
-    gl.glGetShaderiv(name, gl.GL_COMPILE_STATUS, ^compile_status) check_opengl_error()
+  compile_status: i32
+  gl.glGetShaderiv(name, gl.GL_COMPILE_STATUS, ^compile_status) check_opengl_error()
 
-    info_log: i8[1000000]
-    info_log_length: i32
-    gl.glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
+  info_log: i8[1000000]
+  info_log_length: i32
+  gl.glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 strings.println(info_log[:info_log_length])
-    debug.assert(compile_status != 0, "failed to compile shader")
+  if info_log[0] != 0 strings.println(info_log[:info_log_length])
+  debug.assert(compile_status != 0, "failed to compile shader")
 
-    return name
+  return name
 }
 
 link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
 {
-    name = gl.glCreateProgram() check_opengl_error()
-    gl.glAttachShader(name, vertex_shader_name) check_opengl_error()
-    gl.glAttachShader(name, fragment_shader_name) check_opengl_error()
-    gl.glLinkProgram(name) check_opengl_error()
+  name = gl.glCreateProgram() check_opengl_error()
+  gl.glAttachShader(name, vertex_shader_name) check_opengl_error()
+  gl.glAttachShader(name, fragment_shader_name) check_opengl_error()
+  gl.glLinkProgram(name) check_opengl_error()
 
-    link_status: i32
-    gl.glGetProgramiv(name, gl.GL_LINK_STATUS, ^link_status) check_opengl_error()
+  link_status: i32
+  gl.glGetProgramiv(name, gl.GL_LINK_STATUS, ^link_status) check_opengl_error()
 
-    info_log: i8[1000000]
-    info_log_length: i32
-    gl.glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
+  info_log: i8[1000000]
+  info_log_length: i32
+  gl.glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-    if info_log[0] != 0 strings.println(info_log[:info_log_length])
-    debug.assert(link_status != 0, "failed to link shaders")
+  if info_log[0] != 0 strings.println(info_log[:info_log_length])
+  debug.assert(link_status != 0, "failed to link shaders")
 
-    return name
+  return name
 }
 
 check_opengl_error: proc() =
 {
-    error = gl.glGetError()
-    if error != gl.GL_NO_ERROR
-    {
-        error_buffer = glu.gluErrorString(error)
-        strings.println({ raw = error_buffer, length = 100 })
-    }
+  error = gl.glGetError()
+  if error != gl.GL_NO_ERROR
+  {
+    error_buffer = glu.gluErrorString(error)
+    strings.println({ raw = error_buffer, length = 100 })
+  }
 }

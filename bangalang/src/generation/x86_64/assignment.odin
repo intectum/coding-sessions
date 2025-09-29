@@ -28,8 +28,9 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if lhs_node.type == .identifier && !ast.is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
   {
-    if allocator == "heap" || allocator == "vram"
+    switch allocator
     {
+    case "heap", "vram":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
 
       rhs_node := &node.children[2]
@@ -38,13 +39,11 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       // TODO a bit hacky, adds the size info to the allocator call
       buf: [8]byte
       param_node.value = strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
-    }
-    else if allocator == "stack"
-    {
+    case "none":
+      // Do nothing
+    case "stack":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
-    }
-    else if allocator == "static"
-    {
+    case "static":
       static_var_found := false
       for static_var_node in ctx.program.static_vars
       {
@@ -60,9 +59,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       {
         append(&ctx.program.static_vars, node^)
       }
-    }
-    else
-    {
+    case:
       assert(false, "Failed to generate assignment")
     }
 

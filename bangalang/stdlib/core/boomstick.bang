@@ -1,26 +1,77 @@
 threading = import("core/threading")
+memory = import("core/memory")
+
+gl = import("vendor/gl")
+
+kernel_t = proc(index: i32, data: threading.vec4[])
 
 pool: threading.thread_pool@static = { worker_count = 8 } // TODO query core count from kernel
 threading.thread_pool_start(^pool)
 
-bang: proc(kernel: proc(data: threading.vec4[], start: i64), data: threading.vec4[]) =
+// TODO proper map?!
+glsl_kernels: (^string)[]@none
+glsl_kernel_names: i32[100]@static
+
+init: proc() =
 {
-    worker_data_length = data.length / pool.worker_count
+  for index: i64, index < glsl_kernels.length, index += 1
+  {
+    glsl_kernel = glsl_kernels[index]
 
-    for index: i64, index < pool.worker_count, index += 1
+    name = gl.glCreateProgram()
+    glsl_kernel_cstring: cstring = #untyped glsl_kernel.raw
+    shader_name = gl.glCreateShader(gl.GL_COMPUTE_SHADER)
+    gl.glShaderSource(shader_name, 1, ^glsl_kernel_cstring, ^i32(glsl_kernel.length))
+    gl.glCompileShader(shader_name)
+    gl.glAttachShader(name, shader_name)
+    gl.glLinkProgram(name)
+    glsl_kernel_names[index] = name
+  }
+}
+
+bang: proc(kernel: kernel_t, data: threading.vec4[]) =
+{
+  kernel_i64: i64 = #untyped kernel
+  for kernel_index: i64, kernel_index < glsl_kernels.length, kernel_index += 1
+  {
+    // TODO generalized ==
+    if kernel_i64 == #untyped glsl_kernels[kernel_index]
     {
-        start = index * worker_data_length
-        end = start + worker_data_length
+      gl.glUseProgram(glsl_kernel_names[kernel_index])
 
-        task: threading.thread_pool_task =
+      data_raw_i64: i64 = #untyped data.raw
+      for buffer_index: i64, buffer_index < memory.vram_allocator_addresses.length, buffer_index += 1
+      {
+        // TODO generalized ==
+        if data_raw_i64 == #untyped memory.vram_allocator_addresses[buffer_index]
         {
-            func = kernel,
-            data = data[start:end],
-            start = start
+          gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, memory.vram_allocator_names[buffer_index])
         }
+      }
 
-        threading.thread_pool_enqueue(^pool, ^task)
+      gl.glDispatchCompute(i32(data.length / 64), 1, 1)
+
+      return
+    }
+  }
+
+  worker_data_length = data.length / pool.worker_count
+
+  for index: i64, index < pool.worker_count, index += 1
+  {
+    start = index * worker_data_length
+    end = start + worker_data_length
+
+    task: threading.thread_pool_task =
+    {
+      func = kernel,
+      start = i32(start),
+      end = i32(end),
+      data = data
     }
 
-    threading.thread_pool_wait(^pool) // TODO we probably don't always want to wait...
+    threading.thread_pool_enqueue(^pool, ^task)
+  }
+
+  threading.thread_pool_wait(^pool) // TODO we probably don't always want to wait...
 }

@@ -24,7 +24,14 @@ generate_return :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       copy(ctx, expression_location, return_location, expression_type_node)
     }
 
-    fmt.sbprintln(&ctx.output, "  jmp .end ; skip to end")
+    stack_size := ctx.stack_size
+
+    // Account for the instruction pointer pushed to the stack by 'call'
+    ctx.stack_size -= address_size
+    deallocate_stack(ctx, ctx.stack_size)
+    fmt.sbprintln(&ctx.output, "  ret ; return")
+
+    ctx.stack_size = stack_size
   }
   else
   {

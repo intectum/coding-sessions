@@ -183,6 +183,9 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
 
 generate_static_vars :: proc(ctx: ^generation.gen_context)
 {
+  glsl_kernel_names: [dynamic]string
+  defer delete(glsl_kernel_names)
+
   for static_var_node in ctx.program.static_vars
   {
     lhs_node := &static_var_node.children[0]
@@ -194,11 +197,32 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
       final_string, _ := strings.replace_all(rhs_node.value, "\n", "\", 10, \"")
       fmt.sbprintfln(&ctx.output, "  %s$raw: db \"%s\"", lhs_node.value, final_string)
       fmt.sbprintfln(&ctx.output, "  %s: dq %s$raw, $ - %s$raw", lhs_node.value, lhs_node.value, lhs_node.value)
+
+      append(&glsl_kernel_names, lhs_node.value)
     }
     else
     {
       size := to_byte_size(ast.get_type(lhs_node))
       fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", lhs_node.value, size)
     }
+  }
+
+  if len(glsl_kernel_names) > 0
+  {
+    fmt.sbprint(&ctx.output, "  glsl_kernels$raw: dq")
+    for glsl_kernel_name, index in glsl_kernel_names
+    {
+      if index > 0
+      {
+        fmt.sbprint(&ctx.output, ",")
+      }
+      fmt.sbprintf(&ctx.output, " %s", glsl_kernel_name)
+    }
+    fmt.sbprintln(&ctx.output, "")
+    fmt.sbprintfln(&ctx.output, "  glsl_kernels: dq glsl_kernels$raw, %i", len(glsl_kernel_names))
+  }
+  else
+  {
+    fmt.sbprintln(&ctx.output, "  glsl_kernels: dq 0, 0")
   }
 }
