@@ -31,7 +31,7 @@ triangle_count = triangle_count_1d * triangle_count_1d
 triangle_size = 2 / f32(triangle_count_1d)
 vertex_count = triangle_count * 3
 
-buffer_data: ^threading.vec4[12288]@vram
+triangle_data: ^threading.vec4[12288]@vram
 
 vertex_index: i64
 for x: i64, x < triangle_count_1d, x += 1
@@ -41,19 +41,19 @@ for x: i64, x < triangle_count_1d, x += 1
     left = -1 + triangle_size * f32(x)
     bottom = -1 + triangle_size * f32(y)
 
-    buffer_data[vertex_index][0] = left + triangle_size * 0.5
-    buffer_data[vertex_index][1] = bottom + triangle_size
-    buffer_data[vertex_index][2] = 0
+    triangle_data[vertex_index][0] = left + triangle_size * 0.5
+    triangle_data[vertex_index][1] = bottom + triangle_size
+    triangle_data[vertex_index][2] = 0
     vertex_index += 1
 
-    buffer_data[vertex_index][0] = left
-    buffer_data[vertex_index][1] = bottom
-    buffer_data[vertex_index][2] = 0
+    triangle_data[vertex_index][0] = left
+    triangle_data[vertex_index][1] = bottom
+    triangle_data[vertex_index][2] = 0
     vertex_index += 1
 
-    buffer_data[vertex_index][0] = left + triangle_size
-    buffer_data[vertex_index][1] = bottom
-    buffer_data[vertex_index][2] = 0
+    triangle_data[vertex_index][0] = left + triangle_size
+    triangle_data[vertex_index][1] = bottom
+    triangle_data[vertex_index][2] = 0
     vertex_index += 1
   }
 }
@@ -84,10 +84,10 @@ for glfw.glfwWindowShouldClose(window) == 0
   glfw.glfwPollEvents()
   glfw.glfwSwapBuffers(window)
 
-  /*for index: i32 = 0, index < i32(buffer_data.length), index += 1
-    move_triangles(index, buffer_data[:])*/
+  /*for index: i32 = 0, index < i32(triangle_data.length), index += 1
+    move_triangles(index, triangle_data[:])*/
 
-  boomstick.bang(move_triangles, buffer_data[:])
+  boomstick.bang(move_triangles, triangle_data[:])
 
   sync = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
   gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) check_opengl_error()

@@ -101,6 +101,10 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   {
     fmt.sbprintln(&ctx.output, "  syscall ; call kernal")
   }
+  else if child_location.type == .immediate
+  {
+    fmt.sbprintfln(&ctx.output, "  call %s ; call procedure", to_operand(child_location))
+  }
   else
   {
     fmt.sbprintfln(&ctx.output, "  call %s ; call procedure (%s)", to_operand(child_location), procedure_node.value)

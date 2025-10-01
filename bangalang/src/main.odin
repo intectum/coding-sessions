@@ -85,7 +85,7 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   {
     program = &the_program,
     module_name = name,
-    procedure_name = name
+    procedure_name = "[main]"
   }
   if !type_checking.type_check_module(&type_checking_ctx)
   {
@@ -95,7 +95,8 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   gen_ctx: generation.gen_context =
   {
     program = &the_program,
-    procedure_name = name
+    module_name = name,
+    procedure_name = "[main]"
   }
 
   strings.builder_init(&gen_ctx.output)

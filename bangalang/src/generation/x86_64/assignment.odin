@@ -5,6 +5,7 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
+import "../../program"
 import "../../type_checking"
 import ".."
 
@@ -44,20 +45,10 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     case "stack":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
     case "static":
-      static_var_found := false
-      for static_var_node in ctx.program.static_vars
+      qualified_name := program.get_qualified_name(ctx.module_name, lhs_node.value)
+      if !(qualified_name in ctx.program.static_vars)
       {
-        static_var_lhs_node := &static_var_node.children[0]
-        if static_var_lhs_node.value == lhs_node.value
-        {
-          static_var_found = true
-          break
-        }
-      }
-
-      if !static_var_found
-      {
-        append(&ctx.program.static_vars, node^)
+        ctx.program.static_vars[qualified_name] = node^
       }
     case:
       assert(false, "Failed to generate assignment")

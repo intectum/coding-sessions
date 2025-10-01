@@ -1,16 +1,23 @@
 package program
 
 import "core:fmt"
+import "core:strings"
 
 import "../ast"
 import "../parsing"
 import "../tokenization"
 import "../tokens"
 
+reference :: struct
+{
+  module_name: string,
+  procedure_name: string
+}
+
 procedure :: struct
 {
   statements: [dynamic]ast.node,
-  references: [dynamic]string
+  references: [dynamic]reference
 }
 
 module :: struct
@@ -29,7 +36,7 @@ program :: struct
   f64_literals: [dynamic]string,
   string_literals: [dynamic]string,
   cstring_literals: [dynamic]string,
-  static_vars: [dynamic]ast.node
+  static_vars: map[string]ast.node
 }
 
 load_module :: proc(program: ^program, name: string, code: string) -> bool
@@ -50,7 +57,13 @@ load_module :: proc(program: ^program, name: string, code: string) -> bool
   }
 
   program.modules[name] = {}
-  program.procedures[name] = { statements = nodes }
+  program.procedures[get_qualified_name(name, "[main]")] = { statements = nodes }
 
   return true
+}
+
+get_qualified_name :: proc(module_name: string, procedure_name: string) -> string
+{
+  final_module_name, _ := strings.replace_all(module_name, "/", ".")
+  return strings.concatenate({ final_module_name, ".$module.", procedure_name })
 }

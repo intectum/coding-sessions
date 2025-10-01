@@ -56,7 +56,9 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
   append(&cmpxchg.children[0].children, ast.node { type = .type, value = "bool" })
   ctx.identifiers["cmpxchg"] = cmpxchg
 
-  for &statement in ctx.program.procedures[ctx.module_name].statements
+  qualified_main_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+
+  for &statement in ctx.program.procedures[qualified_main_name].statements
   {
     if !ast.is_link_statement(&statement)
     {
@@ -74,7 +76,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     append(&ctx.program.links, link)
   }
 
-  for &statement in ctx.program.procedures[ctx.module_name].statements
+  for &statement in ctx.program.procedures[qualified_main_name].statements
   {
     if !ast.is_import_statement(&statement)
     {
@@ -110,7 +112,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     {
       program = ctx.program,
       module_name = name,
-      procedure_name = name
+      procedure_name = "[main]"
     }
     type_check_module(&imported_module_ctx) or_return
 
@@ -118,7 +120,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
     module.imports[reference] = name
   }
 
-  for &statement in ctx.program.procedures[ctx.module_name].statements
+  for &statement in ctx.program.procedures[qualified_main_name].statements
   {
     resolve_types(&statement, ctx)
 
@@ -136,7 +138,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
   }
 
   procedure_names: [dynamic]string
-  for &statement in ctx.program.procedures[ctx.module_name].statements
+  for &statement in ctx.program.procedures[qualified_main_name].statements
   {
     if !ast.is_static_procedure_statement(&statement)
     {
@@ -150,12 +152,14 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
 
     procedure: program.procedure
     append(&procedure.statements, statement)
-    ctx.program.procedures[lhs_node.value] = procedure
+
+    qualified_name := program.get_qualified_name(ctx.module_name, lhs_node.value)
+    ctx.program.procedures[qualified_name] = procedure
 
     append(&procedure_names, lhs_node.value)
   }
 
-  main_procedure := &ctx.program.procedures[ctx.module_name]
+  main_procedure := &ctx.program.procedures[qualified_main_name]
   for &statement in main_procedure.statements
   {
     if ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
@@ -171,7 +175,9 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
 
   for procedure_name in procedure_names
   {
-    procedure := &ctx.program.procedures[procedure_name]
+    qualified_name := program.get_qualified_name(ctx.module_name, procedure_name)
+    procedure := &ctx.program.procedures[qualified_name]
+
     procedure_ctx := copy_type_checking_context(ctx, false)
     procedure_ctx.procedure_name = procedure_name
 

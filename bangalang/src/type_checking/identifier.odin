@@ -1,6 +1,7 @@
 package type_checking
 
 import "../ast"
+import "../program"
 import "../src"
 
 type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_undefined: bool) -> bool
@@ -37,7 +38,8 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
         return false
       }
 
-      imported_module := &ctx.program.modules[module.imports[child_node.value]]
+      imported_module_name := module.imports[child_node.value]
+      imported_module := &ctx.program.modules[imported_module_name]
       if !(node.value in imported_module.identifiers)
       {
         src.print_position_message(node.src_position, "'%s' is not a member or module '%s'", node.value, child_node.value)
@@ -47,8 +49,9 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
       identifier_node := &imported_module.identifiers[node.value]
       if ast.is_static_procedure(identifier_node)
       {
-        procedure := &ctx.program.procedures[ctx.procedure_name]
-        append(&procedure.references, node.value)
+        qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+        procedure := &ctx.program.procedures[qualified_name]
+        append(&procedure.references, program.reference { imported_module_name, node.value })
       }
 
       append(&node.children, ast.get_type(identifier_node)^)
@@ -77,10 +80,11 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
   else if node.value in ctx.identifiers
   {
     identifier_node := &ctx.identifiers[node.value]
-    if ast.is_static_procedure(identifier_node)
+    if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
     {
-      procedure := &ctx.program.procedures[ctx.procedure_name]
-      append(&procedure.references, node.value)
+      qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+      procedure := &ctx.program.procedures[qualified_name]
+      append(&procedure.references, program.reference { ctx.module_name, node.value })
     }
 
     append(&node.children, ast.get_type(identifier_node)^)

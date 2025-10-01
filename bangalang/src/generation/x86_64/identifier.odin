@@ -1,6 +1,7 @@
 package x86_64
 
 import "../../ast"
+import "../../program"
 import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
@@ -43,13 +44,26 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
   allocator := ast.get_allocator(node)
   if allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
   {
+    name := node.value
+
     type_node := ast.get_type(node)
-    if type_node.value == "[procedure]" || type_node.value == "cstring"
+    if type_node.directive != "#extern" && node.value != "cmpxchg" /* TODO yuck */
     {
-      return immediate(node.value)
+      module_name := ctx.module_name
+      if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
+      {
+        module_name = ctx.program.modules[ctx.module_name].imports[node.children[0].value]
+      }
+
+      name = program.get_qualified_name(module_name, node.value)
     }
 
-    return memory(node.value, 0)
+    if type_node.value == "[procedure]" || type_node.value == "cstring"
+    {
+      return immediate(name)
+    }
+
+    return memory(name, 0)
   }
 
   variable_position := ctx.stack_size - ctx.stack_variable_offsets[node.value]

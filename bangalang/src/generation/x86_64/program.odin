@@ -5,6 +5,7 @@ import "core:slice"
 import "core:strings"
 
 import "../../ast"
+import "../../program"
 import ".."
 import "../glsl"
 
@@ -15,8 +16,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "_start:")
 
   generated_import_names: [dynamic]string
-
-  generate_statements(ctx, ctx.procedure_name, &generated_import_names)
+  generate_statements(ctx, ctx.module_name, &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -54,14 +54,10 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  ret ; return")
 
   generated_procedure_names: [dynamic]string
-  append(&generated_procedure_names, "cmpxchg") // TODO yuck
-  append(&generated_procedure_names, "import")
-  append(&generated_procedure_names, "link")
-
   for module_name in ctx.program.modules
   {
-    main_procedure := &ctx.program.procedures[module_name]
-    generate_procedures(ctx, &main_procedure.references, &generated_procedure_names)
+    main_procedure := &ctx.program.procedures[program.get_qualified_name(module_name, "[main]")]
+    generate_procedures(ctx, main_procedure.references[:], &generated_procedure_names)
   }
 
   fmt.sbprintln(&ctx.output, "section .data")
@@ -118,7 +114,9 @@ generate_statements :: proc(ctx: ^generation.gen_context, module_name: string, g
     generate_statements(ctx, module.imports[import_name], generated_import_names)
   }
 
-  main_procedure := &ctx.program.procedures[module_name]
+  ctx.module_name = module_name
+
+  main_procedure := &ctx.program.procedures[program.get_qualified_name(module_name, "[main]")]
   for &statement in main_procedure.statements
   {
     if ast.is_link_statement(&statement) || ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
@@ -130,19 +128,21 @@ generate_statements :: proc(ctx: ^generation.gen_context, module_name: string, g
   }
 }
 
-generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dynamic]string, generated_procedure_names: ^[dynamic]string)
+generate_procedures :: proc(ctx: ^generation.gen_context, references: []program.reference, generated_procedure_names: ^[dynamic]string)
 {
-  for procedure_name in procedure_names
+  for reference in references
   {
-    _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], procedure_name)
+    qualified_name := program.get_qualified_name(reference.module_name, reference.procedure_name)
+
+    _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], qualified_name)
     if found_generated_procedure
     {
       continue
     }
 
-    append(generated_procedure_names, procedure_name)
+    append(generated_procedure_names, qualified_name)
 
-    procedure := &ctx.program.procedures[procedure_name]
+    procedure := &ctx.program.procedures[qualified_name]
     node := &procedure.statements[0]
     lhs_node := &node.children[0]
     if lhs_node.allocator == "glsl"
@@ -150,7 +150,8 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        procedure_name = procedure_name
+        module_name = reference.module_name,
+        procedure_name = reference.procedure_name
       }
 
       strings.builder_init(&procedure_ctx.output)
@@ -158,17 +159,18 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
       glsl.generate_program(&procedure_ctx, node)
 
       static_var_node: ast.node = { type = .assignment }
-      append(&static_var_node.children, ast.node { type = .identifier, value = procedure_name, allocator = "glsl" })
+      append(&static_var_node.children, ast.node { type = .identifier, value = qualified_name, allocator = "glsl" })
       append(&static_var_node.children, ast.node { type = .assign, value = "=" })
       append(&static_var_node.children, ast.node { type = .string_, value = strings.to_string(procedure_ctx.output) })
-      append(&ctx.program.static_vars, static_var_node)
+      ctx.program.static_vars[qualified_name] = static_var_node
     }
     else
     {
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        procedure_name = procedure_name,
+        module_name = reference.module_name,
+        procedure_name = reference.procedure_name,
         output = ctx.output
       }
 
@@ -176,7 +178,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, procedure_names: ^[dyn
 
       ctx.output = procedure_ctx.output
 
-      generate_procedures(ctx, &procedure.references, generated_procedure_names)
+      generate_procedures(ctx, procedure.references[:], generated_procedure_names)
     }
   }
 }
@@ -186,8 +188,9 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
   glsl_kernel_names: [dynamic]string
   defer delete(glsl_kernel_names)
 
-  for static_var_node in ctx.program.static_vars
+  for static_var_name in ctx.program.static_vars
   {
+    static_var_node := &ctx.program.static_vars[static_var_name]
     lhs_node := &static_var_node.children[0]
 
     if lhs_node.allocator == "glsl"
@@ -195,21 +198,21 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
       rhs_node := &static_var_node.children[2]
 
       final_string, _ := strings.replace_all(rhs_node.value, "\n", "\", 10, \"")
-      fmt.sbprintfln(&ctx.output, "  %s$raw: db \"%s\"", lhs_node.value, final_string)
-      fmt.sbprintfln(&ctx.output, "  %s: dq %s$raw, $ - %s$raw", lhs_node.value, lhs_node.value, lhs_node.value)
+      fmt.sbprintfln(&ctx.output, "  %s$raw: db \"%s\"", static_var_name, final_string)
+      fmt.sbprintfln(&ctx.output, "  %s: dq %s$raw, $ - %s$raw", static_var_name, static_var_name, static_var_name)
 
-      append(&glsl_kernel_names, lhs_node.value)
+      append(&glsl_kernel_names, static_var_name)
     }
     else
     {
       size := to_byte_size(ast.get_type(lhs_node))
-      fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", lhs_node.value, size)
+      fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", static_var_name, size)
     }
   }
 
   if len(glsl_kernel_names) > 0
   {
-    fmt.sbprint(&ctx.output, "  glsl_kernels$raw: dq")
+    fmt.sbprint(&ctx.output, "  core.boomstick.$module.glsl_kernels$raw: dq")
     for glsl_kernel_name, index in glsl_kernel_names
     {
       if index > 0
@@ -219,10 +222,10 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
       fmt.sbprintf(&ctx.output, " %s", glsl_kernel_name)
     }
     fmt.sbprintln(&ctx.output, "")
-    fmt.sbprintfln(&ctx.output, "  glsl_kernels: dq glsl_kernels$raw, %i", len(glsl_kernel_names))
+    fmt.sbprintfln(&ctx.output, "  core.boomstick.$module.glsl_kernels: dq core.boomstick.$module.glsl_kernels$raw, %i", len(glsl_kernel_names))
   }
   else
   {
-    fmt.sbprintln(&ctx.output, "  glsl_kernels: dq 0, 0")
+    fmt.sbprintln(&ctx.output, "  core.boomstick.$module.glsl_kernels: dq 0, 0")
   }
 }

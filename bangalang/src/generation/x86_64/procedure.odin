@@ -3,6 +3,7 @@ package x86_64
 import "core:fmt"
 
 import "../../ast"
+import "../../program"
 import ".."
 
 generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
@@ -28,7 +29,7 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   ctx.stack_variable_offsets["[return]"] = offset
 
-  fmt.sbprintfln(&ctx.output, "%s:", lhs_node.value)
+  fmt.sbprintfln(&ctx.output, "%s:", program.get_qualified_name(ctx.module_name, lhs_node.value))
 
   // Account for the instruction pointer pushed to the stack by 'call'
   ctx.stack_size += address_size

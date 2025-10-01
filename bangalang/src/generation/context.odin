@@ -7,6 +7,7 @@ import "../program"
 gen_context :: struct
 {
   program: ^program.program,
+  module_name: string,
   procedure_name: string,
 
   stack_size: int,
