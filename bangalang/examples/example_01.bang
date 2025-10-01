@@ -1,7 +1,7 @@
 boomstick = import("core/boomstick")
 debug = import("core/debug")
 memory = import("core/memory") // TODO needed for allocators to work
-linux = import("core/os/linux")
+os = import("core/os")
 strings = import("core/strings")
 threading = import("core/threading")
 
@@ -16,27 +16,25 @@ glfw.glfwSwapInterval(0)
 
 boomstick.init()
 
-vertex_shader_src: cstring = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
-vertex_shader_src_len: i32 = 86
-vertex_shader_name = compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src, vertex_shader_src_len)
+vertex_shader_src = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
+vertex_shader_name = compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src)
 
-fragment_shader_src: cstring = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
-fragment_shader_src_len: i32 = 86
-fragment_shader_name = compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src, fragment_shader_src_len)
+fragment_shader_src = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
+fragment_shader_name = compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
 
 program_name = link_shaders(vertex_shader_name, fragment_shader_name)
 
-triangle_count_1d: i64 = 64
+triangle_count_1d: i32 = 64
 triangle_count = triangle_count_1d * triangle_count_1d
 triangle_size = 2 / f32(triangle_count_1d)
 vertex_count = triangle_count * 3
 
 triangle_data: ^threading.vec4[12288]@vram
 
-vertex_index: i64
-for x: i64, x < triangle_count_1d, x += 1
+vertex_index: i32
+for x: i32, x < triangle_count_1d, x += 1
 {
-  for y: i64, y < triangle_count_1d, y += 1
+  for y: i32, y < triangle_count_1d, y += 1
   {
     left = -1 + triangle_size * f32(x)
     bottom = -1 + triangle_size * f32(y)
@@ -63,9 +61,7 @@ gl.glUseProgram(program_name) check_opengl_error()
 gl.glEnableVertexAttribArray(0) check_opengl_error()
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) check_opengl_error()
 
-fps_timeval: i64[2]
-linux.gettimeofday(^fps_timeval)
-fps_time = fps_timeval[0] * 1000000 + fps_timeval[1]
+fps_time = os.time()
 frame_count: i64
 
 move_triangles: boomstick.kernel_t@glsl =
@@ -99,9 +95,7 @@ for glfw.glfwWindowShouldClose(window) == 0
   gl.glClear(gl.GL_COLOR_BUFFER_BIT) check_opengl_error()
   gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
 
-  timeval: i64[2]
-  linux.gettimeofday(^timeval)
-  time = timeval[0] * 1000000 + timeval[1]
+  time = os.time()
   if time > fps_time + 1000000
   {
     string_buf: i8[100]
@@ -115,10 +109,10 @@ for glfw.glfwWindowShouldClose(window) == 0
   frame_count += 1
 }
 
-compile_shader: proc(type: i32, src: cstring, src_len: i32) -> i32 =
+compile_shader: proc(type: i32, src: string) -> i32 =
 {
   name = gl.glCreateShader(type) check_opengl_error()
-  gl.glShaderSource(name, 1, ^src, ^src_len) check_opengl_error()
+  gl.glShaderSource(name, 1, ^src.raw, ^i32(src.length)) check_opengl_error()
   gl.glCompileShader(name) check_opengl_error()
 
   compile_status: i32

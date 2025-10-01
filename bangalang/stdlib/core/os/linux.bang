@@ -11,7 +11,8 @@ mmap: proc(address: ^i8, length: i64, prot: i64, flags: i64, file_descriptor: i6
 
 exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
 
-gettimeofday: proc(timeval: ^i64[2]) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
+timeval_t = struct { seconds: i64, micro_seconds: i64 }
+gettimeofday: proc(timeval: ^timeval_t) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
 
 futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
   syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1, 0, 0)

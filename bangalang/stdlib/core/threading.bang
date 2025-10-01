@@ -69,10 +69,10 @@ thread_pool_task = struct
 
 thread_pool = struct
 {
-  worker_count: i64,
-  current_worker_count: i64,
+  worker_count: i32,
+  current_worker_count: i32,
   tasks: thread_pool_task[100],
-  task_count: i64,
+  task_count: i32,
   mutex: i32,
   semaphore: semaphore_t,
   working: i32
@@ -116,7 +116,7 @@ thread_pool_worker: proc(arg: i64) =
 }
 
 thread_pool_start: proc(pool: ^thread_pool) =
-  for index: i64, index < pool.worker_count, index += 1
+  for index: i32, index < pool.worker_count, index += 1
     start_thread(thread_pool_worker, #untyped pool)
 
 thread_pool_enqueue: proc(pool: ^thread_pool, task: ^thread_pool_task) =
@@ -134,5 +134,5 @@ thread_pool_wait: proc(pool: ^thread_pool) =
   linux.futex(^pool.working, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
 
 thread_pool_stop: proc(pool: ^thread_pool) =
-  for index: i64, index < pool.worker_count, index += 1
+  for index: i32, index < pool.worker_count, index += 1
     semaphore_signal(^pool.semaphore)

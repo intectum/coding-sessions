@@ -76,18 +76,7 @@ build :: proc(name: string, code: string, out_path: string)
 compile :: proc(name: string, code: string, asm_path: string) -> program.program
 {
   the_program: program.program
-  if !program.load_module(&the_program, name, code)
-  {
-    os.exit(1)
-  }
-
-  type_checking_ctx: type_checking.type_checking_context =
-  {
-    program = &the_program,
-    module_name = name,
-    procedure_name = "[main]"
-  }
-  if !type_checking.type_check_module(&type_checking_ctx)
+  if !type_checking.type_check_program(&the_program, name, code)
   {
     os.exit(1)
   }

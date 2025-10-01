@@ -40,32 +40,31 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
 
   if operand_type_node.value == "bool"
   {
-    return generate_expression_bool(ctx, node, lhs_location, rhs_location, operand_type_node, register_num, contains_allocations)
+    return generate_expression_bool(ctx, node, lhs_location, rhs_location, operand_type_node, register_num)
   }
 
   _, float_type := slice.linear_search(type_checking.float_types, operand_type_node.value)
   if float_type
   {
-    return generate_expression_float(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num, contains_allocations)
+    return generate_expression_float(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
   _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, operand_type_node.value)
   if atomic_integer_type
   {
-    return generate_expression_atomic_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num, contains_allocations)
+    return generate_expression_atomic_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
   _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
   if signed_integer_type
   {
-    return generate_expression_signed_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num, contains_allocations)
+    return generate_expression_signed_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
-  assert(false, "Failed to generate expression")
-  return {}
+  return generate_expression_any(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
 }
 
-generate_expression_bool :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, register_num: int, contains_allocations: bool) -> location
+generate_expression_bool :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, register_num: int) -> location
 {
   _, comparison_operator := slice.linear_search(ast.comparison_operators, node.type)
   if comparison_operator
@@ -104,7 +103,7 @@ generate_expression_bool :: proc(ctx: ^generation.gen_context, node: ^ast.node, 
   return result_location
 }
 
-generate_expression_float :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int, contains_allocations: bool) -> location
+generate_expression_float :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
   precision := to_precision_size(to_byte_size(operand_type_node))
 
@@ -156,7 +155,7 @@ generate_expression_float :: proc(ctx: ^generation.gen_context, node: ^ast.node,
   return result_location
 }
 
-generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int, contains_allocations: bool) -> location
+generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
   result_location := register(register_num, result_type_node)
   lhs_register_location := copy_to_register(ctx, lhs_location, register_num, operand_type_node)
@@ -184,7 +183,7 @@ generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
   return result_location
 }
 
-generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int, contains_allocations: bool) -> location
+generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
   result_location := register(register_num, result_type_node)
 
@@ -244,6 +243,44 @@ generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign lhs to dividend low part", to_operand(register("ax", result_type_node)), to_operand(lhs_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  idiv %s %s ; %s", to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_register_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign result", to_operand(result_location), to_operand(output_register), operation_name)
+  case:
+    assert(false, "Failed to generate expression")
+  }
+
+  return result_location
+}
+
+generate_expression_any :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
+{
+  result_location := register(register_num, result_type_node)
+
+  nil_compare := lhs_location.type == .immediate || rhs_location.type == .immediate
+
+  if lhs_location.type == .immediate
+  {
+    fmt.sbprintln(&ctx.output, "  mov al, 0 ; compare: lhs");
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
+  }
+  else if rhs_location.type == .immediate
+  {
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: lhs", to_operand(lhs_location));
+    fmt.sbprintln(&ctx.output, "  mov al, 0 ; compare: rhs");
+  }
+  else
+  {
+    fmt.sbprintfln(&ctx.output, "  lea rsi, %s ; compare: lhs", to_operand(lhs_location));
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
+  }
+
+  fmt.sbprintfln(&ctx.output, "  mov rcx, %i ; compare: count", to_byte_size(operand_type_node));
+  fmt.sbprintfln(&ctx.output, "  repe %s ; compare", nil_compare ? "scasb" : "cmpsb");
+
+  #partial switch node.type
+  {
+  case .equal:
+    fmt.sbprintfln(&ctx.output, "  sete %s ; equal", to_operand(result_location))
+  case .not_equal:
+    fmt.sbprintfln(&ctx.output, "  setne %s ; not equal", to_operand(result_location))
   case:
     assert(false, "Failed to generate expression")
   }

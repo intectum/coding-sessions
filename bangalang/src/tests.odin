@@ -555,6 +555,38 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(slice1[7] == 40, "")
   `
 
+  // TODO move to value tests...
+  general_tests["equal"] =
+  `
+    debug = import("core/debug")
+
+    var0: ^i8 = #untyped 0
+    var1: ^i8 = #untyped 1
+    debug.assert(var0 == nil, "")
+    debug.assert(var0 == var0, "")
+    debug.assert(var1 != nil, "")
+    debug.assert(var0 != var1, "")
+    var2: i8[10]
+    var3: i8[10]
+    var3[0] = 1
+    debug.assert(var2 == nil, "")
+    debug.assert(var2 == var2, "")
+    debug.assert(var3 != nil, "")
+    debug.assert(var2 != var3, "")
+    var4: i8[]
+    var5 = var3[:]
+    debug.assert(var4 == nil, "")
+    debug.assert(var4 == var4, "")
+    debug.assert(var5 != nil, "")
+    debug.assert(var4 != var5, "")
+    var6: struct { a: i64, b: i64 } = { a = 0, b = 0 }
+    var7: struct { a: i64, b: i64 } = { a = 1, b = 1 }
+    debug.assert(var6 == nil, "")
+    debug.assert(var6 == var6, "")
+    debug.assert(var7 != nil, "")
+    debug.assert(var6 != var7, "")
+  `
+
   value_tests: map[string]string
 
   // TODO

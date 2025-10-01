@@ -1,0 +1,8 @@
+linux = import("core/os/linux")
+
+time: proc() -> i64 =
+{
+  timeval: linux.timeval_t
+  linux.gettimeofday(^timeval)
+  return timeval.seconds * 1000000 + timeval.micro_seconds
+}
