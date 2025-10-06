@@ -16,7 +16,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "_start:")
 
   generated_import_names: [dynamic]string
-  generate_statements(ctx, ctx.module_name, &generated_import_names)
+  generate_main_statements(ctx, ctx.module_name, &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -98,7 +98,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   generate_static_vars(ctx)
 }
 
-generate_statements :: proc(ctx: ^generation.gen_context, module_name: string, generated_import_names: ^[dynamic]string)
+generate_main_statements :: proc(ctx: ^generation.gen_context, module_name: string, generated_import_names: ^[dynamic]string)
 {
   _, found_generated_module := slice.linear_search(generated_import_names[:], module_name)
   if found_generated_module
@@ -111,21 +111,13 @@ generate_statements :: proc(ctx: ^generation.gen_context, module_name: string, g
   module := &ctx.program.modules[module_name]
   for import_name in module.imports
   {
-    generate_statements(ctx, module.imports[import_name], generated_import_names)
+    generate_main_statements(ctx, module.imports[import_name], generated_import_names)
   }
 
   ctx.module_name = module_name
 
   main_procedure := &ctx.program.procedures[program.get_qualified_name(module_name, "[main]")]
-  for &statement in main_procedure.statements
-  {
-    if ast.is_link_statement(&statement) || ast.is_import_statement(&statement) || ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
-    {
-      continue
-    }
-
-    generate_statement(ctx, &statement)
-  }
+  generate_statements(ctx, main_procedure.statements[:])
 }
 
 generate_procedures :: proc(ctx: ^generation.gen_context, references: []program.reference, generated_procedure_names: ^[dynamic]string)

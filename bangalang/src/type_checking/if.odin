@@ -8,7 +8,7 @@ type_check_if :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
   expression_node := &node.children[child_index]
   child_index += 1
 
-  type_check_rhs_expression(expression_node, ctx, &ctx.identifiers["bool"]) or_return
+  type_check_rhs_expression(expression_node, ctx, &ctx.program.identifiers["bool"]) or_return
 
   statement_node := &node.children[child_index]
   child_index += 1
@@ -17,7 +17,7 @@ type_check_if :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   for child_index + 1 < len(node.children)
   {
-    type_check_rhs_expression(&node.children[child_index], ctx, &ctx.identifiers["bool"]) or_return
+    type_check_rhs_expression(&node.children[child_index], ctx, &ctx.program.identifiers["bool"]) or_return
     child_index += 1
 
     type_check_statement(&node.children[child_index], ctx) or_return

@@ -205,7 +205,7 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
   {
     if new_type_node.value == "[any_string]" && node.value == "[any_string]"
     {
-      node^ = ctx.identifiers["string"]
+      node^ = ctx.program.identifiers["string"]
     }
     else if node.value == "nil" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#untyped"
     {
@@ -241,10 +241,10 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
         }
       }
     }
-    else if node.value in ctx.identifiers
+    else
     {
-      identifier_node := &ctx.identifiers[node.value]
-      if ast.is_type(identifier_node)
+      identifier_node := get_identifier_node(ctx, node.value)
+      if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^
         return true
@@ -260,7 +260,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   for &child_node in node.children
   {
-    if resolve_types(&child_node, ctx)
+    if child_node.type != .scope && resolve_types(&child_node, ctx)
     {
       if node.type == .index
       {

@@ -1,10 +1,11 @@
 $$
 \begin{align}
-program\ &\to\ statement*\\
+module\ &\to\ statements\\
+statements\ &\to\ statement*\\
 statement\ &\to\ if\ |\ for\ |\ return\ |\ scope\ |\ assignment\ |\ rhs\_expression\\
 if\ &\to\ \text{"if"}\ \text{"("}?\ rhs\_expression\ \text{")"}?\ statement\ (\ \text{"else"}\ \text{"if"}\ \text{"("}?\ rhs\_expression\ \text{")"}?\ statement\ )*\ (\ \text{"else"}\ statement\ )?\\
 for\ &\to\ \text{"for"}\ \text{"("}?\ (\ statement\ \&\ !rhs\_expression\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ statement\ )?\ \text{")"}?\ statement\\
-scope\ &\to\ \text{"\{"}\ statement*\ \text{"\}"}\\
+scope\ &\to\ \text{"\{"}\ statements\ \text{"\}"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression\\
 assignment\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"+="}\ |\ \text{"-="}\ |\ \text{"*="}\ |\ \text{"/="}\ |\ \text{"%="}\ )\ statement\ )?\\
 lhs\_expression\ &\to\ lhs\_primary\ (\ \text{":"}\ type\_primary\ (\ \text{"@"}\ identifier\ )?\ )?\\

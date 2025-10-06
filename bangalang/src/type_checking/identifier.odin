@@ -23,7 +23,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
       }
       else if node.value == "length"
       {
-        append(&node.children, ctx.identifiers["i64"])
+        append(&node.children, ctx.program.identifiers["i64"])
       }
       else
       {
@@ -77,23 +77,26 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
       assert(false, "Failed to type check identifier")
     }
   }
-  else if node.value in ctx.identifiers
+  else
   {
-    identifier_node := &ctx.identifiers[node.value]
-    if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
+    identifier_node := get_identifier_node(ctx, node.value)
+    if identifier_node != nil
     {
-      qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
-      procedure := &ctx.program.procedures[qualified_name]
-      append(&procedure.references, program.reference { ctx.module_name, node.value })
-    }
+      if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
+      {
+        qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+        procedure := &ctx.program.procedures[qualified_name]
+        append(&procedure.references, program.reference { ctx.module_name, node.value })
+      }
 
-    append(&node.children, ast.get_type(identifier_node)^)
-    node.allocator = identifier_node.allocator
-  }
-  else if !allow_undefined
-  {
-    src.print_position_message(node.src_position, "'%s' is not defined", node.value)
-    return false
+      append(&node.children, ast.get_type(identifier_node)^)
+      node.allocator = identifier_node.allocator
+    }
+    else if !allow_undefined
+    {
+      src.print_position_message(node.src_position, "'%s' is not defined", node.value)
+      return false
+    }
   }
 
   return true

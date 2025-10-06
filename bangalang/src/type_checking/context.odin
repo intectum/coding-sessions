@@ -12,26 +12,39 @@ type_checking_context :: struct
   identifiers: map[string]ast.node
 }
 
-copy_type_checking_context := proc(ctx: ^type_checking_context, inline: bool) -> type_checking_context
+copy_type_checking_context := proc(ctx: ^type_checking_context) -> type_checking_context
 {
   ctx_copy: type_checking_context
 
   ctx_copy.program = ctx.program
   ctx_copy.module_name = ctx.module_name
-
-  if inline
-  {
-    ctx_copy.procedure_name = ctx.procedure_name
-  }
+  ctx_copy.procedure_name = ctx.procedure_name
 
   for key in ctx.identifiers
   {
-    identifier_node := &ctx.identifiers[key]
-    if inline || ast.is_type(identifier_node) || ast.get_type(identifier_node).value == "[module]" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "none" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
-    {
-      ctx_copy.identifiers[key] = ctx.identifiers[key]
-    }
+    ctx_copy.identifiers[key] = ctx.identifiers[key]
   }
 
   return ctx_copy
+}
+
+get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string) -> ^ast.node
+{
+  if identifier in ctx.identifiers
+  {
+    return &ctx.identifiers[identifier]
+  }
+
+  module := &ctx.program.modules[ctx.module_name]
+  if identifier in module.identifiers
+  {
+    return &module.identifiers[identifier]
+  }
+
+  if identifier in ctx.program.identifiers
+  {
+    return &ctx.program.identifiers[identifier]
+  }
+
+  return nil
 }

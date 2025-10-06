@@ -65,16 +65,16 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   _, comparison_operator := slice.linear_search(ast.comparison_operators, node.type)
   if comparison_operator
   {
-    append(&node.children, ctx.identifiers["bool"])
+    append(&node.children, ctx.program.identifiers["bool"])
     if coerced_type_node.value == "[any_float]"
     {
-      upgrade_types(lhs_node, &ctx.identifiers["f64"], ctx)
-      upgrade_types(rhs_node, &ctx.identifiers["f64"], ctx)
+      upgrade_types(lhs_node, &ctx.program.identifiers["f64"], ctx)
+      upgrade_types(rhs_node, &ctx.program.identifiers["f64"], ctx)
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      upgrade_types(lhs_node, &ctx.identifiers["i64"], ctx)
-      upgrade_types(rhs_node, &ctx.identifiers["i64"], ctx)
+      upgrade_types(lhs_node, &ctx.program.identifiers["i64"], ctx)
+      upgrade_types(rhs_node, &ctx.program.identifiers["i64"], ctx)
     }
     else
     {

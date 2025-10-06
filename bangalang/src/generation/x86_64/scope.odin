@@ -11,10 +11,7 @@ generate_scope :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   initial_stack_size := ctx.stack_size
 
-  for &child_node in node.children
-  {
-    generate_statement(ctx, &child_node)
-  }
+  generate_statements(ctx, node.children[:])
 
   deallocate_stack(ctx, ctx.stack_size - initial_stack_size)
 

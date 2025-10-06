@@ -76,6 +76,8 @@ build :: proc(name: string, code: string, out_path: string)
 compile :: proc(name: string, code: string, asm_path: string) -> program.program
 {
   the_program: program.program
+  program.init(&the_program)
+
   if !type_checking.type_check_program(&the_program, name, code)
   {
     os.exit(1)

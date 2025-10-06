@@ -72,12 +72,12 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
     any_int_type_node := ast.node { type = .type, value = "[any_int]" }
 
     type_check_rhs_expression(&node.children[1], ctx, &any_int_type_node) or_return
-    upgrade_types(&node.children[1], &ctx.identifiers["i64"], ctx)
+    upgrade_types(&node.children[1], &ctx.program.identifiers["i64"], ctx)
 
     if len(node.children) == 4
     {
       type_check_rhs_expression(&node.children[2], ctx, &any_int_type_node) or_return
-      upgrade_types(&node.children[2], &ctx.identifiers["i64"], ctx)
+      upgrade_types(&node.children[2], &ctx.program.identifiers["i64"], ctx)
 
       type_node := ast.node { type = .type, value = "[slice]" }
       append(&type_node.children, ast.get_type(node)^)
@@ -104,7 +104,7 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
     type := strings.contains(node.value, ".") ? "[any_float]" : "[any_number]"
     append(&node.children, ast.node { type = .type, value = type })
   case .boolean:
-    append(&node.children, ctx.identifiers["bool"])
+    append(&node.children, ctx.program.identifiers["bool"])
   case .compound_literal:
     type_node := ast.get_type(node)
 
@@ -146,7 +146,7 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
           append(&child_lhs_node.children, raw_type_node)
           found_member = true
         case "length":
-          append(&child_lhs_node.children, ctx.identifiers["i64"])
+          append(&child_lhs_node.children, ctx.program.identifiers["i64"])
           found_member = true
         }
       }

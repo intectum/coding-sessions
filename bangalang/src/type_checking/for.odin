@@ -6,7 +6,7 @@ import "../ast"
 
 type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  for_ctx := copy_type_checking_context(ctx, true)
+  for_ctx := copy_type_checking_context(ctx)
 
   child_index := 0
   child_node := &node.children[child_index]
@@ -21,7 +21,7 @@ type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     child_index += 1
   }
 
-  type_check_rhs_expression(child_node, &for_ctx, &for_ctx.identifiers["bool"]) or_return
+  type_check_rhs_expression(child_node, &for_ctx, &for_ctx.program.identifiers["bool"]) or_return
 
   child_node = &node.children[child_index]
   child_index += 1

@@ -111,7 +111,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     return false
   }
 
-  if !ast.is_member(lhs_node) && !(lhs_node.value in ctx.identifiers)
+  if !ast.is_member(lhs_node) && get_identifier_node(ctx, lhs_node.value) == nil
   {
     allocator := ast.get_allocator(lhs_node)
     if allocator == "heap" || allocator == "vram"
