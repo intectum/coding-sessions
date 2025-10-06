@@ -5,7 +5,8 @@ import "../src"
 
 type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  if ast.is_member(node) || get_identifier_node(ctx, node.value) != nil
+  identifier_node, _ := get_identifier_node(ctx, node.value)
+  if ast.is_member(node) || identifier_node != nil
   {
     type_node := ast.get_type(node)
 

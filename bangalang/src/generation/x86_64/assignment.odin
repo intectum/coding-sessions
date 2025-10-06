@@ -45,7 +45,12 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     case "stack":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
     case "static":
-      qualified_name := program.get_qualified_name(ctx.module_name, lhs_node.value)
+      path: [dynamic]string
+      append(&path, ..ctx.path[:])
+      append(&path, lhs_node.value)
+      defer delete(path)
+
+      qualified_name := program.get_qualified_name(path[:])
       if !(qualified_name in ctx.program.static_vars)
       {
         ctx.program.static_vars[qualified_name] = node^

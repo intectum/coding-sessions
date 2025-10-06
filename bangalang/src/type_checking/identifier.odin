@@ -31,7 +31,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
         return false
       }
     case "[module]":
-      module := &ctx.program.modules[ctx.module_name]
+      module := &ctx.program.modules[ctx.path[0]]
       if !(child_node.value in module.imports)
       {
         src.print_position_message(node.src_position, "Module '%s' has not been imported", child_node.value)
@@ -49,9 +49,12 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
       identifier_node := &imported_module.identifiers[node.value]
       if ast.is_static_procedure(identifier_node)
       {
-        qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+        qualified_name := program.get_qualified_name(ctx.path[:])
         procedure := &ctx.program.procedures[qualified_name]
-        append(&procedure.references, program.reference { imported_module_name, node.value })
+
+        path: [dynamic]string
+        append(&path, imported_module_name, node.value)
+        append(&procedure.references, path)
       }
 
       append(&node.children, ast.get_type(identifier_node)^)
@@ -79,14 +82,18 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
   }
   else
   {
-    identifier_node := get_identifier_node(ctx, node.value)
+    identifier_node, identifier_path := get_identifier_node(ctx, node.value)
     if identifier_node != nil
     {
       if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
       {
-        qualified_name := program.get_qualified_name(ctx.module_name, ctx.procedure_name)
+        qualified_name := program.get_qualified_name(ctx.path[:])
         procedure := &ctx.program.procedures[qualified_name]
-        append(&procedure.references, program.reference { ctx.module_name, node.value })
+
+        path: [dynamic]string
+        append(&path, ..identifier_path)
+        append(&path, node.value)
+        append(&procedure.references, path)
       }
 
       append(&node.children, ast.get_type(identifier_node)^)

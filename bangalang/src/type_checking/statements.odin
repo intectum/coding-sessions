@@ -7,6 +7,7 @@ import "core:strings"
 
 import "../ast"
 import "../program"
+import "../src"
 
 type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.node) -> bool
 {
@@ -47,7 +48,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
 
       if name in ctx.program.modules
       {
-        module := &ctx.program.modules[ctx.module_name]
+        module := &ctx.program.modules[ctx.path[0]]
         module.imports[reference] = name
 
         continue
@@ -56,7 +57,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
       code_data, code_ok := os.read_entire_file(path)
       if !code_ok
       {
-        fmt.printfln("Failed to read module file '%s' imported by '%s'", name, ctx.module_name)
+        src.print_position_message(lhs_node.src_position, "Failed to read module file '%s'", name)
         return false
       }
 
@@ -65,12 +66,11 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
       imported_module_ctx: type_checking_context =
       {
         program = ctx.program,
-        module_name = name,
-        procedure_name = "[main]"
+        path = { name }
       }
       type_check_module(&imported_module_ctx) or_return
 
-      module := &ctx.program.modules[ctx.module_name]
+      module := &ctx.program.modules[ctx.path[0]]
       module.imports[reference] = name
     }
     else if ast.is_static_procedure_statement(&statement)
@@ -83,9 +83,13 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
       procedure: program.procedure
       append(&procedure.statements, statement)
 
-      qualified_name := program.get_qualified_name(ctx.module_name, lhs_node.value)
+      procedure_path: [dynamic]string
+      append(&procedure_path, ..ctx.path)
+      append(&procedure_path, lhs_node.value)
+
+      qualified_name := program.get_qualified_name(procedure_path[:])
       ctx.program.procedures[qualified_name] = procedure
-      append(&ctx.program.queue, program.reference { ctx.module_name, lhs_node.value })
+      append(&ctx.program.queue, procedure_path)
     }
   }
 

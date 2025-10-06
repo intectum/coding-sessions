@@ -16,7 +16,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "_start:")
 
   generated_import_names: [dynamic]string
-  generate_main_statements(ctx, ctx.module_name, &generated_import_names)
+  generate_main_statements(ctx, ctx.path[0], &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -56,7 +56,11 @@ generate_program :: proc(ctx: ^generation.gen_context)
   generated_procedure_names: [dynamic]string
   for module_name in ctx.program.modules
   {
-    main_procedure := &ctx.program.procedures[program.get_qualified_name(module_name, "[main]")]
+    path: [dynamic]string
+    append(&path, module_name)
+    defer delete(path)
+
+    main_procedure := &ctx.program.procedures[program.get_qualified_name(path[:])]
     generate_procedures(ctx, main_procedure.references[:], &generated_procedure_names)
   }
 
@@ -114,17 +118,17 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, module_name: stri
     generate_main_statements(ctx, module.imports[import_name], generated_import_names)
   }
 
-  ctx.module_name = module_name
+  ctx.path = { module_name }
 
-  main_procedure := &ctx.program.procedures[program.get_qualified_name(module_name, "[main]")]
+  main_procedure := &ctx.program.procedures[program.get_qualified_name(ctx.path)]
   generate_statements(ctx, main_procedure.statements[:])
 }
 
-generate_procedures :: proc(ctx: ^generation.gen_context, references: []program.reference, generated_procedure_names: ^[dynamic]string)
+generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic]string, generated_procedure_names: ^[dynamic]string)
 {
   for reference in references
   {
-    qualified_name := program.get_qualified_name(reference.module_name, reference.procedure_name)
+    qualified_name := program.get_qualified_name(reference[:])
 
     _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], qualified_name)
     if found_generated_procedure
@@ -142,8 +146,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: []program.
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        module_name = reference.module_name,
-        procedure_name = reference.procedure_name
+        path = reference[:]
       }
 
       strings.builder_init(&procedure_ctx.output)
@@ -161,8 +164,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: []program.
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        module_name = reference.module_name,
-        procedure_name = reference.procedure_name,
+        path = reference[:],
         output = ctx.output
       }
 

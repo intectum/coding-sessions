@@ -2,6 +2,7 @@ package x86_64
 
 import "../../ast"
 import "../../program"
+import "../../type_checking"
 import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
@@ -49,13 +50,23 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     type_node := ast.get_type(node)
     if type_node.directive != "#extern" && node.value != "cmpxchg" /* TODO yuck */
     {
-      module_name := ctx.module_name
       if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
       {
-        module_name = ctx.program.modules[ctx.module_name].imports[node.children[0].value]
+        name = program.get_qualified_name({ ctx.program.modules[ctx.path[0]].imports[node.children[0].value], node.value })
       }
+      else
+      {
+        // TODO hacky
+        tc_ctx: type_checking.type_checking_context = { program = ctx.program, path = ctx.path }
+        _, identifier_path := type_checking.get_identifier_node(&tc_ctx, node.value)
 
-      name = program.get_qualified_name(module_name, node.value)
+        path: [dynamic]string
+        append(&path, ..identifier_path)
+        append(&path, node.value)
+        defer delete(path)
+
+        name = program.get_qualified_name(path[:])
+      }
     }
 
     if type_node.value == "[procedure]" || type_node.value == "cstring"

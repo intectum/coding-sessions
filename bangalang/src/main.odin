@@ -86,8 +86,7 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   gen_ctx: generation.gen_context =
   {
     program = &the_program,
-    module_name = name,
-    procedure_name = "[main]"
+    path = { name }
   }
 
   strings.builder_init(&gen_ctx.output)

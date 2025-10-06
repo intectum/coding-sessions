@@ -44,7 +44,15 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         rhs_node^ = return_node
       }
 
-      type_check_statement(rhs_node, ctx) or_return
+      // TODO a bit hacky
+      if rhs_node.type != .scope
+      {
+        type_check_statement(rhs_node, ctx) or_return
+      }
+      else
+      {
+        type_check_statements(ctx, rhs_node.children[:]) or_return
+      }
     }
     else
     {
@@ -111,7 +119,8 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     return false
   }
 
-  if !ast.is_member(lhs_node) && get_identifier_node(ctx, lhs_node.value) == nil
+  identifier_node, _ := get_identifier_node(ctx, lhs_node.value)
+  if !ast.is_member(lhs_node) && identifier_node == nil
   {
     allocator := ast.get_allocator(lhs_node)
     if allocator == "heap" || allocator == "vram"

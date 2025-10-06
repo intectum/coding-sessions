@@ -9,7 +9,7 @@ generate_return :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
   fmt.sbprintln(&ctx.output, "  ; return")
 
-  if !(ctx.procedure_name in ctx.program.modules)
+  if len(ctx.path) > 1
   {
     if len(node.children) > 0
     {

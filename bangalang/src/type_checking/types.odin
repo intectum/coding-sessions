@@ -226,7 +226,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
     {
       child_node := &node.children[0]
-      module := &ctx.program.modules[ctx.module_name]
+      module := &ctx.program.modules[ctx.path[0]]
       if child_node.value in module.imports
       {
         imported_module := &ctx.program.modules[module.imports[child_node.value]]
@@ -243,7 +243,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     }
     else
     {
-      identifier_node := get_identifier_node(ctx, node.value)
+      identifier_node, _ := get_identifier_node(ctx, node.value)
       if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^

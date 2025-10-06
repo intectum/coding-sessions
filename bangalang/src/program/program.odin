@@ -8,16 +8,12 @@ import "../parsing"
 import "../tokenization"
 import "../tokens"
 
-reference :: struct
-{
-  module_name: string,
-  procedure_name: string
-}
-
 procedure :: struct
 {
   statements: [dynamic]ast.node,
-  references: [dynamic]reference,
+  references: [dynamic][dynamic]string,
+
+  identifiers: map[string]ast.node,
 
   type_checked: bool
 }
@@ -42,7 +38,7 @@ program :: struct
   cstring_literals: [dynamic]string,
   static_vars: map[string]ast.node,
 
-  queue: [dynamic]reference
+  queue: [dynamic][dynamic]string
 }
 
 init :: proc(program: ^program)
@@ -112,13 +108,13 @@ load_module :: proc(program: ^program, name: string, code: string) -> bool
   }
 
   program.modules[name] = {}
-  program.procedures[get_qualified_name(name, "[main]")] = { statements = nodes }
+  program.procedures[get_qualified_name({ name })] = { statements = nodes }
 
   return true
 }
 
-get_qualified_name :: proc(module_name: string, procedure_name: string) -> string
+get_qualified_name :: proc(path: []string) -> string
 {
-  final_module_name, _ := strings.replace_all(module_name, "/", ".")
-  return strings.concatenate({ final_module_name, ".$module.", procedure_name })
+  final_module_name, _ := strings.replace_all(path[0], "/", ".")
+  return strings.concatenate({ final_module_name, ".$module.", strings.join(path[1:], ".") })
 }
