@@ -41,8 +41,8 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
     // TODO non-integers
     //nilify(ctx, lhs_location, lhs_type_node)
-    _, signed_integer := slice.linear_search(type_checking.signed_integer_types, lhs_type_node.value)
-    if signed_integer
+    _, integer := slice.linear_search(type_checking.integer_types, lhs_type_node.value)
+    if integer
     {
       fmt.sbprint(&ctx.output, " = 0")
     }

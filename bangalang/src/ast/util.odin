@@ -56,7 +56,7 @@ is_member :: proc(identifier: ^node) -> bool
   }
 
   final_identifier := identifier
-  for final_identifier.children[0].type == .dereference || final_identifier.children[0].type == .reference
+  for final_identifier.children[0].type == .dereference || final_identifier.children[0].type == .index || final_identifier.children[0].type == .reference
   {
     final_identifier = &final_identifier.children[0]
   }

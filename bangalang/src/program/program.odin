@@ -50,12 +50,17 @@ init :: proc(program: ^program)
   program.identifiers["bool"] = { type = .type, value = "bool" }
   program.identifiers["cint"] = { type = .type, value = "cint" }
   program.identifiers["cstring"] = { type = .type, value = "cstring" }
+  program.identifiers["cuint"] = { type = .type, value = "cuint" }
   program.identifiers["f32"] = { type = .type, value = "f32" }
   program.identifiers["f64"] = { type = .type, value = "f64" }
   program.identifiers["i8"] = { type = .type, value = "i8" }
   program.identifiers["i16"] = { type = .type, value = "i16" }
   program.identifiers["i32"] = { type = .type, value = "i32" }
   program.identifiers["i64"] = { type = .type, value = "i64" }
+  program.identifiers["u8"] = { type = .type, value = "u8" }
+  program.identifiers["u16"] = { type = .type, value = "u16" }
+  program.identifiers["u32"] = { type = .type, value = "u32" }
+  program.identifiers["u64"] = { type = .type, value = "u64" }
 
   string_type_node := ast.node { type = .type, value = "[slice]" }
   append(&string_type_node.children, ast.node { type = .type, value = "i8" })

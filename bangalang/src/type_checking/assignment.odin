@@ -12,13 +12,19 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
+  if len(node.children) == 1 && ast.is_static_procedure(lhs_node) && ast.get_type(lhs_node).directive != "#extern"
+  {
+    src.print_position_message(lhs_node.src_position, "Procedure '%s' must have a procedure body", lhs_node.value)
+    return false
+  }
+
   if len(node.children) > 1
   {
     operator_node := &node.children[1]
     rhs_node := &node.children[2]
 
     lhs_type_node := ast.get_type(lhs_node)
-    if !ast.is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+    if ast.is_static_procedure(lhs_node)
     {
       if lhs_type_node.directive == "#extern"
       {

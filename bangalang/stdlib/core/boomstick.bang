@@ -16,11 +16,9 @@ init: proc() =
 {
   for index: i64, index < glsl_kernels.length, index += 1
   {
-    glsl_kernel = glsl_kernels[index]
-
     name = gl.glCreateProgram()
     shader_name = gl.glCreateShader(gl.GL_COMPUTE_SHADER)
-    gl.glShaderSource(shader_name, 1, ^glsl_kernel.raw, ^i32(glsl_kernel.length))
+    gl.glShaderSource(shader_name, 1, ^glsl_kernels[index].raw, ^i32(glsl_kernels[index].length))
     gl.glCompileShader(shader_name)
     gl.glAttachShader(name, shader_name)
     gl.glLinkProgram(name)

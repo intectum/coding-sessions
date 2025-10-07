@@ -6,11 +6,12 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "f32", "f64", "i8", "i16", "i32", "i64" }
+numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
 float_types: []string = { "[any_float]", "f32", "f64" }
-integer_types: []string = { "[any_int]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "i8", "i16", "i32", "i64" }
+integer_types: []string = { "[any_int]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
 atomic_integer_types: []string = { "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64" }
 signed_integer_types: []string = { "cint", "i8", "i16", "i32", "i64" }
+unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
 
 coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 {

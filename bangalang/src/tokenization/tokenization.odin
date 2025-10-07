@@ -55,7 +55,12 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
     }
     else if src.peek_string(&stream, 2) == "//"
     {
-      read_single_line_comment(&stream)
+      src.next_string(&stream, 2)
+
+      for src.peek_rune(&stream) != '\n'
+      {
+        src.next_rune(&stream)
+      }
     }
     else if src.peek_string(&stream, 2) == "/*"
     {
@@ -82,10 +87,6 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
           {
             break
           }
-        }
-        else if src.peek_string(&stream, 2) == "//"
-        {
-          read_single_line_comment(&stream)
         }
         else if src.peek_rune(&stream) == '"'
         {
@@ -201,16 +202,6 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
   }
 
   return result, true
-}
-
-read_single_line_comment :: proc(stream: ^src.stream)
-{
-  src.next_string(stream, 2)
-
-  for src.peek_rune(stream) != '\n'
-  {
-    src.next_rune(stream)
-  }
 }
 
 read_string :: proc(stream: ^src.stream) -> bool

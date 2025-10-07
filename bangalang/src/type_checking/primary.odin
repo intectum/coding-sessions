@@ -30,7 +30,8 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
   case .negate:
     child_type_node := ast.get_type(&node.children[0])
     _, numerical_type := slice.linear_search(numerical_types, child_type_node.value)
-    if !numerical_type
+    _, unsigned_integer_type := slice.linear_search(unsigned_integer_types, child_type_node.value)
+    if !numerical_type || unsigned_integer_type
     {
       src.print_position_message(node.src_position, "Cannot negate type '%s'", type_name(child_type_node))
       return false

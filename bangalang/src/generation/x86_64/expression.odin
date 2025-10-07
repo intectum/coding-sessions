@@ -56,9 +56,10 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   }
 
   _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
-  if signed_integer_type
+  _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, operand_type_node.value)
+  if signed_integer_type || unsigned_integer_type
   {
-    return generate_expression_signed_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
+    return generate_expression_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
   return generate_expression_any(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
@@ -183,8 +184,13 @@ generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
   return result_location
 }
 
-generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
+generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
+  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, result_type_node.value)
+  prefix := signed_integer_type ? "i" : ""
+  less := signed_integer_type ? "l" : "b"
+  greater := signed_integer_type ? "g" : "a"
+
   result_location := register(register_num, result_type_node)
 
   _, comparison_operator := slice.linear_search(ast.comparison_operators, node.type)
@@ -201,13 +207,13 @@ generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
     case .not_equal:
       fmt.sbprintfln(&ctx.output, "  setne %s ; not equal", to_operand(result_location))
     case .less_than:
-      fmt.sbprintfln(&ctx.output, "  setl %s ; less than", to_operand(result_location))
+      fmt.sbprintfln(&ctx.output, "  set%s %s ; less than", less, to_operand(result_location))
     case .greater_than:
-      fmt.sbprintfln(&ctx.output, "  setg %s ; greater than", to_operand(result_location))
+      fmt.sbprintfln(&ctx.output, "  set%s %s ; greater than", greater, to_operand(result_location))
     case .less_than_or_equal:
-      fmt.sbprintfln(&ctx.output, "  setle %s ; less than or equal", to_operand(result_location))
+      fmt.sbprintfln(&ctx.output, "  set%se %s ; less than or equal", less, to_operand(result_location))
     case .greater_than_or_equal:
-      fmt.sbprintfln(&ctx.output, "  setge %s ; greater than or equal", to_operand(result_location))
+      fmt.sbprintfln(&ctx.output, "  set%se %s ; greater than or equal", greater, to_operand(result_location))
     case:
       assert(false, "Failed to generate expression")
     }
@@ -224,8 +230,19 @@ generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
     result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
     fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract", to_operand(result_location), to_operand(rhs_location))
   case .multiply:
-    result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
-    fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply", to_operand(result_location), to_operand(rhs_location))
+    if signed_integer_type
+    {
+      result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
+      fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply", to_operand(result_location), to_operand(rhs_location))
+    }
+    else
+    {
+      // TODO more testing!
+      rhs_non_immediate_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, result_type_node)
+      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; multiply: lhs", to_operand(register("ax", result_type_node)), to_operand(lhs_location))
+      fmt.sbprintfln(&ctx.output, "  %smul %s %s ; multiply", prefix, to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_non_immediate_location))
+      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; multiply: assign result", to_operand(result_location), to_operand(register("ax", result_type_node)))
+    }
   case .divide, .modulo:
     // dividend / divisor
 
@@ -237,11 +254,11 @@ generate_expression_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
       output_register_name = "dx"
     }
 
-    rhs_register_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, result_type_node)
+    rhs_non_immediate_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, result_type_node)
     output_register := register(output_register_name, result_type_node)
     fmt.sbprintfln(&ctx.output, "  mov %s, 0 ; %s: assign zero to dividend high part", to_operand(register("dx", result_type_node)), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign lhs to dividend low part", to_operand(register("ax", result_type_node)), to_operand(lhs_location), operation_name)
-    fmt.sbprintfln(&ctx.output, "  idiv %s %s ; %s", to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_register_location), operation_name)
+    fmt.sbprintfln(&ctx.output, "  %sdiv %s %s ; %s", prefix, to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_non_immediate_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign result", to_operand(result_location), to_operand(output_register), operation_name)
   case:
     assert(false, "Failed to generate expression")

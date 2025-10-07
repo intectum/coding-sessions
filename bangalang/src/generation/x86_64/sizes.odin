@@ -16,10 +16,10 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
 
   switch type_node.value
   {
-  case "atomic_i8", "bool", "i8": return 1
-  case "atomic_i16", "i16": return 2
-  case "atomic_i32", "f32", "i32": return 4
-  case "atomic_i64", "f64", "i64": return 8
+  case "atomic_i8", "bool", "i8", "u8": return 1
+  case "atomic_i16", "i16", "u16": return 2
+  case "atomic_i32", "f32", "i32", "u32": return 4
+  case "atomic_i64", "f64", "i64", "u64": return 8
   case "[procedure]", "cstring": return address_size
   case "[slice]": return address_size + 8 /* i64 */
   case "[array]":
@@ -34,7 +34,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
     }
 
     return size
-  case "cint": return size_of(c.int)
+  case "cint", "cuint": return size_of(c.int)
   }
 
   assert(false, "Unsupported byte size")

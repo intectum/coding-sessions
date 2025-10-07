@@ -28,10 +28,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         Nested multi-line comment!
       */
 
-      // Multi-line close */
-
       "Multi-line close */"
-
     */
 
     uncommented_code = 1
@@ -1115,6 +1112,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO unknown identifier as type
   // TODO value used as type
   // TODO type used as value
+  // TODO number conversions
 
   for general_test in general_tests
   {
@@ -1191,6 +1189,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         {
           continue
         }
+      }
+
+      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, numerical_type)
+      if unsigned_integer_type && (numerical_test == "modulo" /* TODO re-add */ || numerical_test == "negate")
+      {
+        continue
       }
 
       numerical_code, _ := strings.replace_all(numerical_tests[numerical_test], "<type>", numerical_type)

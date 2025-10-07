@@ -87,6 +87,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       _, float_type := slice.linear_search(type_checking.float_types, lhs_type_node.value)
       _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, lhs_type_node.value)
       _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, lhs_type_node.value)
+      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, lhs_type_node.value)
 
       if float_type
       {
@@ -100,9 +101,9 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       {
         generate_assignment_atomic_integer(ctx, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
       }
-      else if signed_integer_type
+      else if signed_integer_type || unsigned_integer_type
       {
-        generate_assignment_signed_integer(ctx, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
+        generate_assignment_integer(ctx, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
       }
       else
       {
@@ -288,8 +289,11 @@ generate_assignment_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
   }
 }
 
-generate_assignment_signed_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, type_node: ^ast.node, register_num: int)
+generate_assignment_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, type_node: ^ast.node, register_num: int)
 {
+  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, type_node.value)
+  prefix := signed_integer_type ? "i" : ""
+
   #partial switch node.type
   {
   case .add_assign:
@@ -299,11 +303,21 @@ generate_assignment_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
     rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
     fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract assign", to_operand(lhs_location), to_operand(rhs_register_location))
   case .multiply_assign:
-    result_location := copy_to_register(ctx, lhs_location, register_num, type_node)
-    rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
-    fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply assign", to_operand(result_location), to_operand(rhs_register_location))
-    copy(ctx, result_location, lhs_location, type_node)
-    result_location = lhs_location
+    if signed_integer_type
+    {
+      result_location := copy_to_register(ctx, lhs_location, register_num, type_node)
+      rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
+      fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply assign", to_operand(result_location), to_operand(rhs_register_location))
+      copy(ctx, result_location, lhs_location, type_node)
+    }
+    else
+    {
+      // TODO more testing!
+      rhs_non_immediate_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, type_node)
+      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; multiply assign: lhs", to_operand(register("ax", type_node)), to_operand(lhs_location))
+      fmt.sbprintfln(&ctx.output, "  %smul %s %s ; multiply assign", prefix, to_operation_size(to_byte_size(type_node)), to_operand(rhs_non_immediate_location))
+      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; multiply assign: assign result", to_operand(lhs_location), to_operand(register("ax", type_node)))
+    }
   case .divide_assign, .modulo_assign:
     // dividend / divisor
 
@@ -315,11 +329,11 @@ generate_assignment_signed_integer :: proc(ctx: ^generation.gen_context, node: ^
       output_register_name = "dx"
     }
 
-    rhs_register_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, type_node)
+    rhs_non_immediate_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, type_node)
     output_register := register(output_register_name, type_node)
     fmt.sbprintfln(&ctx.output, "  mov %s, 0 ; %s: assign zero to dividend high part", to_operand(register("dx", type_node)), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign lhs to dividend low part", to_operand(register("ax", type_node)), to_operand(lhs_location), operation_name)
-    fmt.sbprintfln(&ctx.output, "  idiv %s %s ; %s", to_operation_size(to_byte_size(type_node)), to_operand(rhs_register_location), operation_name)
+    fmt.sbprintfln(&ctx.output, "  %sdiv %s %s ; %s", prefix, to_operation_size(to_byte_size(type_node)), to_operand(rhs_non_immediate_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign result", to_operand(lhs_location), to_operand(output_register), operation_name)
   case:
     assert(false, "Failed to generate assignment")
