@@ -1,3 +1,12 @@
+CLONE_VM: i64@static = 0x100
+CLONE_FILES: i64@static = 0x400
+CLONE_SIGHAND: i64@static = 0x800
+CLONE_THREAD: i64@static = 0x10000
+PROT_READ: i64@static = 0x1
+PROT_WRITE: i64@static = 0x2
+MAP_ANONYMOUS: i64@static = 0x20
+MAP_PRIVATE: i64@static = 0x2
+
 syscall: #extern proc(syscall_num: i64, param0: i64, param1: i64, param2: i64, param3: i64, param4: i64, param5: i64) -> i64
 
 write: proc(file_descriptor: i64, message: string) =

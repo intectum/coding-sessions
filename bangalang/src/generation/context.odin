@@ -13,6 +13,7 @@ gen_context :: struct
   stack_variable_offsets: map[string]int,
 
   label_index: int,
+  for_index: int,
 
   output: strings.Builder
 }

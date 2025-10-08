@@ -20,9 +20,15 @@ node_type :: enum
   and,
   assign,
   assignment,
+  bitwise_and,
+  bitwise_and_assign,
+  bitwise_or,
+  bitwise_or_assign,
   boolean,
+  break_,
   call,
   compound_literal,
+  continue_,
   dereference,
   divide,
   divide_assign,
@@ -54,7 +60,7 @@ node_type :: enum
   type
 }
 
-statements: []node_type = { .assignment, .for_, .if_, .return_, .scope }
-binary_operators: []node_type = { .and, .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal, .add, .subtract, .multiply, .divide, .modulo, .or }
-comparison_operators: []node_type = { .equal, .not_equal, .less_than, .greater_than, .less_than_or_equal, .greater_than_or_equal }
+statements: []node_type = { .assignment, .break_, .continue_, .for_, .if_, .return_, .scope }
+binary_operators: []node_type = { .add, .and, .bitwise_and, .bitwise_or, .divide, .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .modulo, .multiply, .not_equal, .or, .subtract }
+comparison_operators: []node_type = { .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .not_equal }
 literals: []node_type = { .boolean, .compound_literal, .nil_, .number, .string_ }

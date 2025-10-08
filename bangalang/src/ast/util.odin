@@ -114,28 +114,12 @@ to_node_type :: proc(token_type: tokens.token_type) -> node_type
 {
   #partial switch token_type
   {
-  case .equals:
-    return .assign
-  case .equals_equals:
-    return .equal
-  case .exclamation_equals:
-    return .not_equal
-  case .opening_angle_bracket:
-    return .less_than
-  case .closing_angle_bracket:
-    return .greater_than
-  case .opening_angle_bracket_equals:
-    return .less_than_or_equal
-  case .closing_angle_bracket_equals:
-    return .greater_than_or_equal
-  case .plus:
-    return .add
-  case .plus_equals:
-    return .add_assign
-  case .minus:
-    return .subtract
-  case .minus_equals:
-    return .subtract_assign
+  case .ampersand:
+    return .bitwise_and
+  case .ampersand_equals:
+    return .bitwise_and_assign
+  case .ampersand_ampersand:
+    return .and
   case .asterisk:
     return .multiply
   case .asterisk_equals:
@@ -144,14 +128,38 @@ to_node_type :: proc(token_type: tokens.token_type) -> node_type
     return .divide
   case .backslash_equals:
     return .divide_assign
+  case .closing_angle_bracket:
+    return .greater_than
+  case .closing_angle_bracket_equals:
+    return .greater_than_or_equal
+  case .equals:
+    return .assign
+  case .equals_equals:
+    return .equal
+  case .exclamation_equals:
+    return .not_equal
+  case .minus:
+    return .subtract
+  case .minus_equals:
+    return .subtract_assign
+  case .opening_angle_bracket:
+    return .less_than
+  case .opening_angle_bracket_equals:
+    return .less_than_or_equal
   case .percent:
     return .modulo
   case .percent_equals:
     return .modulo_assign
-  case .ampersand_ampersand:
-    return .and
+  case .pipe:
+    return .bitwise_or
+  case .pipe_equals:
+    return .bitwise_or_assign
   case .pipe_pipe:
     return .or
+  case .plus:
+    return .add
+  case .plus_equals:
+    return .add_assign
   }
 
   assert(false, "Unsupported node type")

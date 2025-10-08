@@ -8,7 +8,9 @@ type_checking_context :: struct
   program: ^program.program,
   path: []string,
 
-  identifiers: map[string]ast.node
+  identifiers: map[string]ast.node,
+
+  within_for: bool
 }
 
 copy_type_checking_context := proc(ctx: ^type_checking_context) -> type_checking_context
@@ -22,6 +24,8 @@ copy_type_checking_context := proc(ctx: ^type_checking_context) -> type_checking
   {
     ctx_copy.identifiers[key] = ctx.identifiers[key]
   }
+
+  ctx_copy.within_for = ctx.within_for
 
   return ctx_copy
 }

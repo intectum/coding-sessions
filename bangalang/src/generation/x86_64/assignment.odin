@@ -302,6 +302,9 @@ generate_assignment_integer :: proc(ctx: ^generation.gen_context, node: ^ast.nod
   case .subtract_assign:
     rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
     fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract assign", to_operand(lhs_location), to_operand(rhs_register_location))
+  case .bitwise_or_assign:
+    rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
+    fmt.sbprintfln(&ctx.output, "  or %s, %s ; or assign", to_operand(lhs_location), to_operand(rhs_register_location))
   case .multiply_assign:
     if signed_integer_type
     {
@@ -335,6 +338,9 @@ generate_assignment_integer :: proc(ctx: ^generation.gen_context, node: ^ast.nod
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign lhs to dividend low part", to_operand(register("ax", type_node)), to_operand(lhs_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  %sdiv %s %s ; %s", prefix, to_operation_size(to_byte_size(type_node)), to_operand(rhs_non_immediate_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign result", to_operand(lhs_location), to_operand(output_register), operation_name)
+  case .bitwise_and_assign:
+    rhs_register_location := copy_to_register(ctx, rhs_location, register_num + 1, type_node)
+    fmt.sbprintfln(&ctx.output, "  and %s, %s ; and assign", to_operand(lhs_location), to_operand(rhs_register_location))
   case:
     assert(false, "Failed to generate assignment")
   }

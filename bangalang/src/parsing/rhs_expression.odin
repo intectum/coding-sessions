@@ -57,9 +57,9 @@ binary_operator_precedence :: proc(token: tokens.token) -> int
     return 2
   case .equals_equals, .exclamation_equals, .opening_angle_bracket, .closing_angle_bracket, .opening_angle_bracket_equals, .closing_angle_bracket_equals:
     return 3
-  case .plus, .minus:
+  case .plus, .minus, .pipe:
     return 4
-  case .asterisk, .backslash, .percent:
+  case .asterisk, .backslash, .percent, .ampersand:
     return 5
   }
 

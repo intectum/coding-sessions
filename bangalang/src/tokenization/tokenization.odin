@@ -14,7 +14,9 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
   result: [dynamic]tokens.token
 
   fixed_token_types: map[string]tokens.token_type
+  fixed_token_types["&"] = .ampersand
   fixed_token_types["&&"] = .ampersand_ampersand
+  fixed_token_types["&="] = .ampersand_equals
   fixed_token_types["*"] = .asterisk
   fixed_token_types["*="] = .asterisk_equals
   fixed_token_types["@"] = .at
@@ -43,6 +45,8 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
   fixed_token_types["%"] = .percent
   fixed_token_types["%="] = .percent_equals
   fixed_token_types["."] = .period
+  fixed_token_types["|"] = .pipe
+  fixed_token_types["|="] = .pipe_equals
   fixed_token_types["||"] = .pipe_pipe
   fixed_token_types["+"] = .plus
   fixed_token_types["+="] = .plus_equals

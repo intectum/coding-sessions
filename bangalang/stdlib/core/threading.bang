@@ -1,4 +1,5 @@
 linux = import("core/os/linux")
+strings = import("core/strings")
 
 mutex_lock: proc(mutex: ^i32) =
   for !cmpxchg(mutex, 0, 1)
@@ -31,9 +32,7 @@ semaphore_signal: proc(semaphore: ^semaphore_t) =
 
 start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
-  mmap_prot: i64 = 0x3 // PROT_READ | PROT_WRITE
-  mmap_flags: i64 = 0x22 // MAP_PRIVATE | MAP_ANONYMOUS
-  stack = linux.mmap(nil, 4096, mmap_prot, mmap_flags, -1, 0)
+  stack = linux.mmap(nil, 4096, linux.PROT_READ | linux.PROT_WRITE, linux.MAP_PRIVATE | linux.MAP_ANONYMOUS, -1, 0)
 
   stack_i64: i64 = #untyped stack
   stack_i64 += 4096
@@ -42,10 +41,9 @@ start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
   stack_params[1] = #untyped func
   stack_params[0] = arg
   stack_i64 -= 8 // account for instruction pointer
-  stack_i64 -= 7 * 8 // account for local vars declared before clone
+  stack_i64 -= 5 * 8 // account for local vars declared before clone
 
-  clone_flags: i64 = 0x10d00 // CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD
-  pid = linux.syscall(56, clone_flags, stack_i64, 0, 0, 0, 0)
+  pid = linux.syscall(56, linux.CLONE_VM | linux.CLONE_FILES | linux.CLONE_SIGHAND | linux.CLONE_THREAD, stack_i64, 0, 0, 0, 0)
 
   if pid == 0
   {

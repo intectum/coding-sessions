@@ -96,27 +96,27 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
     {
       if node.type != .and && node.type != .or
       {
-        src.print_position_message(node.src_position, "Binary operator %s is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+        src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
         return false
       }
     }
     else if !numerical_type || node.type == .and || node.type == .or
     {
-      src.print_position_message(node.src_position, "Binary operator %s is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
       return false
     }
 
     _, float_type := slice.linear_search(float_types, coerced_type_node.value)
-    if float_type && node.type == .modulo
+    if float_type && (node.type == .bitwise_and || node.type == .bitwise_or || node.type == .modulo)
     {
-      src.print_position_message(node.src_position, "Binary operator %s is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
       return false
     }
 
     _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
     if atomic_integer_type && !comparison_operator
     {
-      src.print_position_message(node.src_position, "Binary operator %s is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
       return false
     }
   }

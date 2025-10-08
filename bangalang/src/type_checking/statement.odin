@@ -10,6 +10,10 @@ type_check_statement :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     return type_check_if(node, ctx)
   case .for_:
     return type_check_for(node, ctx)
+  case .continue_:
+    return type_check_continue(node, ctx)
+  case .break_:
+    return type_check_break(node, ctx)
   case .return_:
     return type_check_return(node, ctx)
   case .scope:

@@ -13,6 +13,10 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     generate_if(ctx, node)
   case .for_:
     generate_for(ctx, node)
+  case .continue_:
+    generate_continue(ctx, node)
+  case .break_:
+    generate_break(ctx, node)
   case .return_:
     generate_return(ctx, node)
   case .scope:

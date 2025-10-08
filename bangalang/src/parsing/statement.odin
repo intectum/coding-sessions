@@ -15,6 +15,14 @@ parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.n
     {
       return parse_for(stream, ctx)
     }
+    else if tokens.peek_token(stream).value == "continue"
+    {
+      return parse_continue(stream)
+    }
+    else if tokens.peek_token(stream).value == "break"
+    {
+      return parse_break(stream)
+    }
     else if tokens.peek_token(stream).value == "return"
     {
       return parse_return(stream, ctx)

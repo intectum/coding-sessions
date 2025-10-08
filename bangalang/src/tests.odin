@@ -7,7 +7,7 @@ import "core:strings"
 
 import "./type_checking"
 
-non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "multiply", "multiply_assign", "divide", "divide_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
+non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "bitwise_or", "bitwise_or_assign", "multiply", "multiply_assign", "divide", "divide_assign", "bitwise_and", "bitwise_and_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
 
 run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 {
@@ -302,6 +302,34 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     for (value: i64 = 10, value > 0, value = value - 1) sum += value
     debug.assert(sum == 55, "")
     value: bool // 'value' above is no longer in scope
+  `
+
+  general_tests["for_break"] =
+  `
+    debug = import("core/debug")
+
+    sum: i64 = 0
+    for value: i64 = 10, value > 0, value -= 1
+    {
+        if value == 5 break
+
+        sum += value
+    }
+    debug.assert(sum == 40, "")
+  `
+
+  general_tests["for_continue"] =
+  `
+    debug = import("core/debug")
+
+    sum: i64 = 0
+    for value: i64 = 10, value > 0, value -= 1
+    {
+        if value == 5 continue
+
+        sum += value
+    }
+    debug.assert(sum == 50, "")
   `
 
   general_tests["add_assign_1"] =
@@ -1015,6 +1043,24 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0 == 0, "")
   `
 
+  numerical_tests["bitwise_or"] =
+  `
+    debug = import("core/debug")
+
+    var0: <type> = <value0>
+    var1: <type> = <value1>
+    debug.assert(var1 | var0 == 6, "")
+  `
+
+  numerical_tests["bitwise_or_assign"] =
+  `
+    debug = import("core/debug")
+
+    var0: <type> = <value0>
+    var0 |= 4
+    debug.assert(var0 == 6, "")
+  `
+
   numerical_tests["multiply"] =
   `
     debug = import("core/debug")
@@ -1049,6 +1095,27 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     var0: <type> = <value0>
     var0 /= 2
     debug.assert(var0 == 1, "")
+  `
+
+  numerical_tests["bitwise_and"] =
+  `
+    debug = import("core/debug")
+
+    var0: <type> = <value0>
+    var1: <type> = <value1>
+    debug.assert(var0 & var0 == 2, "")
+    debug.assert(var1 & var0 == 0, "")
+  `
+
+  numerical_tests["bitwise_and_assign"] =
+  `
+    debug = import("core/debug")
+
+    var0: <type> = <value0>
+    var0 &= 2
+    debug.assert(var0 == 2, "")
+    var0 &= 4
+    debug.assert(var0 == 0, "")
   `
 
   numerical_tests["modulo"] =
@@ -1113,6 +1180,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO value used as type
   // TODO type used as value
   // TODO number conversions
+  // TODO nested procs
 
   for general_test in general_tests
   {
@@ -1170,13 +1238,13 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
       }
 
       // TODO re-add
-      if numerical_type == "i8" && (numerical_test == "multiply" || numerical_test == "multiply_assign" || numerical_test == "modulo" || numerical_test == "modulo_assign" || numerical_test == "bedmas_1" || numerical_test == "bedmas_3")
+      if (numerical_type == "i8" || numerical_type == "u8") && (numerical_test == "multiply" || numerical_test == "multiply_assign" || numerical_test == "modulo" || numerical_test == "modulo_assign" || numerical_test == "bedmas_1" || numerical_test == "bedmas_3")
       {
         continue
       }
 
       _, float_type := slice.linear_search(type_checking.float_types, numerical_type)
-      if float_type && (numerical_test == "modulo" || numerical_test == "modulo_assign")
+      if float_type && (numerical_test == "bitwise_or" || numerical_test == "bitwise_or_assign" || numerical_test == "bitwise_and" || numerical_test == "bitwise_and_assign" || numerical_test == "modulo" || numerical_test == "modulo_assign")
       {
         continue
       }
@@ -1192,7 +1260,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
       }
 
       _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, numerical_type)
-      if unsigned_integer_type && (numerical_test == "modulo" /* TODO re-add */ || numerical_test == "negate")
+      if unsigned_integer_type && numerical_test == "negate"
       {
         continue
       }

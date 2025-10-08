@@ -229,6 +229,9 @@ generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.nod
   case .subtract:
     result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
     fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract", to_operand(result_location), to_operand(rhs_location))
+  case .bitwise_or:
+    result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
+    fmt.sbprintfln(&ctx.output, "  or %s, %s ; or", to_operand(result_location), to_operand(rhs_location))
   case .multiply:
     if signed_integer_type
     {
@@ -260,6 +263,9 @@ generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.nod
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign lhs to dividend low part", to_operand(register("ax", result_type_node)), to_operand(lhs_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  %sdiv %s %s ; %s", prefix, to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_non_immediate_location), operation_name)
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; %s: assign result", to_operand(result_location), to_operand(output_register), operation_name)
+  case .bitwise_and:
+    result_location = copy_to_register(ctx, lhs_location, register_num, result_type_node)
+    fmt.sbprintfln(&ctx.output, "  and %s, %s ; and", to_operand(result_location), to_operand(rhs_location))
   case:
     assert(false, "Failed to generate expression")
   }

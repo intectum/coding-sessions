@@ -14,6 +14,8 @@ token :: struct
 token_type :: enum
 {
   none,
+  ampersand,
+  ampersand_equals,
   ampersand_ampersand,
   asterisk,
   asterisk_equals,
@@ -50,16 +52,18 @@ token_type :: enum
   percent,
   percent_equals,
   period,
+  pipe,
+  pipe_equals,
   pipe_pipe,
   plus,
   plus_equals,
   string_
 }
 
-keywords: []string = { "else", "for", "if", "proc", "return", "struct" }
+keywords: []string = { "break", "continue", "else", "for", "if", "proc", "return", "struct" }
 
-assignment_operators: []token_type = { .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .plus_equals }
-binary_operators: []token_type = { .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe_pipe, .plus }
+assignment_operators: []token_type = { .ampersand_equals, .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .pipe_equals, .plus_equals }
+binary_operators: []token_type = { .ampersand, .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe, .pipe_pipe, .plus }
 
 stream :: struct
 {

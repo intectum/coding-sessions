@@ -90,29 +90,29 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       {
         element_type_node := &rhs_type_node.children[0]
         _, float_type := slice.linear_search(float_types, element_type_node.value)
-        if !float_type || operator_node.type == .modulo_assign
+        if !float_type || operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign
         {
-          src.print_position_message(operator_node.src_position, "Assignment operator %s is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+          src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
           return false
         }
       }
       else if !numerical_type
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator %s is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
         return false
       }
 
       _, float_type := slice.linear_search(float_types, rhs_type_node.value)
-      if float_type && operator_node.type == .modulo_assign
+      if float_type && (operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign)
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator %s is not valid for type '%s", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s", operator_node.type, type_name(rhs_type_node))
         return false
       }
 
       _, atomic_integer_type := slice.linear_search(atomic_integer_types, rhs_type_node.value)
       if atomic_integer_type && operator_node.type != .add_assign && operator_node.type != .subtract_assign
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator %s is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
         return false
       }
     }
