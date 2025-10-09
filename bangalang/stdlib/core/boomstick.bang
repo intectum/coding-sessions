@@ -1,11 +1,11 @@
-threading = import("core/threading")
-memory = import("core/memory")
+threading: = import("core/threading")
+memory: = import("core/memory")
 
-gl = import("vendor/gl")
+gl: = import("vendor/gl")
 
-kernel_t = proc(index: i32, data: threading.vec4[])
+kernel_t: = proc(index: i32, data: vec4[])
 
-pool: threading.thread_pool@static = { worker_count = 8 } // TODO query core count from kernel
+pool: threading.thread_pool_t@static = { worker_count = 8 } // TODO query core count from kernel
 threading.thread_pool_start(^pool)
 
 // TODO proper map?!
@@ -16,8 +16,8 @@ init: proc() =
 {
   for index: i64, index < glsl_kernels.length, index += 1
   {
-    name = gl.glCreateProgram()
-    shader_name = gl.glCreateShader(gl.GL_COMPUTE_SHADER)
+    name: = gl.glCreateProgram()
+    shader_name: = gl.glCreateShader(gl.GL_COMPUTE_SHADER)
     gl.glShaderSource(shader_name, 1, ^glsl_kernels[index].raw, ^i32(glsl_kernels[index].length))
     gl.glCompileShader(shader_name)
     gl.glAttachShader(name, shader_name)
@@ -26,7 +26,7 @@ init: proc() =
   }
 }
 
-bang: proc(kernel: kernel_t, data: threading.vec4[]) =
+bang: proc(kernel: kernel_t, data: vec4[]) =
 {
   for kernel_index: i64, kernel_index < glsl_kernels.length, kernel_index += 1
   {
@@ -48,14 +48,14 @@ bang: proc(kernel: kernel_t, data: threading.vec4[]) =
     }
   }
 
-  worker_data_length = i32(data.length) / pool.worker_count
+  worker_data_length: = i32(data.length) / pool.worker_count
 
   for index: i32, index < pool.worker_count, index += 1
   {
-    start = index * worker_data_length
-    end = start + worker_data_length
+    start: = index * worker_data_length
+    end: = start + worker_data_length
 
-    task: threading.thread_pool_task =
+    task: threading.thread_pool_task_t =
     {
       func = kernel,
       start = start,

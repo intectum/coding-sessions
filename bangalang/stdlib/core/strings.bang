@@ -1,4 +1,4 @@
-linux = import("core/os/linux")
+linux: = import("core/os/linux")
 
 print: proc(message: string) = linux.write(1, message)
 println: proc(message: string) =
@@ -7,35 +7,48 @@ println: proc(message: string) =
   linux.write(1, "\n")
 }
 
-itoa: proc(value: i64, buffer: i8[]) -> string =
+itoa: proc(value: i64, buffer: byte[]) -> string =
 {
-  length: i64 = 0
-  reversed_buffer: i8[100]
+  length: u64 = 0
 
   if value < 0
   {
-    reversed_buffer[length] = 45 // '-'
+    buffer[length] = 45 // '-'
 
     value = -value
     length += 1
   }
   else if value == 0
   {
-    reversed_buffer[length] = 48 // '0'
+    buffer[length] = 48 // '0'
 
     length += 1
   }
 
   for value > 0
   {
-    reversed_buffer[length] = i8(value % 10) + 48 // '0'
+    buffer[length] = byte(value % 10) + 48 // '0'
 
     value /= 10
     length += 1
   }
 
-  for index: i64, index < length, index += 1
-    buffer[index] = reversed_buffer[length - 1 - index]
+  for index: u64, index < length / 2, index += 1
+  {
+    temp: = buffer[index]
+    buffer[index] = buffer[length - 1 - index]
+    buffer[length - 1 - index] = temp
+  }
 
   return buffer[:length]
+}
+
+get_cstring_length: proc(value: ^byte) -> i64 =
+{
+  value_slice: byte[] = { raw = value, length = 999 /* TODO i64.max */ }
+
+  length: i64
+  for value_slice[length] != 0, length += 1 {}
+
+  return length
 }

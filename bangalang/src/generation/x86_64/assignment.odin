@@ -33,6 +33,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     {
     case "heap", "vram":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
+      ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
       rhs_node := &node.children[2]
       param_node := &rhs_node.children[1]
@@ -44,6 +45,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       // Do nothing
     case "stack":
       allocate_stack(ctx, to_byte_size(lhs_type_node))
+      ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
     case "static":
       path: [dynamic]string
       append(&path, ..ctx.path[:])
@@ -58,14 +60,13 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     case:
       assert(false, "Failed to generate assignment")
     }
-
-    ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
   }
 
   lhs_location := generate_primary(ctx, lhs_node, 0, false)
 
   if len(node.children) == 1
   {
+    // TODO heap etc. ?
     if allocator == "stack" || allocator == "static"
     {
       nilify(ctx, lhs_location, lhs_type_node)

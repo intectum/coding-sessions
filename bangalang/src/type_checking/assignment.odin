@@ -1,14 +1,15 @@
 package type_checking
 
 import "core:slice"
+import "core:strings"
 
 import "../ast"
 import "../src"
-import strings "core:strings"
 
 type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   lhs_node := &node.children[0]
+  declaration := ast.get_type(lhs_node) != nil
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
@@ -78,13 +79,19 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     }
 
     rhs_type_node := ast.get_type(rhs_node)
-    if lhs_type_node == nil
+    if lhs_type_node.value == "[none]"
     {
       append(&lhs_node.children, rhs_type_node^)
     }
 
     if operator_node.type != .assign
     {
+      if declaration
+      {
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for declarations", operator_node.value)
+        return false
+      }
+
       _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
       if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
       {
@@ -92,27 +99,27 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         _, float_type := slice.linear_search(float_types, element_type_node.value)
         if !float_type || operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign
         {
-          src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+          src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
           return false
         }
       }
       else if !numerical_type
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
         return false
       }
 
       _, float_type := slice.linear_search(float_types, rhs_type_node.value)
       if float_type && (operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign)
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s", operator_node.value, type_name(rhs_type_node))
         return false
       }
 
       _, atomic_integer_type := slice.linear_search(atomic_integer_types, rhs_type_node.value)
       if atomic_integer_type && operator_node.type != .add_assign && operator_node.type != .subtract_assign
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.type, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
         return false
       }
     }

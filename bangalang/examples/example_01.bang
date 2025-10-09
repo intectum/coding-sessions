@@ -1,43 +1,46 @@
-boomstick = import("core/boomstick")
-debug = import("core/debug")
-memory = import("core/memory") // TODO needed for allocators to work
-os = import("core/os")
-strings = import("core/strings")
-threading = import("core/threading")
+boomstick: = import("core/boomstick")
+debug: = import("core/debug")
+memory: = import("core/memory") // TODO needed for allocators to work
+os: = import("core/os")
+strings: = import("core/strings")
 
-glfw = import("vendor/glfw")
-gl = import("vendor/gl")
-glu = import("vendor/glu")
+glfw: = import("vendor/glfw")
+gl: = import("vendor/gl")
+glu: = import("vendor/glu")
+
+buf: byte[100]
+strings.print("test: ")
+strings.println(strings.itoa(1234, buf[:]))
 
 glfw.glfwInit()
-window = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
+window: = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
 glfw.glfwMakeContextCurrent(window)
 glfw.glfwSwapInterval(0)
 
 boomstick.init()
 
-vertex_shader_src = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
-vertex_shader_name = compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src)
+vertex_shader_src: = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
+vertex_shader_name: = compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src)
 
-fragment_shader_src = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
-fragment_shader_name = compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
+fragment_shader_src: = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
+fragment_shader_name: = compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
 
-program_name = link_shaders(vertex_shader_name, fragment_shader_name)
+program_name: = link_shaders(vertex_shader_name, fragment_shader_name)
 
 triangle_count_1d: i32 = 64
-triangle_count = triangle_count_1d * triangle_count_1d
-triangle_size = 2 / f32(triangle_count_1d)
-vertex_count = triangle_count * 3
+triangle_count: = triangle_count_1d * triangle_count_1d
+triangle_size: = 2 / f32(triangle_count_1d)
+vertex_count: = triangle_count * 3
 
-triangle_data: ^threading.vec4[12288]@vram
+triangle_data: ^vec4[12288]@vram
 
 vertex_index: i32
 for x: i32, x < triangle_count_1d, x += 1
 {
   for y: i32, y < triangle_count_1d, y += 1
   {
-    left = -1 + triangle_size * f32(x)
-    bottom = -1 + triangle_size * f32(y)
+    left: = -1 + triangle_size * f32(x)
+    bottom: = -1 + triangle_size * f32(y)
 
     triangle_data[vertex_index][0] = left + triangle_size * 0.5
     triangle_data[vertex_index][1] = bottom + triangle_size
@@ -61,12 +64,12 @@ gl.glUseProgram(program_name) check_opengl_error()
 gl.glEnableVertexAttribArray(0) check_opengl_error()
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) check_opengl_error()
 
-fps_time = os.time()
+fps_time: = os.time()
 frame_count: i64
 
 move_triangles: boomstick.kernel_t@glsl =
 {
-  delta: threading.vec4
+  delta: vec4
   delta[0] = 0.0001
   delta[1] = 0.0001
   delta[2] = 0
@@ -85,7 +88,7 @@ for glfw.glfwWindowShouldClose(window) == 0
 
   boomstick.bang(move_triangles, triangle_data[:])
 
-  sync = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
+  sync: = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
   gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) check_opengl_error()
   gl.glClientWaitSync(sync, 0, 1000 * 1000 * 1000) check_opengl_error()
   gl.glDeleteSync(sync)
@@ -95,10 +98,10 @@ for glfw.glfwWindowShouldClose(window) == 0
   gl.glClear(gl.GL_COLOR_BUFFER_BIT) check_opengl_error()
   gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) check_opengl_error()
 
-  time = os.time()
+  time: = os.time()
   if time > fps_time + 1000000
   {
-    string_buf: i8[100]
+    string_buf: byte[100]
     strings.print("FPS: ")
     strings.println(strings.itoa(frame_count, string_buf[:]))
 
@@ -111,18 +114,18 @@ for glfw.glfwWindowShouldClose(window) == 0
 
 compile_shader: proc(type: i32, src: string) -> i32 =
 {
-  name = gl.glCreateShader(type) check_opengl_error()
+  name: = gl.glCreateShader(type) check_opengl_error()
   gl.glShaderSource(name, 1, ^src.raw, ^i32(src.length)) check_opengl_error()
   gl.glCompileShader(name) check_opengl_error()
 
   compile_status: i32
   gl.glGetShaderiv(name, gl.GL_COMPILE_STATUS, ^compile_status) check_opengl_error()
 
-  info_log: i8[1000000]
+  info_log: byte[1000000]
   info_log_length: i32
   gl.glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-  if info_log[0] != 0 strings.println(info_log[:info_log_length])
+  if info_log_length > 0 strings.println(info_log[:info_log_length])
   debug.assert(compile_status != 0, "failed to compile shader")
 
   return name
@@ -130,7 +133,7 @@ compile_shader: proc(type: i32, src: string) -> i32 =
 
 link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
 {
-  name = gl.glCreateProgram() check_opengl_error()
+  name: = gl.glCreateProgram() check_opengl_error()
   gl.glAttachShader(name, vertex_shader_name) check_opengl_error()
   gl.glAttachShader(name, fragment_shader_name) check_opengl_error()
   gl.glLinkProgram(name) check_opengl_error()
@@ -138,11 +141,11 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
   link_status: i32
   gl.glGetProgramiv(name, gl.GL_LINK_STATUS, ^link_status) check_opengl_error()
 
-  info_log: i8[1000000]
+  info_log: byte[1000000]
   info_log_length: i32
   gl.glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
 
-  if info_log[0] != 0 strings.println(info_log[:info_log_length])
+  if info_log_length > 0 strings.println(info_log[:info_log_length])
   debug.assert(link_status != 0, "failed to link shaders")
 
   return name
@@ -150,10 +153,11 @@ link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
 
 check_opengl_error: proc() =
 {
-  error = gl.glGetError()
+  error: = gl.glGetError()
   if error != gl.GL_NO_ERROR
   {
-    error_buffer = glu.gluErrorString(error)
-    strings.println({ raw = error_buffer, length = 100 })
+    error_buffer: = glu.gluErrorString(error)
+    error_length: = strings.get_cstring_length(error_buffer)
+    strings.println({ raw = error_buffer, length = error_length })
   }
 }

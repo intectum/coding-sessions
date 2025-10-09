@@ -30,12 +30,12 @@ glFenceSync: #extern proc(condition: i32, flags: i32) -> i64
 glGenBuffers: #extern proc(n: i32, buffers: ^i32)
 glGetError: #extern proc() -> i32
 glGetProgramiv: #extern proc(program: i32, pname: i32, params: ^i32)
-glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: ^i8)
-glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: ^i8)
+glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: ^byte)
+glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: ^byte)
 glGetShaderiv: #extern proc(shader: i32, pname: i32, params: ^i32)
 glLinkProgram: #extern proc(program: i32)
-glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^i8
-glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^i8, flags: i32)
-glShaderSource: #extern proc(shader: i32, count: i32, src: ^^i8, length: ^i32)
+glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^byte
+glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^byte, flags: i32)
+glShaderSource: #extern proc(shader: i32, count: i32, src: ^^byte, length: ^i32)
 glUseProgram: #extern proc(program: i32)
-glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^i8)
+glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^byte)

@@ -28,10 +28,10 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .negate:
     location := copy_to_register(ctx, child_location, register_num, type_node)
 
-    _, float_type := slice.linear_search(type_checking.float_types, type_checking.get_type_value(type_node))
+    _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
     if float_type
     {
-      sign_mask_name := strings.concatenate({ type_checking.get_type_value(type_node), "_sign_mask" })
+      sign_mask_name := strings.concatenate({ type_node.value, "_sign_mask" })
       sign_mask := copy_to_register(ctx, memory(sign_mask_name, 0), register_num + 1, type_node)
       fmt.sbprintfln(&ctx.output, "  xorp%s %s, %s ; negate", to_precision_size(to_byte_size(type_node)), to_operand(location), to_operand(sign_mask))
     }
@@ -137,7 +137,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .identifier:
     return generate_identifier(ctx, node, register_num, child_location, contains_allocations)
   case .string_:
-    if type_node.value == "[slice]" && type_node.children[0].value == "i8"
+    if type_node.value == "[slice]" && type_node.children[0].value == "u8"
     {
       return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
     }

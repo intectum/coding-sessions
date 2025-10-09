@@ -4,7 +4,7 @@ import "../ast"
 import "../program"
 import "../src"
 
-type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_undefined: bool) -> bool
+type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   if ast.is_member(node)
   {
@@ -83,27 +83,25 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context, allo
   else
   {
     identifier_node, identifier_path := get_identifier_node(ctx, node.value)
-    if identifier_node != nil
+    if identifier_node == nil
     {
-      if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
-      {
-        qualified_name := program.get_qualified_name(ctx.path[:])
-        procedure := &ctx.program.procedures[qualified_name]
-
-        path: [dynamic]string
-        append(&path, ..identifier_path)
-        append(&path, node.value)
-        append(&procedure.references, path)
-      }
-
-      append(&node.children, ast.get_type(identifier_node)^)
-      node.allocator = identifier_node.allocator
-    }
-    else if !allow_undefined
-    {
-      src.print_position_message(node.src_position, "'%s' is not defined", node.value)
+      src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
       return false
     }
+
+    if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
+    {
+      qualified_name := program.get_qualified_name(ctx.path[:])
+      procedure := &ctx.program.procedures[qualified_name]
+
+      path: [dynamic]string
+      append(&path, ..identifier_path)
+      append(&path, node.value)
+      append(&procedure.references, path)
+    }
+
+    append(&node.children, ast.get_type(identifier_node)^)
+    node.allocator = identifier_node.allocator
   }
 
   return true

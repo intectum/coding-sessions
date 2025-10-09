@@ -62,9 +62,26 @@ init :: proc(program: ^program)
   program.identifiers["u32"] = { type = .type, value = "u32" }
   program.identifiers["u64"] = { type = .type, value = "u64" }
 
+  program.identifiers["byte"] = { type = .type, value = "u8" }
+
   string_type_node := ast.node { type = .type, value = "[slice]" }
-  append(&string_type_node.children, ast.node { type = .type, value = "i8" })
+  append(&string_type_node.children, program.identifiers["byte"])
   program.identifiers["string"] = string_type_node
+
+  vec2 := ast.node { type = .type, value = "[array]" }
+  append(&vec2.children, ast.node { type = .type, value = "f32" })
+  append(&vec2.children, ast.node { type = .number, value = "2" })
+  program.identifiers["vec2"] = vec2
+
+  vec3 := ast.node { type = .type, value = "[array]" }
+  append(&vec3.children, ast.node { type = .type, value = "f32" })
+  append(&vec3.children, ast.node { type = .number, value = "3" })
+  program.identifiers["vec3"] = vec3
+
+  vec4 := ast.node { type = .type, value = "[array]" }
+  append(&vec4.children, ast.node { type = .type, value = "f32" })
+  append(&vec4.children, ast.node { type = .number, value = "4" })
+  program.identifiers["vec4"] = vec4
 
   link := ast.node { type = .identifier, value = "link" }
   append(&link.children, ast.node { type = .type, value = "[procedure]" })

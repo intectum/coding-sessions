@@ -1,5 +1,5 @@
-linux = import("core/os/linux")
-strings = import("core/strings")
+os: = import("core/os")
+strings: = import("core/strings")
 
 assert: proc(assertion: bool, message: string) =
 {
@@ -7,6 +7,6 @@ assert: proc(assertion: bool, message: string) =
   {
     strings.print("Assertion failed: ")
     strings.println(message)
-    linux.exit(1)
+    os.exit(1)
   }
 }

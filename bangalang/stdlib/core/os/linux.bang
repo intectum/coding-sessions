@@ -12,9 +12,9 @@ syscall: #extern proc(syscall_num: i64, param0: i64, param1: i64, param2: i64, p
 write: proc(file_descriptor: i64, message: string) =
   syscall(1, file_descriptor, #untyped message.raw, message.length, 0, 0, 0)
 
-mmap: proc(address: ^i8, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^i8 =
+mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^byte =
 {
-  address_i64 = syscall(9, #untyped address, length, prot, flags, file_descriptor, offset)
+  address_i64: = syscall(9, #untyped address, length, prot, flags, file_descriptor, offset)
   return #untyped address_i64
 }
 

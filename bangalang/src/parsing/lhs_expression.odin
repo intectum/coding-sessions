@@ -3,25 +3,22 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_lhs_expression :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
+parse_lhs_expression :: proc(stream: ^tokens.stream) -> (ast.node, bool)
 {
-  node = parse_primary(stream, .lhs) or_return
+  declaration_stream := stream^
+  declaration_node, declaration_ok := parse_lhs_declaration(&declaration_stream)
 
-  if tokens.peek_token(stream).type == .colon
+  primary_stream := stream^
+  primary_node, primary_ok := parse_primary(&primary_stream, .lhs)
+
+  max_next_index := max(declaration_stream.next_index, primary_stream.next_index)
+
+  if primary_stream.next_index == max_next_index
   {
-    tokens.next_token(stream, .colon) or_return
-
-    type_node := parse_primary(stream, .type) or_return
-
-    if tokens.peek_token(stream).type == .at
-    {
-      tokens.next_token(stream, .at) or_return
-
-      node.allocator = (tokens.next_token(stream, .identifier) or_return).value
-    }
-
-    append(&node.children, type_node)
+    stream^ = primary_stream
+    return primary_node, primary_ok
   }
 
-  return node, true
+  stream^ = declaration_stream
+  return declaration_node, declaration_ok
 }

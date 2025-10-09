@@ -15,12 +15,12 @@ unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
 
 coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 {
-  if a == nil || a.value == "nil" || a.directive == "#untyped"
+  if a == nil || a.value == "[none]" || a.directive == "#untyped"
   {
     return b, true
   }
 
-  if b == nil || b.value == "nil" || b.directive == "#untyped"
+  if b == nil || b.value == "[none]" || b.directive == "#untyped"
   {
     return a, true
   }
@@ -75,14 +75,14 @@ coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
         }
       }
 
-      a_string := a.value == "[slice]" && a.children[0].value == "i8"
+      a_string := a.value == "[slice]" && a.children[0].value == "u8"
       a_cstring := a.value == "cstring"
       if b.value == "[any_string]" && !a_string && !a_cstring
       {
         return nil, false
       }
 
-      b_string := b.value == "[slice]" && b.children[0].value == "i8"
+      b_string := b.value == "[slice]" && b.children[0].value == "u8"
       b_cstring := b.value == "cstring"
       if a.value == "[any_string]" && !b_string && !b_cstring
       {
@@ -188,18 +188,6 @@ type_name :: proc(type_node: ^ast.node) -> string
   return strings.concatenate({ prefix, type_node.value })
 }
 
-get_type_value :: proc(type_node: ^ast.node) -> string
-{
-  assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
-
-  if len(type_node.children) > 0 && type_node.value == ""
-  {
-    return get_type_value(&type_node.children[0])
-  }
-
-  return type_node.value
-}
-
 upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_checking_context)
 {
   if node.type == .type
@@ -208,7 +196,7 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
     {
       node^ = ctx.program.identifiers["string"]
     }
-    else if node.value == "nil" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#untyped"
+    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#untyped"
     {
       node^ = new_type_node^
     }

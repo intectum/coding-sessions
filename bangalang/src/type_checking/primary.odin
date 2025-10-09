@@ -7,11 +7,11 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_undefined: bool) -> bool
+type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   if node.type != .compound_literal && len(node.children) > 0 && !ast.is_type(&node.children[0])
   {
-    type_check_primary(&node.children[0], ctx, allow_undefined) or_return
+    type_check_primary(&node.children[0], ctx) or_return
   }
 
   #partial switch node.type
@@ -98,7 +98,7 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
   case .call:
     type_check_call(node, ctx) or_return
   case .identifier:
-    type_check_identifier(node, ctx, allow_undefined) or_return
+    type_check_identifier(node, ctx) or_return
   case .string_:
     append(&node.children, ast.node { type = .type, value = "[any_string]" })
   case .number:
@@ -173,7 +173,7 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context, allow_u
       type_check_rhs_expression(child_rhs_node, ctx, ast.get_type(child_lhs_node)) or_return
     }
   case .nil_:
-    append(&node.children, ast.node { type = .type, value = "nil" })
+    append(&node.children, ast.node { type = .type, value = "[none]" })
   case .type:
     assert(false, "Failed to type check primary")
   case:
