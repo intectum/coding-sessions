@@ -11,12 +11,10 @@ itoa: proc(value: i64, buffer: byte[]) -> string =
 {
   length: u64 = 0
 
-  if value < 0
+  negative: = value < 0
+  if negative
   {
-    buffer[length] = 45 // '-'
-
     value = -value
-    length += 1
   }
   else if value == 0
   {
@@ -30,6 +28,13 @@ itoa: proc(value: i64, buffer: byte[]) -> string =
     buffer[length] = byte(value % 10) + 48 // '0'
 
     value /= 10
+    length += 1
+  }
+
+  if negative
+  {
+    buffer[length] = 45 // '-'
+
     length += 1
   }
 

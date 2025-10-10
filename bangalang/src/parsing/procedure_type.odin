@@ -17,20 +17,13 @@ parse_procedure_type :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: boo
 
   for tokens.peek_token(stream).type != .closing_bracket
   {
-    param_node := parse_identifier(stream) or_return
-
-    tokens.next_token(stream, .colon) or_return
-
-    param_type_node := parse_primary(stream, .type) or_return
-    append(&param_node.children, param_type_node)
-
-    append(&params_type_node.children, param_node)
-
-    // TODO allows comma at end of params
-    if tokens.peek_token(stream).type != .closing_bracket
+    if len(params_type_node.children) > 0
     {
       tokens.next_token(stream, .comma) or_return
     }
+
+    param_node := parse_declaration(stream) or_return
+    append(&params_type_node.children, param_node)
   }
 
   append(&node.children, params_type_node)

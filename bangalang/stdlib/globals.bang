@@ -1,0 +1,8 @@
+byte: = u8
+string: = byte[]
+vec2: = f32[2]
+vec3: = f32[3]
+vec4: = f32[4]
+
+cmpxchg: proc(value: ^i32, expected: i32, replacement: i32) -> bool@none
+link: proc(name: string)@none

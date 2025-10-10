@@ -199,28 +199,39 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       }
       else
       {
-        if tokens.peek_token(stream).type == .colon
+        if tokens.peek_token(stream).type == .closing_square_bracket
         {
           append(&node.children, ast.node { type = .nil_ })
+
+          append(&node.children, ast.node { type = .nil_ })
+        }
+        else if tokens.peek_token(stream).type == .colon
+        {
+          append(&node.children, ast.node { type = .nil_ })
+
+          tokens.next_token(stream, .colon) or_return
+
+          end_expression_node := parse_rhs_expression(stream) or_return
+          append(&node.children, end_expression_node)
         }
         else
         {
           start_expression_node := parse_rhs_expression(stream) or_return
           append(&node.children, start_expression_node)
-        }
 
-        if tokens.peek_token(stream).type == .colon
-        {
-          tokens.next_token(stream, .colon) or_return
+          if tokens.peek_token(stream).type == .colon
+          {
+            tokens.next_token(stream, .colon) or_return
 
-          if tokens.peek_token(stream).type == .closing_square_bracket
-          {
-            append(&node.children, ast.node { type = .nil_ })
-          }
-          else
-          {
-            end_expression_node := parse_rhs_expression(stream) or_return
-            append(&node.children, end_expression_node)
+            if tokens.peek_token(stream).type == .closing_square_bracket
+            {
+              append(&node.children, ast.node { type = .nil_ })
+            }
+            else
+            {
+              end_expression_node := parse_rhs_expression(stream) or_return
+              append(&node.children, end_expression_node)
+            }
           }
         }
       }

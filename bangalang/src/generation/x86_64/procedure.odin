@@ -22,9 +22,10 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   for param_index := len(params_type_node.children) - 1; param_index >= 0; param_index -= 1
   {
     param_node := &params_type_node.children[param_index]
+    param_lhs_node := &param_node.children[0]
 
-    ctx.stack_variable_offsets[param_node.value] = offset
-    offset -= to_byte_size(ast.get_type(param_node))
+    ctx.stack_variable_offsets[param_lhs_node.value] = offset
+    offset -= to_byte_size(ast.get_type(param_lhs_node))
   }
 
   ctx.stack_variable_offsets["[return]"] = offset

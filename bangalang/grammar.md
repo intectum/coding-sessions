@@ -11,6 +11,7 @@ break\ &\to\ \text{"break"}\\
 return\ &\to\ \text{"return"}\ rhs\_expression?\\
 assignment\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"|="}\ |\ \text{"&="}\ |\ \text{"+="}\ |\ \text{"-="}\ |\ \text{"*="}\ |\ \text{"/="}\ |\ \text{"%="}\ )\ statement\ )?\\
 lhs\_expression\ &\to\ lhs\_declaration\ |\ lhs\_primary\\
+declaration\ &\to\ lhs\_declaration\ (\ \text{"="}\ statement\ )?\\
 lhs\_declaration\ &\to\ identifier\ \text{":"}\ type\_primary?\ (\ \text{"@"}\ identifier\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ rhs\_expression\ (\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ \text{"("}\ lhs\_primary\ \text{")"}\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"|"}\ |\ \text{"||"}\ |\ \text{"&"}\ |\ \text{"&&"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
@@ -22,7 +23,7 @@ number\_literal\ &\to\ \text{'-'}?\ digit+\ (\ \text{'.'}\ digit*\ )?\\
 string\_literal\ &\to\ \text{'"'}\ (\ !\text{'"'}\ )*\ \text{'"'}\\
 compound\_literal\ &\to\ \text{"\{"}\ (\ assignment\ (\ \text{","}\ assignment\ )*\ )?\ \text{"\}"}\\
 struct\_type\ &\to\ \text{"struct"}\ \text{"\{"}\ (\ identifier\ \text{":"}\ type\_primary\ (\ \text{","}\ identifier\ \text{":"}\ type\_primary\ )*\ )?\ \text{"\}"}\\
-procedure\_type\ &\to\ \text{"proc"}\ \text{"("}\ (\ identifier\ \text{":"}\ type\_primary\ (\ \text{","}\ identifier\ \text{":"}\ type\_primary\ )*\ )?\ \text{")"}\ (\ \text{"->"}\ type\_primary\ )?\\
+procedure\_type\ &\to\ \text{"proc"}\ \text{"("}\ (\ declaration\ (\ \text{","}\ declaration\ )*\ )?\ \text{")"}\ (\ \text{"->"}\ type\_primary\ )?\\
 digit\ &\to\ \text{'0'}\ |\ \text{'1'}\ |\ \text{'2'}\ |\ \text{'3'}\ |\ \text{'4'}\ |\ \text{'5'}\ |\ \text{'6'}\ |\ \text{'7'}\ |\ \text{'8'}\ |\ \text{'9'}\\
 \end{align}
 $$

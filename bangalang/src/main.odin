@@ -78,6 +78,24 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   the_program: program.program
   program.init(&the_program)
 
+  globals_data, globals_ok := os.read_entire_file("stdlib/globals.bang")
+  if !globals_ok
+  {
+    fmt.println("Failed to read globals module file")
+    os.exit(1)
+  }
+
+  if !type_checking.type_check_program(&the_program, "globals", string(globals_data))
+  {
+    os.exit(1)
+  }
+
+  globals_module := &the_program.modules["globals"]
+  for identifier in globals_module.identifiers
+  {
+    the_program.identifiers[identifier] = globals_module.identifiers[identifier]
+  }
+
   if !type_checking.type_check_program(&the_program, name, code)
   {
     os.exit(1)

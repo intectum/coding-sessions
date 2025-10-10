@@ -186,7 +186,7 @@ generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
 
 generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
-  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, result_type_node.value)
+  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
   prefix := signed_integer_type ? "i" : ""
   less := signed_integer_type ? "l" : "b"
   greater := signed_integer_type ? "g" : "a"

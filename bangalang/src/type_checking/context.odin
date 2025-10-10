@@ -45,20 +45,37 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string) -> 
 
     if identifier in procedure.identifiers
     {
-      return &procedure.identifiers[identifier], path
+      identifier_node := &procedure.identifiers[identifier]
+      if path_length == len(ctx.path) || is_visible_nested(identifier_node)
+      {
+        return identifier_node, path
+      }
     }
   }
 
   module := &ctx.program.modules[ctx.path[0]]
   if identifier in module.identifiers
   {
-    return &module.identifiers[identifier], ctx.path[:1]
+    identifier_node := &module.identifiers[identifier]
+    if is_visible_nested(identifier_node)
+    {
+      return identifier_node, ctx.path[:1]
+    }
   }
 
   if identifier in ctx.program.identifiers
   {
-    return &ctx.program.identifiers[identifier], {}
+    identifier_node := &ctx.program.identifiers[identifier]
+    if is_visible_nested(identifier_node)
+    {
+      return identifier_node, {}
+    }
   }
 
   return nil, {}
+}
+
+is_visible_nested :: proc(identifier_node: ^ast.node) -> bool
+{
+  return ast.is_type(identifier_node) || ast.get_type(identifier_node).value == "[module]" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "none" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
 }

@@ -62,54 +62,14 @@ init :: proc(program: ^program)
   program.identifiers["u32"] = { type = .type, value = "u32" }
   program.identifiers["u64"] = { type = .type, value = "u64" }
 
-  program.identifiers["byte"] = { type = .type, value = "u8" }
-
-  string_type_node := ast.node { type = .type, value = "[slice]" }
-  append(&string_type_node.children, program.identifiers["byte"])
-  program.identifiers["string"] = string_type_node
-
-  vec2 := ast.node { type = .type, value = "[array]" }
-  append(&vec2.children, ast.node { type = .type, value = "f32" })
-  append(&vec2.children, ast.node { type = .number, value = "2" })
-  program.identifiers["vec2"] = vec2
-
-  vec3 := ast.node { type = .type, value = "[array]" }
-  append(&vec3.children, ast.node { type = .type, value = "f32" })
-  append(&vec3.children, ast.node { type = .number, value = "3" })
-  program.identifiers["vec3"] = vec3
-
-  vec4 := ast.node { type = .type, value = "[array]" }
-  append(&vec4.children, ast.node { type = .type, value = "f32" })
-  append(&vec4.children, ast.node { type = .number, value = "4" })
-  program.identifiers["vec4"] = vec4
-
-  link := ast.node { type = .identifier, value = "link" }
-  append(&link.children, ast.node { type = .type, value = "[procedure]" })
-  append(&link.children[0].children, ast.node { type = .type, value = "[parameters]" })
-  append(&link.children[0].children[0].children, ast.node { type = .identifier, value = "name" })
-  append(&link.children[0].children[0].children[0].children, program.identifiers["string"])
-  program.identifiers["link"] = link
-
   import_proc := ast.node { type = .identifier, value = "import" }
   append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[parameters]" })
-  append(&import_proc.children[0].children[0].children, ast.node { type = .identifier, value = "name" })
-  append(&import_proc.children[0].children[0].children[0].children, program.identifiers["string"])
+  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment })
+  append(&import_proc.children[0].children[0].children[0].children, ast.node { type = .identifier, value = "name" })
+  append(&import_proc.children[0].children[0].children[0].children[0].children, program.identifiers["string"])
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[module]" })
   program.identifiers["import"] = import_proc
-
-  cmpxchg := ast.node { type = .identifier, value = "cmpxchg" }
-  append(&cmpxchg.children, ast.node { type = .type, value = "[procedure]" })
-  append(&cmpxchg.children[0].children, ast.node { type = .type, value = "[parameters]" })
-  append(&cmpxchg.children[0].children[0].children, ast.node { type = .identifier, value = "value" })
-  append(&cmpxchg.children[0].children[0].children[0].children, ast.node { type = .reference })
-  append(&cmpxchg.children[0].children[0].children[0].children[0].children, ast.node { type = .type, value = "i32" })
-  append(&cmpxchg.children[0].children[0].children, ast.node { type = .identifier, value = "expected" })
-  append(&cmpxchg.children[0].children[0].children[1].children, ast.node { type = .type, value = "i32" })
-  append(&cmpxchg.children[0].children[0].children, ast.node { type = .identifier, value = "replacement" })
-  append(&cmpxchg.children[0].children[0].children[2].children, ast.node { type = .type, value = "i32" })
-  append(&cmpxchg.children[0].children, ast.node { type = .type, value = "bool" })
-  program.identifiers["cmpxchg"] = cmpxchg
 }
 
 load_module :: proc(program: ^program, name: string, code: string) -> bool

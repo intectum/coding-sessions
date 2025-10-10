@@ -159,10 +159,11 @@ type_name :: proc(type_node: ^ast.node) -> string
     return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
   case "[procedure]":
     param_type_names: [dynamic]string
-    params_type_node := type_node.children[0]
-    for &param_node in params_type_node.children
+    params_type_node := &type_node.children[0]
+    for param_node in params_type_node.children
     {
-      append(&param_type_names, strings.concatenate({ param_node.value, ": ", type_name(ast.get_type(&param_node)) }))
+      param_lhs_node := &type_node.children[0]
+      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(ast.get_type(param_lhs_node)) }))
     }
 
     return_type_name: string
@@ -254,7 +255,11 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       if node.type == .index
       {
         node.type = .type
-        node.value = len(node.children) == 1 ? "[slice]" : "[array]"
+        node.value = len(node.children) == 2 ? "[array]" : "[slice]"
+        if node.value == "[slice]"
+        {
+          resize(&node.children, 1)
+        }
       }
     }
   }

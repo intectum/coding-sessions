@@ -27,9 +27,10 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   return_only_call_stack_size := 0
   if procedure_type_node.directive != "#extern"
   {
-    for &param_node in params_type_node.children
+    for param_node in params_type_node.children
     {
-      call_stack_size += to_byte_size(ast.get_type(&param_node))
+      param_lhs_node := &param_node.children[0]
+      call_stack_size += to_byte_size(ast.get_type(param_lhs_node))
     }
     if return_type_node != nil
     {
@@ -50,31 +51,41 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 
   if procedure_type_node.directive == "#extern"
   {
-    for &param_node_from_type, param_index in params_type_node.children
+    for param_node_from_type, param_index in params_type_node.children
     {
-      param_node := &node.children[param_index + 1]
-      param_type_node := ast.get_type(&param_node_from_type)
+      param_lhs_node_from_type := &param_node_from_type.children[0]
+      param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
 
       param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
       param_registers_numbered := procedure_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
 
-      expression_location := generate_expression(ctx, param_node, register_num)
+      expression_node: ^ast.node
+      if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
+      {
+        expression_node = &node.children[param_index + 1]
+      }
+      else
+      {
+        expression_node = &param_node_from_type.children[2]
+      }
+
+      expression_location := generate_expression(ctx, expression_node, register_num)
 
       param_location: location
       if param_index < len(param_registers_named)
       {
-        param_location = register(param_registers_named[param_index], param_type_node)
+        param_location = register(param_registers_named[param_index], param_lhs_type_node)
       }
       else if param_index < len(param_registers_named) + len(param_registers_numbered)
       {
-        param_location = register(param_registers_numbered[param_index - len(param_registers_named)], param_type_node)
+        param_location = register(param_registers_numbered[param_index - len(param_registers_named)], param_lhs_type_node)
       }
       else
       {
         assert(false, "Pass by stack not yet supported when calling c")
       }
 
-      copy(ctx, expression_location, param_location, param_type_node)
+      copy(ctx, expression_location, param_location, param_lhs_type_node)
     }
   }
   else
@@ -82,13 +93,23 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     offset := call_stack_size - return_only_call_stack_size
     for &param_node_from_type, param_index in params_type_node.children
     {
-      param_node := &node.children[param_index + 1]
-      param_type_node := ast.get_type(&param_node_from_type)
+      param_lhs_node_from_type := &param_node_from_type.children[0]
+      param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
+      offset -= to_byte_size(param_lhs_type_node)
 
-      offset -= to_byte_size(param_type_node)
+      expression_node: ^ast.node
+      if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
+      {
+        expression_node = &node.children[param_index + 1]
+      }
+      else
+      {
+        expression_node = &param_node_from_type.children[2]
+      }
 
-      expression_location := generate_expression(ctx, param_node, register_num)
-      copy(ctx, expression_location, memory("rsp", offset), param_type_node)
+      expression_location := generate_expression(ctx, expression_node, register_num)
+
+      copy(ctx, expression_location, memory("rsp", offset), param_lhs_type_node)
     }
 
     if !deallocate_return

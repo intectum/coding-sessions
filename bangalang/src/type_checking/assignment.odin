@@ -19,6 +19,31 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     return false
   }
 
+  if ast.is_static_procedure(lhs_node)
+  {
+    found_default := false
+    lhs_type_node := ast.get_type(lhs_node)
+    params_type_node := lhs_type_node.children[0]
+    for &param_node in params_type_node.children
+    {
+      if len(param_node.children) == 1 && found_default
+      {
+        src.print_position_message(lhs_node.src_position, "Procedure parameters with defaults cannot be followed by parameters without defaults")
+        return false
+      }
+
+      if len(param_node.children) > 1
+      {
+        found_default = true
+      }
+
+      param_lhs_node := &param_node.children[0]
+      param_lhs_node.allocator = "stack"
+
+      type_check_assignment(&param_node, ctx) or_return
+    }
+  }
+
   if len(node.children) > 1
   {
     operator_node := &node.children[1]
@@ -31,13 +56,6 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       {
         src.print_position_message(lhs_node.src_position, "#extern procedure '%s' cannot have a procedure body", lhs_node.value)
         return false
-      }
-
-      params_type_node := lhs_type_node.children[0]
-      for &param_node in params_type_node.children
-      {
-        param_node.allocator = "stack"
-        ctx.identifiers[param_node.value] = param_node
       }
 
       return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil

@@ -7,10 +7,10 @@ PROT_WRITE: i64@static = 0x2
 MAP_ANONYMOUS: i64@static = 0x20
 MAP_PRIVATE: i64@static = 0x2
 
-syscall: #extern proc(syscall_num: i64, param0: i64, param1: i64, param2: i64, param3: i64, param4: i64, param5: i64) -> i64
+syscall: #extern proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64
 
 write: proc(file_descriptor: i64, message: string) =
-  syscall(1, file_descriptor, #untyped message.raw, message.length, 0, 0, 0)
+  syscall(1, file_descriptor, #untyped message.raw, message.length)
 
 mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^byte =
 {
@@ -18,10 +18,10 @@ mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: 
   return #untyped address_i64
 }
 
-exit: proc(exit_code: i64) = syscall(60, exit_code, 0, 0, 0, 0, 0)
+exit: proc(exit_code: i64) = syscall(60, exit_code)
 
 timeval_t = struct { seconds: i64, micro_seconds: i64 }
-gettimeofday: proc(timeval: ^timeval_t) = syscall(96, #untyped timeval, 0, 0, 0, 0, 0)
+gettimeofday: proc(timeval: ^timeval_t) = syscall(96, #untyped timeval)
 
 futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
-  syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1, 0, 0)
+  syscall(202, #untyped futex_word, operation, operation_arg0, operation_arg1)

@@ -8,10 +8,6 @@ glfw: = import("vendor/glfw")
 gl: = import("vendor/gl")
 glu: = import("vendor/glu")
 
-buf: byte[100]
-strings.print("test: ")
-strings.println(strings.itoa(1234, buf[:]))
-
 glfw.glfwInit()
 window: = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
 glfw.glfwMakeContextCurrent(window)
@@ -84,9 +80,9 @@ for glfw.glfwWindowShouldClose(window) == 0
   glfw.glfwSwapBuffers(window)
 
   /*for index: i32 = 0, index < i32(triangle_data.length), index += 1
-    move_triangles(index, triangle_data[:])*/
+    move_triangles(index, triangle_data[])*/
 
-  boomstick.bang(move_triangles, triangle_data[:])
+  boomstick.bang(move_triangles, triangle_data[])
 
   sync: = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) check_opengl_error()
   gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) check_opengl_error()
@@ -103,7 +99,7 @@ for glfw.glfwWindowShouldClose(window) == 0
   {
     string_buf: byte[100]
     strings.print("FPS: ")
-    strings.println(strings.itoa(frame_count, string_buf[:]))
+    strings.println(strings.itoa(frame_count, string_buf[]))
 
     frame_count = 0
     fps_time = time
