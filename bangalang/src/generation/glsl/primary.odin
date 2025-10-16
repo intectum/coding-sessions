@@ -43,7 +43,26 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   case .boolean, .number, .string_:
     fmt.sbprint(&ctx.output, node.value)
   case .compound_literal:
-    assert(false, "Failed to generate primary")
+    children := node.children[:len(node.children) - 1]
+
+    if len(children) > 0 && children[0].type != .assignment
+    {
+      fmt.sbprintf(&ctx.output, "%s(", type_name(ast.get_type(node)))
+      for &child_node, index in children
+      {
+        if index > 0
+        {
+          fmt.sbprint(&ctx.output, ", ")
+        }
+
+        generate_expression(ctx, &child_node)
+      }
+      fmt.sbprint(&ctx.output, ")")
+    }
+    else
+    {
+      assert(false, "Failed to generate primary")
+    }
   case .nil_:
     fmt.sbprint(&ctx.output, "0")
   case:

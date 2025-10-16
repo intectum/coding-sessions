@@ -199,7 +199,13 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
     }
     else
     {
-      size := to_byte_size(ast.get_type(lhs_node))
+      lhs_type_node := ast.get_type(lhs_node)
+      if lhs_node.directive == "#align4" || lhs_type_node.directive == "#align4"
+      {
+        fmt.sbprintln(&ctx.output, "  align 4")
+      }
+
+      size := to_byte_size(lhs_type_node)
       fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", static_var_name, size)
     }
   }

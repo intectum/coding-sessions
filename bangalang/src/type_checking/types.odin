@@ -183,7 +183,7 @@ type_name :: proc(type_node: ^ast.node) -> string
       append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(ast.get_type(&member_node)) }))
     }
 
-    return strings.concatenate({ prefix, "struct { ", strings.join(member_type_names[:], ", "), " }" })
+    return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
   }
 
   return strings.concatenate({ prefix, type_node.value })

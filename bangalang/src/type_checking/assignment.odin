@@ -69,15 +69,17 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         rhs_node^ = return_node
       }
 
-      // TODO a bit hacky
       if rhs_node.type != .scope
       {
-        type_check_statement(rhs_node, ctx) or_return
+        scope_node := ast.node {
+          type = .scope,
+          src_position = rhs_node.src_position
+        }
+        append(&scope_node.children, rhs_node^)
+        rhs_node^ = scope_node
       }
-      else
-      {
-        type_check_statements(ctx, rhs_node.children[:]) or_return
-      }
+
+      type_check_statements(ctx, rhs_node.children[:]) or_return
     }
     else
     {

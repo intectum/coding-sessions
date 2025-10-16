@@ -62,7 +62,7 @@ thread_pool_task_t: = struct
   data: vec4[]
 }
 
-thread_pool_t: = struct
+thread_pool_t: = #align4 struct
 {
   worker_count: i32,
   current_worker_count: i32,

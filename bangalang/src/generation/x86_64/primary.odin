@@ -162,78 +162,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .boolean:
     return immediate(node.value == "true" ? 1 : 0)
   case .compound_literal:
-    allocate_stack(ctx, to_byte_size(type_node))
-
-    if type_node.value == "[struct]"
-    {
-      member_location := memory("rsp", 0)
-      for &member_node in type_node.children
-      {
-        member_type_node := ast.get_type(&member_node)
-
-        found_assignment := false
-        for child_node in node.children
-        {
-          child_lhs_node := &child_node.children[0]
-          child_rhs_node := &child_node.children[2]
-
-          if child_lhs_node.value == member_node.value
-          {
-            expression_location := generate_expression(ctx, child_rhs_node, register_num)
-            copy(ctx, expression_location, member_location, member_type_node)
-            found_assignment = true
-            break
-          }
-        }
-
-        if !found_assignment
-        {
-          nilify(ctx, member_location, member_type_node)
-        }
-
-        member_location.offset += to_byte_size(ast.get_type(&member_node))
-      }
-    }
-    else if type_node.value == "[slice]"
-    {
-      member_names: []string = { "raw", "length" }
-      for member_name in member_names
-      {
-        member_type_node := unknown_reference_type_node
-        member_location := memory("rsp", 0)
-        if member_name == "length"
-        {
-          member_type_node = { type = .type, value = "i64" }
-          member_location.offset += address_size
-        }
-
-        found_assignment := false
-        for child_node in node.children
-        {
-          child_lhs_node := &child_node.children[0]
-          child_rhs_node := &child_node.children[2]
-
-          if child_lhs_node.value == member_name
-          {
-            expression_location := generate_expression(ctx, child_rhs_node, register_num)
-            copy(ctx, expression_location, member_location, &member_type_node)
-            found_assignment = true
-            break
-          }
-        }
-
-        if !found_assignment
-        {
-          nilify(ctx, member_location, &member_type_node)
-        }
-      }
-    }
-    else
-    {
-      assert(false, "Failed to generate primary")
-    }
-
-    return copy_stack_address(ctx, 0, register_num)
+    return generate_compound_literal(ctx, node, register_num)
   case .nil_:
     return immediate(0)
   case:
