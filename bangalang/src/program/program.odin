@@ -65,7 +65,7 @@ init :: proc(program: ^program)
   import_proc := ast.node { type = .identifier, value = "import" }
   append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[parameters]" })
-  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment })
+  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })
   append(&import_proc.children[0].children[0].children[0].children, ast.node { type = .identifier, value = "name" })
   append(&import_proc.children[0].children[0].children[0].children[0].children, program.identifiers["string"])
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[module]" })

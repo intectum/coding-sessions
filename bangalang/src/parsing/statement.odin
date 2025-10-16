@@ -15,6 +15,10 @@ parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.n
     {
       return parse_for(stream, ctx)
     }
+    else if tokens.peek_token(stream).value == "switch"
+    {
+      return parse_switch(stream, ctx)
+    }
     else if tokens.peek_token(stream).value == "continue"
     {
       return parse_continue(stream)

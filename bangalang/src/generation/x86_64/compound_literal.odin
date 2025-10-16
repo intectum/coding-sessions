@@ -17,7 +17,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
   children := node.children[:len(node.children) - 1]
 
-  if len(children) > 0 && children[0].type != .assignment
+  if len(children) > 0 && children[0].type != .assignment_statement
   {
     switch type_node.value
     {
@@ -41,11 +41,11 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       ctx.label_index += 1
       static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, index)
 
-      static_var_node: ast.node = { type = .assignment }
+      static_var_node: ast.node = { type = .assignment_statement }
       append(&static_var_node.children, ast.node { type = .identifier, value = static_var_name })
       append(&static_var_node.children[0].children, ast.node { type = .type, value = "[array]" })
       append(&static_var_node.children[0].children[0].children, element_type_node^)
-      append(&static_var_node.children[0].children[0].children, ast.node { type = .number, value = fmt.aprintf("%i", len(children)) })
+      append(&static_var_node.children[0].children[0].children, ast.node { type = .number_literal, value = fmt.aprintf("%i", len(children)) })
       ctx.program.static_vars[static_var_name] = static_var_node
 
       element_location := memory(static_var_name, 0)

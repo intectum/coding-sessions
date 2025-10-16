@@ -9,7 +9,7 @@ parse_procedure_type :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: boo
   node.value = "[procedure]"
   node.src_position = tokens.peek_token(stream).src_position
 
-  tokens.next_token(stream, tokens.token_type.keyword, "proc") or_return
+  tokens.next_token(stream, .keyword, "proc") or_return
 
   tokens.next_token(stream, .opening_bracket) or_return
 

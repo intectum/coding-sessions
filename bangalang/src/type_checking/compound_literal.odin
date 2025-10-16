@@ -15,7 +15,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
 
   for &child_node in children
   {
-    if child_node.type != .assignment
+    if child_node.type != .assignment_statement
     {
       switch type_node.value
       {

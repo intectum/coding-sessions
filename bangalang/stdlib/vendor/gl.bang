@@ -1,18 +1,18 @@
 link("GL")
 
-GL_ARRAY_BUFFER: i32@static = 34962
-GL_COLOR_BUFFER_BIT: i32@static = 16384
-GL_COMPILE_STATUS: i32@static = 35713
-GL_COMPUTE_SHADER: i32@static = 0x91b9
-GL_FLOAT: i32@static = 5126
-GL_FRAGMENT_SHADER: i32@static = 35632
-GL_LINK_STATUS: i32@static = 35714
-GL_NO_ERROR: i32@static = 0
-GL_SHADER_STORAGE_BUFFER: i32@static = 0x90d2
+GL_ARRAY_BUFFER: i32@static = 0x8892
+GL_COLOR_BUFFER_BIT: i32@static = 0x4000
+GL_COMPILE_STATUS: i32@static = 0x8B81
+GL_COMPUTE_SHADER: i32@static = 0x91B9
+GL_FLOAT: i32@static = 0x1406
+GL_FRAGMENT_SHADER: i32@static = 0x8B30
+GL_LINK_STATUS: i32@static = 0x8B82
+GL_NO_ERROR: i32@static = 0x0
+GL_SHADER_STORAGE_BUFFER: i32@static = 0x90D2
 GL_SYNC_FLUSH_COMMANDS_BIT: i32@static = 0x1
 GL_SYNC_GPU_COMMANDS_COMPLETE: i32@static = 0x9117
-GL_TRIANGLES: i32@static = 4
-GL_VERTEX_SHADER: i32@static = 35633
+GL_TRIANGLES: i32@static = 0x4
+GL_VERTEX_SHADER: i32@static = 0x8B31
 
 glAttachShader: #extern proc(program: i32, shader: i32)
 glBindBuffer: #extern proc(target: i32, buffer: i32)

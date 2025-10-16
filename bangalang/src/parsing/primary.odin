@@ -112,7 +112,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       return {}, false
     }
 
-    node.type = .string_
+    node.type = .string_literal
     node.value = (tokens.next_token(stream, .string_) or_return).value
   case .number:
     if type != .rhs
@@ -121,7 +121,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       return {}, false
     }
 
-    node.type = .number
+    node.type = .number_literal
     node.value = (tokens.next_token(stream, .number) or_return).value
   case .boolean:
     if type != .rhs
@@ -130,7 +130,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       return {}, false
     }
 
-    node.type = .boolean
+    node.type = .boolean_literal
     node.value = (tokens.next_token(stream, .boolean) or_return).value
   case .opening_curly_bracket:
     node = parse_compound_literal(stream) or_return
@@ -141,7 +141,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       return {}, false
     }
 
-    node.type = .nil_
+    node.type = .nil_literal
     node.value = (tokens.next_token(stream, .nil_) or_return).value
   case:
     stream.error = src.to_position_message(node.src_position, "Invalid token type '%s'", tokens.peek_token(stream).type)
@@ -190,7 +190,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
           node.value = "[array]"
 
           number_node := ast.node {
-            type = .number,
+            type = .number_literal,
             value = (tokens.next_token(stream, .number) or_return).value,
             src_position = child_node.src_position
           }
@@ -201,13 +201,13 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       {
         if tokens.peek_token(stream).type == .closing_square_bracket
         {
-          append(&node.children, ast.node { type = .nil_ })
+          append(&node.children, ast.node { type = .nil_literal })
 
-          append(&node.children, ast.node { type = .nil_ })
+          append(&node.children, ast.node { type = .nil_literal })
         }
         else if tokens.peek_token(stream).type == .colon
         {
-          append(&node.children, ast.node { type = .nil_ })
+          append(&node.children, ast.node { type = .nil_literal })
 
           tokens.next_token(stream, .colon) or_return
 
@@ -225,7 +225,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
 
             if tokens.peek_token(stream).type == .closing_square_bracket
             {
-              append(&node.children, ast.node { type = .nil_ })
+              append(&node.children, ast.node { type = .nil_literal })
             }
             else
             {

@@ -7,6 +7,12 @@ import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
 {
+  type_node := ast.get_type(node)
+  if type_node.value == "[module]"
+  {
+    return {}
+  }
+
   if ast.is_member(node)
   {
     child_type_node := ast.get_type(&node.children[0])
@@ -47,7 +53,6 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
   {
     name := node.value
 
-    type_node := ast.get_type(node)
     if type_node.directive != "#extern" && node.value != "cmpxchg" /* TODO yuck */
     {
       if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"

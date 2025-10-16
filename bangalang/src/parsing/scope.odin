@@ -6,7 +6,7 @@ import "../tokens"
 
 parse_scope :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
 {
-  node.type = .scope
+  node.type = .scope_statement
   node.src_position = tokens.peek_token(stream).src_position
 
   tokens.next_token(stream, .opening_curly_bracket) or_return

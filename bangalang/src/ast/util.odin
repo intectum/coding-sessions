@@ -12,7 +12,7 @@ is_link_statement :: proc(statement: ^node) -> bool
 
 is_import_statement :: proc(statement: ^node) -> bool
 {
-  if statement.type == .assignment && len(statement.children) > 1
+  if statement.type == .assignment_statement && len(statement.children) > 1
   {
     rhs_node := &statement.children[2]
     return rhs_node.type == .call && rhs_node.children[0].value == "import"
@@ -23,12 +23,12 @@ is_import_statement :: proc(statement: ^node) -> bool
 
 is_type_alias_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment && len(statement.children) > 1 && is_type(&statement.children[2])
+  return statement.type == .assignment_statement && len(statement.children) > 1 && is_type(&statement.children[2])
 }
 
 is_static_procedure_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment && !is_type(&statement.children[0]) && is_static_procedure(&statement.children[0])
+  return statement.type == .assignment_statement && !is_type(&statement.children[0]) && is_static_procedure(&statement.children[0])
 }
 
 is_static_procedure :: proc(identifier: ^node) -> bool

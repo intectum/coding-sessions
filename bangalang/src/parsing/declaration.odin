@@ -5,7 +5,7 @@ import "../tokens"
 
 parse_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
 {
-  node.type = .assignment
+  node.type = .assignment_statement
   node.src_position = tokens.peek_token(stream).src_position
 
   lhs_node := parse_lhs_declaration(stream) or_return

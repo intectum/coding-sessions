@@ -153,10 +153,10 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
       glsl.generate_program(&procedure_ctx, node)
 
-      static_var_node: ast.node = { type = .assignment }
+      static_var_node: ast.node = { type = .assignment_statement }
       append(&static_var_node.children, ast.node { type = .identifier, value = qualified_name, allocator = "glsl" })
       append(&static_var_node.children, ast.node { type = .assign, value = "=" })
-      append(&static_var_node.children, ast.node { type = .string_, value = strings.to_string(procedure_ctx.output) })
+      append(&static_var_node.children, ast.node { type = .string_literal, value = strings.to_string(procedure_ctx.output) })
       ctx.program.static_vars[qualified_name] = static_var_node
     }
     else

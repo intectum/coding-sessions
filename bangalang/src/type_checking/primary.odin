@@ -57,8 +57,6 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
     append(&node.children, child_type_node.children[0])
   case .index:
-    identifier := node.children[0].value // TODO *eyebrow raise*
-
     auto_dereference(&node.children[0])
 
     child_type_node := ast.get_type(&node.children[0])
@@ -89,9 +87,9 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     {
       length := strconv.atoi(child_type_node.children[1].value)
 
-      if child_type_node.directive != "#boundless" && node.children[1].type == .number && strconv.atoi(node.children[1].value) >= length
+      if child_type_node.directive != "#danger_boundless" && node.children[1].type == .number_literal && strconv.atoi(node.children[1].value) >= length
       {
-        src.print_position_message(node.src_position, "Index %i out of bounds of '%s'", strconv.atoi(node.children[1].value), identifier)
+        src.print_position_message(node.src_position, "Index %i out of bounds", strconv.atoi(node.children[1].value))
         return false
       }
     }
@@ -99,16 +97,16 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     type_check_call(node, ctx) or_return
   case .identifier:
     type_check_identifier(node, ctx) or_return
-  case .string_:
+  case .string_literal:
     append(&node.children, ast.node { type = .type, value = "[any_string]" })
-  case .number:
+  case .number_literal:
     type := strings.contains(node.value, ".") ? "[any_float]" : "[any_number]"
     append(&node.children, ast.node { type = .type, value = type })
-  case .boolean:
+  case .boolean_literal:
     append(&node.children, ctx.program.identifiers["bool"])
   case .compound_literal:
     type_check_compound_literal(node, ctx) or_return
-  case .nil_:
+  case .nil_literal:
     append(&node.children, ast.node { type = .type, value = "[none]" })
   case .type:
     assert(false, "Failed to type check primary")

@@ -7,7 +7,7 @@ import "../tokens"
 
 parse_simple_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
 {
-  node.type = .assignment
+  node.type = .assignment_statement
   node.src_position = tokens.peek_token(stream).src_position
 
   lhs_node := parse_identifier(stream) or_return

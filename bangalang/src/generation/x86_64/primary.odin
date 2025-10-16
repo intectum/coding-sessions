@@ -55,7 +55,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
     start_expression_node := &node.children[1]
     start_expression_location := immediate(0)
-    if start_expression_node.type != .nil_
+    if start_expression_node.type != .nil_literal
     {
       start_expression_location = generate_expression(ctx, start_expression_node, register_num + 1)
     }
@@ -64,7 +64,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     start_expression_location = copy_to_register(ctx, start_expression_location, register_num + 1, start_expression_type_node)
     start_expression_location = convert(ctx, start_expression_location, register_num + 1, start_expression_type_node, &index_type_node)
 
-    if start_expression_node.type != .nil_ && type_node.directive != "#boundless"
+    if start_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
     {
       fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(start_expression_location), to_operand(child_length_location))
       fmt.sbprintln(&ctx.output, "  jge panic_out_of_bounds ; panic!")
@@ -72,7 +72,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       fmt.sbprintln(&ctx.output, "  jl panic_out_of_bounds ; panic!")
     }
 
-    if type_node.value != "[slice]" && node.children[1].type == .number
+    if type_node.value != "[slice]" && node.children[1].type == .number_literal
     {
       data_location := child_location
       if child_type_node.value == "[slice]"
@@ -104,7 +104,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
       end_expression_node := &node.children[2]
       end_expression_location := child_length_location
-      if end_expression_node.type != .nil_
+      if end_expression_node.type != .nil_literal
       {
         end_expression_location = generate_expression(ctx, end_expression_node, register_num + 2)
       }
@@ -113,7 +113,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       end_expression_location = copy_to_register(ctx, end_expression_location, register_num + 2, end_expression_type_node)
       end_expression_location = convert(ctx, end_expression_location, register_num + 2, end_expression_type_node, &index_type_node)
 
-      if end_expression_node.type != .nil_ && type_node.directive != "#boundless"
+      if end_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
       {
         fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(end_expression_location), to_operand(child_length_location))
         fmt.sbprintln(&ctx.output, "  jg panic_out_of_bounds ; panic!")
@@ -136,7 +136,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     return generate_call(ctx, node, register_num, child_location, false)
   case .identifier:
     return generate_identifier(ctx, node, register_num, child_location, contains_allocations)
-  case .string_:
+  case .string_literal:
     if type_node.value == "[slice]" && type_node.children[0].value == "u8"
     {
       return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
@@ -148,7 +148,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
     assert(false, "Failed to generate primary")
     return {}
-  case .number:
+  case .number_literal:
     if type_node.value == "f32"
     {
       return memory(get_literal_name(&ctx.program.f32_literals, "f32_", node.value), 0)
@@ -159,11 +159,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     }
 
     return immediate(node.value)
-  case .boolean:
+  case .boolean_literal:
     return immediate(node.value == "true" ? 1 : 0)
   case .compound_literal:
     return generate_compound_literal(ctx, node, register_num)
-  case .nil_:
+  case .nil_literal:
     return immediate(0)
   case:
     return generate_expression_1(ctx, node, register_num, contains_allocations)

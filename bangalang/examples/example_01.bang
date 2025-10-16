@@ -63,7 +63,7 @@ gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) check_opengl_erro
 fps_time: = os.time()
 frame_count: i64
 
-move_triangles: boomstick.kernel_t =
+move_triangles: boomstick.kernel_t@glsl =
   data[index] += { 0.0001, 0.0001, 0, 0 }
 
 for glfw.glfwWindowShouldClose(window) == 0

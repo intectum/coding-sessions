@@ -18,8 +18,7 @@ generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   child_node := &node.children[child_index]
   child_index += 1
 
-  _, statement := slice.linear_search(ast.statements, child_node.type)
-  if statement
+  if child_node.type == .assignment_statement
   {
     generate_assignment(ctx, child_node)
 
@@ -41,13 +40,13 @@ generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   child_index += 1
 
   statement_node := &node.children[len(node.children) - 1]
-  generate_statement(ctx, statement_node)
+  generate_scope(ctx, statement_node)
 
   fmt.sbprintfln(&ctx.output, ".for_%i_continue:", ctx.for_index)
 
   if len(node.children) > child_index
   {
-    generate_statement(ctx, child_node)
+    generate_assignment(ctx, child_node)
   }
 
   fmt.sbprintfln(&ctx.output, "  jmp .for_%i ; back to top", ctx.for_index)

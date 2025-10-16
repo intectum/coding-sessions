@@ -585,8 +585,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   `
     debug = import("core/debug")
 
-    var0: ^i8 = #untyped 0
-    var1: ^i8 = #untyped 1
+    var0: ^i8 = #danger_untyped 0
+    var1: ^i8 = #danger_untyped 1
     debug.assert(var0 == nil, "")
     debug.assert(var0 == var0, "")
     debug.assert(var1 != nil, "")

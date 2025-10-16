@@ -59,31 +59,22 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       }
 
       return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil
-      if return_type_node != nil && rhs_node.type != .if_ && rhs_node.type != .for_ && rhs_node.type != .scope && rhs_node.type != .return_ && rhs_node.type != .assignment
+      if return_type_node != nil && rhs_node.type != .if_statement && rhs_node.type != .for_statement && rhs_node.type != .scope_statement && rhs_node.type != .return_statement && rhs_node.type != .assignment_statement
       {
         return_node := ast.node {
-          type = .return_,
+          type = .return_statement,
           src_position = rhs_node.src_position
         }
         append(&return_node.children, rhs_node^)
         rhs_node^ = return_node
       }
 
-      if rhs_node.type != .scope
-      {
-        scope_node := ast.node {
-          type = .scope,
-          src_position = rhs_node.src_position
-        }
-        append(&scope_node.children, rhs_node^)
-        rhs_node^ = scope_node
-      }
-
+      wrap_in_scope(rhs_node)
       type_check_statements(ctx, rhs_node.children[:]) or_return
     }
     else
     {
-      if rhs_node.type == .scope
+      if rhs_node.type == .scope_statement
       {
         rhs_node.type = .compound_literal
       }
@@ -176,7 +167,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       allocator_node := ast.node { type = .call, src_position = node.src_position }
       append(&allocator_node.children, ast.node { type = .identifier, value = strings.concatenate({ "allocate_", allocator }), src_position = node.src_position })
       append(&allocator_node.children[0].children, ast.node { type = .identifier, value = "memory", src_position = node.src_position })
-      append(&allocator_node.children, ast.node { type = .number, src_position = node.src_position })
+      append(&allocator_node.children, ast.node { type = .number_literal, src_position = node.src_position })
       append(&node.children, allocator_node)
 
       type_check_rhs_expression(&node.children[2], ctx, nil)

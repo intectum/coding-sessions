@@ -7,10 +7,10 @@ import "../tokens"
 
 parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
 {
-  node.type = .for_
+  node.type = .for_statement
   node.src_position = tokens.peek_token(stream).src_position
 
-  tokens.next_token(stream, tokens.token_type.keyword, "for") or_return
+  tokens.next_token(stream, .keyword, "for") or_return
 
   brackets := false
   if tokens.peek_token(stream).type == .opening_bracket
@@ -19,14 +19,13 @@ parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.n
     brackets = true
   }
 
-  pre_statement_stream := stream^
-  pre_statement_node, pre_statement_ok := parse_statement(&pre_statement_stream, ctx)
+  pre_declaration_stream := stream^
+  pre_declaration_node, pre_declaration_ok := parse_declaration(&pre_declaration_stream)
 
-  _, statement := slice.linear_search(ast.statements, pre_statement_node.type)
-  if pre_statement_ok && statement
+  if pre_declaration_ok
   {
-    stream^ = pre_statement_stream
-    append(&node.children, pre_statement_node)
+    stream^ = pre_declaration_stream
+    append(&node.children, pre_declaration_node)
 
     tokens.next_token(stream, .comma) or_return
   }
@@ -38,8 +37,8 @@ parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.n
   {
     tokens.next_token(stream, .comma) or_return
 
-    post_statement_node := parse_statement(stream, ctx) or_return
-    append(&node.children, post_statement_node)
+    post_assignment_node := parse_assignment(stream, ctx) or_return
+    append(&node.children, post_assignment_node)
   }
 
   if brackets

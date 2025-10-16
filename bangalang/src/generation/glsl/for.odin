@@ -14,8 +14,7 @@ generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   fmt.sbprint(&ctx.output, "for (")
 
-  _, statement := slice.linear_search(ast.statements, child_node.type)
-  if statement
+  if child_node.type == .assignment_statement
   {
     generate_assignment(ctx, child_node)
 
@@ -34,7 +33,7 @@ generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if len(node.children) > child_index
   {
-    generate_statement(ctx, child_node, false)
+    generate_assignment(ctx, child_node)
   }
 
   fmt.sbprintln(&ctx.output, ")")

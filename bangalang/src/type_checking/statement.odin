@@ -6,19 +6,21 @@ type_check_statement :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
 {
   #partial switch node.type
   {
-  case .if_:
+  case .if_statement:
     return type_check_if(node, ctx)
-  case .for_:
+  case .for_statement:
     return type_check_for(node, ctx)
-  case .continue_:
+  case .switch_:
+    return type_check_switch(node, ctx)
+  case .continue_statement:
     return type_check_continue(node, ctx)
-  case .break_:
+  case .break_statement:
     return type_check_break(node, ctx)
-  case .return_:
+  case .return_statement:
     return type_check_return(node, ctx)
-  case .scope:
+  case .scope_statement:
     return type_check_scope(node, ctx)
-  case .assignment:
+  case .assignment_statement:
     return type_check_assignment(node, ctx)
   case:
     return type_check_rhs_expression(node, ctx, nil)

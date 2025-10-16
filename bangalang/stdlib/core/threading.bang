@@ -34,11 +34,11 @@ start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
   stack: = linux.mmap(nil, 4096, linux.PROT_READ | linux.PROT_WRITE, linux.MAP_PRIVATE | linux.MAP_ANONYMOUS, -1, 0)
 
-  stack_i64: i64 = #untyped stack
+  stack_i64: i64 = #danger_untyped stack
   stack_i64 += 4096
   stack_i64 -= 2 * 8 // account for params
-  stack_params: ^i64[2] = #untyped stack_i64
-  stack_params[1] = #untyped func
+  stack_params: ^i64[2] = #danger_untyped stack_i64
+  stack_params[1] = #danger_untyped func
   stack_params[0] = arg
   stack_i64 -= 8 // account for instruction pointer
   stack_i64 -= 5 * 8 // account for local vars declared before clone
@@ -75,7 +75,7 @@ thread_pool_t: = #align4 struct
 
 thread_pool_worker: proc(arg: i64) =
 {
-  pool: ^thread_pool_t = #untyped arg
+  pool: ^thread_pool_t = #danger_untyped arg
 
   alive: = true
   for alive
@@ -112,7 +112,7 @@ thread_pool_worker: proc(arg: i64) =
 
 thread_pool_start: proc(pool: ^thread_pool_t) =
   for index: i32, index < pool.worker_count, index += 1
-    start_thread(thread_pool_worker, #untyped pool)
+    start_thread(thread_pool_worker, #danger_untyped pool)
 
 thread_pool_enqueue: proc(pool: ^thread_pool_t, task: ^thread_pool_task_t) =
 {

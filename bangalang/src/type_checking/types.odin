@@ -15,12 +15,12 @@ unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
 
 coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 {
-  if a == nil || a.value == "[none]" || a.directive == "#untyped"
+  if a == nil || a.value == "[none]" || a.directive == "#danger_untyped"
   {
     return b, true
   }
 
-  if b == nil || b.value == "[none]" || b.directive == "#untyped"
+  if b == nil || b.value == "[none]" || b.directive == "#danger_untyped"
   {
     return a, true
   }
@@ -197,7 +197,7 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
     {
       node^ = ctx.program.identifiers["string"]
     }
-    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#untyped"
+    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#danger_untyped"
     {
       node^ = new_type_node^
     }
@@ -250,7 +250,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   for &child_node in node.children
   {
-    if child_node.type != .scope && resolve_types(&child_node, ctx)
+    if child_node.type != .scope_statement && resolve_types(&child_node, ctx)
     {
       if node.type == .index
       {

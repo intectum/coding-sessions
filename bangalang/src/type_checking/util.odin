@@ -20,6 +20,19 @@ auto_dereference :: proc(node: ^ast.node)
   append(&node.children, child_node)
   append(&node.children, type_node.children[0])
 
-  // TODO not sure if this best, propagates #boundless
+  // TODO not sure if this best, propagates #danger_boundless
   ast.get_type(node).directive = type_node.directive
+}
+
+wrap_in_scope :: proc(statement: ^ast.node)
+{
+  if statement.type != .scope_statement
+  {
+    scope_node := ast.node {
+      type = .scope_statement,
+      src_position = statement.src_position
+    }
+    append(&scope_node.children, statement^)
+    statement^ = scope_node
+  }
 }

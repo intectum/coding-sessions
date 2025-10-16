@@ -9,17 +9,20 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node, includ
 {
   #partial switch node.type
   {
-  case .if_:
+  case .if_statement:
     assert(false, "if not supported")
     //generate_if(ctx, node)
-  case .for_:
+  case .for_statement:
     generate_for(ctx, node)
-  case .return_:
+  case .switch_:
+    assert(false, "switch not supported")
+    //generate_switch(ctx, node)
+  case .return_statement:
     assert(false, "return not supported")
     //generate_return(ctx, node)
-  case .scope:
+  case .scope_statement:
     generate_scope(ctx, node)
-  case .assignment:
+  case .assignment_statement:
     generate_assignment(ctx, node)
   case:
     generate_expression(ctx, node)
@@ -27,7 +30,7 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node, includ
 
   #partial switch node.type
   {
-  case .if_, .for_, .scope:
+  case .if_statement, .for_statement, .scope_statement:
   case:
     if include_semi_colon
     {

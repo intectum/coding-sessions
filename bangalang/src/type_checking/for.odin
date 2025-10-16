@@ -13,10 +13,9 @@ type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
   child_node := &node.children[child_index]
   child_index += 1
 
-  _, statement := slice.linear_search(ast.statements, child_node.type)
-  if statement
+  if child_node.type == .assignment_statement
   {
-    type_check_statement(child_node, &for_ctx) or_return
+    type_check_assignment(child_node, &for_ctx) or_return
 
     child_node = &node.children[child_index]
     child_index += 1
@@ -29,13 +28,14 @@ type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   if len(node.children) > child_index
   {
-    type_check_statement(child_node, &for_ctx) or_return
+    type_check_assignment(child_node, &for_ctx) or_return
 
     child_node = &node.children[child_index]
     child_index += 1
   }
 
-  type_check_statement(child_node, &for_ctx) or_return
+  wrap_in_scope(child_node)
+  type_check_scope(child_node, &for_ctx) or_return
 
   return true
 }

@@ -5,10 +5,10 @@ import "../tokens"
 
 parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
 {
-  node.type = .if_
+  node.type = .if_statement
   node.src_position = tokens.peek_token(stream).src_position
 
-  tokens.next_token(stream, tokens.token_type.keyword, "if") or_return
+  tokens.next_token(stream, .keyword, "if") or_return
 
   if_brackets := false
   if tokens.peek_token(stream).type == .opening_bracket
@@ -30,8 +30,8 @@ parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.no
 
   for tokens.peek_token(stream).value == "else" && tokens.peek_token(stream, 1).value == "if"
   {
-    tokens.next_token(stream, tokens.token_type.keyword, "else") or_return
-    tokens.next_token(stream, tokens.token_type.keyword, "if") or_return
+    tokens.next_token(stream, .keyword, "else") or_return
+    tokens.next_token(stream, .keyword, "if") or_return
 
     else_if_brackets := false
     if tokens.peek_token(stream).type == .opening_bracket
@@ -54,7 +54,7 @@ parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.no
 
   if tokens.peek_token(stream).value == "else"
   {
-    tokens.next_token(stream, tokens.token_type.keyword, "else") or_return
+    tokens.next_token(stream, .keyword, "else") or_return
 
     else_statement_node := parse_statement(stream, ctx) or_return
     append(&node.children, else_statement_node)

@@ -30,13 +30,13 @@ bang: proc(kernel: kernel_t, data: vec4[]) =
 {
   for kernel_index: i64, kernel_index < glsl_kernels.length, kernel_index += 1
   {
-    if kernel == #untyped glsl_kernels[kernel_index]
+    if kernel == #danger_untyped glsl_kernels[kernel_index]
     {
       gl.glUseProgram(glsl_kernel_names[kernel_index])
 
       for buffer_index: i64, buffer_index < memory.vram_allocator_addresses.length, buffer_index += 1
       {
-        if data.raw == #untyped memory.vram_allocator_addresses[buffer_index]
+        if data.raw == #danger_untyped memory.vram_allocator_addresses[buffer_index]
         {
           gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, memory.vram_allocator_names[buffer_index])
         }

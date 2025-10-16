@@ -5,10 +5,10 @@ import "../tokens"
 
 parse_return :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
 {
-  node.type = .return_
+  node.type = .return_statement
   node.src_position = tokens.peek_token(stream).src_position
 
-  tokens.next_token(stream, tokens.token_type.keyword, "return") or_return
+  tokens.next_token(stream, .keyword, "return") or_return
 
   if ctx.return_value_required
   {

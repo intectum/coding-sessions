@@ -40,12 +40,12 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     generate_call(ctx, node)
   case .identifier:
     generate_identifier(ctx, node)
-  case .boolean, .number, .string_:
+  case .boolean_literal, .number_literal, .string_literal:
     fmt.sbprint(&ctx.output, node.value)
   case .compound_literal:
     children := node.children[:len(node.children) - 1]
 
-    if len(children) > 0 && children[0].type != .assignment
+    if len(children) > 0 && children[0].type != .assignment_statement
     {
       fmt.sbprintf(&ctx.output, "%s(", type_name(ast.get_type(node)))
       for &child_node, index in children
@@ -63,7 +63,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     {
       assert(false, "Failed to generate primary")
     }
-  case .nil_:
+  case .nil_literal:
     fmt.sbprint(&ctx.output, "0")
   case:
     fmt.sbprint(&ctx.output, "(")
