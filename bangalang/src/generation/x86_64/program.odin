@@ -16,7 +16,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "_start:")
 
   generated_import_names: [dynamic]string
-  generate_main_statements(ctx, ctx.path[0], &generated_import_names)
+  generate_main_statements(ctx, ctx.path, &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -54,13 +54,9 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  ret ; return")
 
   generated_procedure_names: [dynamic]string
-  for module_name in ctx.program.modules
+  for qualified_module_name in ctx.program.modules
   {
-    path: [dynamic]string
-    append(&path, module_name)
-    defer delete(path)
-
-    main_procedure := &ctx.program.procedures[program.get_qualified_name(path[:])]
+    main_procedure := &ctx.program.procedures[qualified_module_name]
     generate_procedures(ctx, main_procedure.references[:], &generated_procedure_names)
   }
 
@@ -102,23 +98,25 @@ generate_program :: proc(ctx: ^generation.gen_context)
   generate_static_vars(ctx)
 }
 
-generate_main_statements :: proc(ctx: ^generation.gen_context, module_name: string, generated_import_names: ^[dynamic]string)
+generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, generated_import_names: ^[dynamic]string)
 {
-  _, found_generated_module := slice.linear_search(generated_import_names[:], module_name)
+  qualified_module_name := program.get_qualified_module_name(path)
+  _, found_generated_module := slice.linear_search(generated_import_names[:], qualified_module_name)
   if found_generated_module
   {
     return
   }
 
-  append(generated_import_names, module_name)
+  append(generated_import_names, qualified_module_name)
 
-  module := &ctx.program.modules[module_name]
+  module := &ctx.program.modules[qualified_module_name]
   for import_name in module.imports
   {
-    generate_main_statements(ctx, module.imports[import_name], generated_import_names)
+    imported_module_path := module.imports[import_name]
+    generate_main_statements(ctx, imported_module_path[:], generated_import_names)
   }
 
-  ctx.path = { module_name }
+  ctx.path = path
 
   main_procedure := &ctx.program.procedures[program.get_qualified_name(ctx.path)]
   generate_statements(ctx, main_procedure.statements[:])
@@ -212,7 +210,7 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
 
   if len(glsl_kernel_names) > 0
   {
-    fmt.sbprint(&ctx.output, "  core.boomstick.$module.glsl_kernels$raw: dq")
+    fmt.sbprint(&ctx.output, "  core.$lib.boomstick.$module.glsl_kernels$raw: dq")
     for glsl_kernel_name, index in glsl_kernel_names
     {
       if index > 0
@@ -222,10 +220,10 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
       fmt.sbprintf(&ctx.output, " %s", glsl_kernel_name)
     }
     fmt.sbprintln(&ctx.output, "")
-    fmt.sbprintfln(&ctx.output, "  core.boomstick.$module.glsl_kernels: dq core.boomstick.$module.glsl_kernels$raw, %i", len(glsl_kernel_names))
+    fmt.sbprintfln(&ctx.output, "  core.$lib.boomstick.$module.glsl_kernels: dq core.$lib.boomstick.$module.glsl_kernels$raw, %i", len(glsl_kernel_names))
   }
   else
   {
-    fmt.sbprintln(&ctx.output, "  core.boomstick.$module.glsl_kernels: dq 0, 0")
+    fmt.sbprintln(&ctx.output, "  core.$lib.boomstick.$module.glsl_kernels: dq 0, 0")
   }
 }

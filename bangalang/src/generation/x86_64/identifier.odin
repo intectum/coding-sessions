@@ -57,7 +57,15 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     {
       if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
       {
-        name = program.get_qualified_name({ ctx.program.modules[ctx.path[0]].imports[node.children[0].value], node.value })
+        module := ctx.program.modules[program.get_qualified_module_name(ctx.path)]
+        imported_module_path := module.imports[node.children[0].value]
+
+        imported_member_path: [dynamic]string
+        append(&imported_member_path, ..imported_module_path[:])
+        append(&imported_member_path, node.value)
+        defer delete(imported_member_path)
+
+        name = program.get_qualified_name(imported_member_path[:])
       }
       else
       {

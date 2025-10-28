@@ -20,7 +20,7 @@ procedure :: struct
 
 module :: struct
 {
-  imports: map[string]string,
+  imports: map[string][2]string,
 
   identifiers: map[string]ast.node
 }
@@ -66,20 +66,27 @@ init :: proc(program: ^program)
   append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[parameters]" })
   append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })
-  append(&import_proc.children[0].children[0].children[0].children, ast.node { type = .identifier, value = "name" })
+  append(&import_proc.children[0].children[0].children[0].children, ast.node { type = .identifier, value = "module" })
   append(&import_proc.children[0].children[0].children[0].children[0].children, program.identifiers["string"])
+  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })
+  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .identifier, value = "lib" })
+  append(&import_proc.children[0].children[0].children[1].children[0].children, program.identifiers["string"])
+  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .assign, value = "=" })
+  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .string_literal, value = "\"\"" })
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[module]" })
   program.identifiers["import"] = import_proc
 }
 
-load_module :: proc(program: ^program, name: string, code: string) -> bool
+load_module :: proc(program: ^program, path: []string, code: string) -> bool
 {
-  if name in program.modules
+  qualified_module_name := get_qualified_module_name(path)
+  if qualified_module_name in program.modules
   {
     return true
   }
 
-  tokenization_result := tokenization.tokenize(name, code) or_return
+  readable_name := strings.concatenate({ path[0], ":", path[1] })
+  tokenization_result := tokenization.tokenize(readable_name, code) or_return
 
   stream := tokens.stream { tokens = tokenization_result[:] }
   nodes, parse_ok := parsing.parse_module(&stream)
@@ -89,14 +96,34 @@ load_module :: proc(program: ^program, name: string, code: string) -> bool
     return false
   }
 
-  program.modules[name] = {}
-  program.procedures[get_qualified_name({ name })] = { statements = nodes }
+  program.modules[qualified_module_name] = {}
+  program.procedures[qualified_module_name] = { statements = nodes }
 
   return true
 }
 
 get_qualified_name :: proc(path: []string) -> string
 {
-  final_module_name, _ := strings.replace_all(path[0], "/", ".")
-  return strings.concatenate({ final_module_name, ".$module.", strings.join(path[1:], ".") })
+  qualified_name := get_qualified_module_name(path)
+
+  if len(path) > 2
+  {
+    qualified_name = strings.concatenate({ qualified_name, ".", strings.join(path[2:], ".") })
+  }
+
+  return qualified_name
+}
+
+get_qualified_module_name :: proc(path: []string) -> string
+{
+  final_module_name, _ := strings.replace_all(path[1], "/", ".")
+  qualified_module_name := strings.concatenate({ final_module_name, ".$module" })
+
+  if path[0] == "[main]"
+  {
+    return qualified_module_name
+  }
+
+  final_lib_name, _ := strings.replace_all(path[0], "/", ".")
+  return strings.concatenate({ final_lib_name, ".$lib.", qualified_module_name })
 }

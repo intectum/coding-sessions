@@ -15,7 +15,7 @@ type_check_module :: proc(ctx: ^type_checking_context) -> bool
 
   type_check_statements(ctx, main_procedure.statements[:]) or_return
 
-  module := &ctx.program.modules[ctx.path[0]]
+  module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
   module.identifiers = ctx.identifiers
 
   return true

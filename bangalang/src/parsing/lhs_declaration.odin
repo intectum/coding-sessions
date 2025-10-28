@@ -5,7 +5,14 @@ import "../tokens"
 
 parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
 {
+  directive: string
+  if tokens.peek_token(stream).type == .directive
+  {
+    directive = (tokens.next_token(stream, .directive) or_return).value
+  }
+
   node = parse_identifier(stream) or_return
+  node.directive = directive
 
   tokens.next_token(stream, .colon) or_return
 

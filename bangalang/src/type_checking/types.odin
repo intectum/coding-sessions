@@ -4,6 +4,7 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
+import "../program"
 import "../src"
 
 numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
@@ -216,10 +217,11 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
     {
       child_node := &node.children[0]
-      module := &ctx.program.modules[ctx.path[0]]
+      module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
       if child_node.value in module.imports
       {
-        imported_module := &ctx.program.modules[module.imports[child_node.value]]
+        imported_module_path := module.imports[child_node.value]
+        imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
         if node.value in imported_module.identifiers
         {
           identifier_node := &imported_module.identifiers[node.value]

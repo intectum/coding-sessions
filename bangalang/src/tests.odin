@@ -15,7 +15,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["comments"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     uncommented_code: i8 = 1
 
@@ -36,9 +36,9 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_false_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
-    var0 = false
+    var0: = false
     if false
     {
         var0 = true
@@ -48,9 +48,9 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_false_scope_brackets"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
-    var0 = false
+    var0: = false
     if (false)
     {
         var0 = true
@@ -60,9 +60,9 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_true_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
-    var0 = false
+    var0: = false
     if true
     {
         var0 = true
@@ -72,25 +72,25 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_false_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
-    var0 = false
+    var0: = false
     if false var0 = true
     debug.assert(var0 == false, "")
   `
 
   general_tests["if_true_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
-    var0 = false
+    var0: = false
     if true var0 = true
     debug.assert(var0, "")
   `
 
   general_tests["if_else_true_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if true
@@ -106,7 +106,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_false_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false
@@ -122,7 +122,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_true_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if true var0 = 1
@@ -132,7 +132,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_false_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false var0 = 1
@@ -142,7 +142,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_true_true_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if true
@@ -162,7 +162,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_true_true_scope_brackets"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if (true)
@@ -182,7 +182,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_false_true_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false
@@ -202,7 +202,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_false_false_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false
@@ -222,7 +222,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_true_true_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if true var0 = 1
@@ -233,7 +233,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_false_true_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false var0 = 1
@@ -244,7 +244,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["if_else_if_false_false_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: i8 = 0
     if false var0 = 1
@@ -255,7 +255,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_expression_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     value: i64 = 10
@@ -269,7 +269,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_pre_expression_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0
@@ -283,7 +283,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_pre_expression_post_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0, value = value - 1
@@ -296,7 +296,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_pre_expression_post_non_scope_brackets"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     for (value: i64 = 10, value > 0, value = value - 1) sum += value
@@ -306,7 +306,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_break"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0, value -= 1
@@ -320,7 +320,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["for_continue"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     sum: i64 = 0
     for value: i64 = 10, value > 0, value -= 1
@@ -334,7 +334,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_1"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[1]
     array1[0] = 1
@@ -343,15 +343,15 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     array1 += array2
     debug.assert(array1[0] == 3, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
   `
 
   general_tests["add_assign_2"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[2]
     array1[0] = 1
@@ -363,8 +363,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[0] == 3, "")
     debug.assert(array1[1] == 6, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -372,7 +372,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_3"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[3]
     array1[0] = 1
@@ -387,8 +387,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[1] == 6, "")
     debug.assert(array1[2] == 9, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -397,7 +397,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_4"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[4]
     array1[0] = 1
@@ -415,8 +415,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[2] == 9, "")
     debug.assert(array1[3] == 12, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -426,7 +426,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_5"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[5]
     array1[0] = 1
@@ -447,8 +447,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[3] == 12, "")
     debug.assert(array1[4] == 15, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -459,7 +459,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_6"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[6]
     array1[0] = 1
@@ -483,8 +483,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[4] == 15, "")
     debug.assert(array1[5] == 18, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -496,7 +496,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_7"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[7]
     array1[0] = 1
@@ -523,8 +523,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[5] == 18, "")
     debug.assert(array1[6] == 21, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -537,7 +537,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   general_tests["add_assign_8"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     array1: f32[8]
     array1[0] = 1
@@ -567,8 +567,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(array1[6] == 21, "")
     debug.assert(array1[7] == 24, "")
 
-    slice1 = array1[:]
-    slice2 = array2[:]
+    slice1: = array1[]
+    slice2: = array2[]
     slice1 += slice2
     debug.assert(slice1[0] == 5, "")
     debug.assert(slice1[1] == 10, "")
@@ -583,7 +583,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO move to value tests...
   general_tests["equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: ^i8 = #danger_untyped 0
     var1: ^i8 = #danger_untyped 1
@@ -599,7 +599,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var3 != nil, "")
     debug.assert(var2 != var3, "")
     var4: i8[]
-    var5 = var3[:]
+    var5: = var3[]
     debug.assert(var4 == nil, "")
     debug.assert(var4 == var4, "")
     debug.assert(var5 != nil, "")
@@ -617,7 +617,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO
   /*value_tests["declare"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>
     debug.assert(var0 == nil, "")
@@ -625,7 +625,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     debug.assert(var0 == <value0>, "")
@@ -633,7 +633,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>
     var0 = <value0>
@@ -642,7 +642,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign_array"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
@@ -651,7 +651,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign_array_of_arrays"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
@@ -661,7 +661,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO
   /*value_tests["declare_then_assign_array_of_structs"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: struct { member0: <type>, member1: <type> }[10]
     var0[5].member0 = <value0>
@@ -672,19 +672,17 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign_slice"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
-    var1 = var0[2:8]
+    var1: = var0[2:8]
     debug.assert(var1[3] == <value0>, "")
   `
 
   value_tests["declare_then_assign_slice"] =
   `
-    debug = import("core/debug")
-
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
@@ -695,7 +693,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign_slice_from_literal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
@@ -705,7 +703,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign_slice_from_literal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
@@ -716,17 +714,17 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign_slice_of_arrays"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
-    var1 = var0[2:8]
+    var1: = var0[2:8]
     debug.assert(var1[3][5] == <value0>, "")
   `
 
   value_tests["declare_then_assign_slice_of_arrays"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10][10]
     var0[5][5] = <value0>
@@ -737,7 +735,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign_struct"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: struct { member0: <type>, member1: <type> } = { member0 = <value0>, member1 = <value1> }
     debug.assert(var0.member0 == <value0>, "")
@@ -746,7 +744,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign_struct"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: struct { member0: <type>, member1: <type> }
     var0 = { member0 = <value0>, member1 = <value1> }
@@ -756,7 +754,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_then_assign_struct_member"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: struct { member0: <type>, member1: <type> }
     var0.member0 = <value0>
@@ -767,37 +765,37 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["declare_and_assign_pointer"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
-    var1 = ^var0
+    var1: = ^var0
     debug.assert(var1^ == <value0>, "")
   `
 
   value_tests["declare_and_assign_pointer_to_array"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
-    var1 = ^var0
+    var1: = ^var0
     debug.assert(var1[5] == <value0>, "")
   `
 
   value_tests["declare_and_assign_pointer_to_slice"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type>[10]
     var0[5] = <value0>
-    var1 = var0[2:8]
-    var2 = ^var1
+    var1: = var0[2:8]
+    var2: = ^var1
     debug.assert(var2[3] == <value0>, "")
   `
 
   value_tests["proc_param_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     proc0: proc(param0: <type>) =
     {
@@ -808,7 +806,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["proc_return_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     proc0: proc() -> <type> =
     {
@@ -819,7 +817,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["proc_param_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     proc0: proc(param0: <type>) = debug.assert(param0 == <value0>, "")
     proc0(<value0>)
@@ -827,7 +825,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["proc_return_non_scope"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     proc0: proc() -> <type> = return <value0>
     debug.assert(proc0() == <value0>, "")
@@ -835,7 +833,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["proc_return_non_scope_expression_only"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     proc0: proc() -> <type> = <value0>
     debug.assert(proc0() == <value0>, "")
@@ -843,7 +841,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["type_alias"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     type0 = <type>
     var0: type0 = <value0>
@@ -852,7 +850,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["type_alias_array"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     type0 = <type>[10]
     var0: type0
@@ -863,7 +861,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   // TODO
   /*value_tests["type_alias_slice"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     type0 = <type>[]
     var0: <type>[10]
@@ -874,7 +872,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   value_tests["type_alias_struct"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     type0 = struct { member0: <type>, member1: <type> }
     var0: type0
@@ -888,7 +886,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   bool_tests["equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     debug.assert(var0 == var0, "")
@@ -896,7 +894,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   bool_tests["not_equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -905,7 +903,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   bool_tests["and"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -916,7 +914,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   bool_tests["or"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -927,7 +925,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   bool_tests["not"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -939,7 +937,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     debug.assert(var0 == var0, "")
@@ -947,7 +945,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["not_equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -956,7 +954,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["less_than"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -967,7 +965,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["greater_than"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -978,7 +976,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["less_than_or_equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -989,7 +987,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["greater_than_or_equal"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1000,7 +998,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["negate"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1009,7 +1007,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["add"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1018,7 +1016,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["add_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 += 2
@@ -1027,7 +1025,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["subtract"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1036,7 +1034,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["subtract_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 -= 2
@@ -1045,7 +1043,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bitwise_or"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1054,7 +1052,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bitwise_or_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 |= 4
@@ -1063,7 +1061,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["multiply"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1072,7 +1070,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["multiply_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 *= 2
@@ -1081,7 +1079,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["divide"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1090,7 +1088,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["divide_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 /= 2
@@ -1099,7 +1097,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bitwise_and"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1109,7 +1107,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bitwise_and_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var0 &= 2
@@ -1120,7 +1118,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["modulo"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value1>
     debug.assert(var0 % 3 == 1, "")
@@ -1128,7 +1126,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["modulo_assign"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value1>
     var0 /= 3
@@ -1137,7 +1135,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bedmas_1"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1147,7 +1145,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bedmas_2"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1157,7 +1155,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bedmas_3"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>
@@ -1167,7 +1165,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   numerical_tests["bedmas_4"] =
   `
-    debug = import("core/debug")
+    debug: = import("debug", "core")
 
     var0: <type> = <value0>
     var1: <type> = <value1>

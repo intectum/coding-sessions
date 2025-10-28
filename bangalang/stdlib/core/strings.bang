@@ -1,4 +1,4 @@
-linux: = import("core/os/linux")
+linux: = import("os/linux")
 
 print: proc(message: string) = linux.write(1, message)
 println: proc(message: string) =

@@ -1,5 +1,5 @@
-linux: = import("core/os/linux")
-strings: = import("core/strings")
+linux: = import("os/linux")
+strings: = import("strings")
 
 mutex_lock: proc(mutex: ^i32) =
   for !cmpxchg(mutex, 0, 1)

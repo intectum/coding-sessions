@@ -53,13 +53,13 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string) -> 
     }
   }
 
-  module := &ctx.program.modules[ctx.path[0]]
+  module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
   if identifier in module.identifiers
   {
     identifier_node := &module.identifiers[identifier]
     if is_visible_nested(identifier_node)
     {
-      return identifier_node, ctx.path[:1]
+      return identifier_node, ctx.path[:2]
     }
   }
 

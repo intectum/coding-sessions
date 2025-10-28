@@ -1,16 +1,16 @@
-threading: = import("core/threading")
-memory: = import("core/memory")
+threading: = import("threading")
+memory: = import("memory")
 
-gl: = import("vendor/gl")
+gl: = import("gl", "vendor")
 
 kernel_t: = proc(index: i32, data: vec4[])
 
-pool: threading.thread_pool_t@static = { worker_count = 8 } // TODO query core count from kernel
+#private pool: threading.thread_pool_t@static = { worker_count = 8 } // TODO query core count from kernel
 threading.thread_pool_start(^pool)
 
 // TODO proper map?!
-glsl_kernels: (^string)[]@none
-glsl_kernel_names: i32[100]@static
+#private glsl_kernels: (^string)[]@none
+#private glsl_kernel_names: i32[100]@static
 
 init: proc() =
 {

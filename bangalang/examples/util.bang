@@ -1,0 +1,55 @@
+debug: = import("debug", "core")
+strings: = import("strings", "core")
+
+gl: = import("gl", "vendor")
+glu: = import("glu", "vendor")
+
+compile_shader: proc(type: i32, src: string) -> i32 =
+{
+  name: = gl.glCreateShader(type) check_opengl_error()
+  gl.glShaderSource(name, 1, ^src.raw, ^i32(src.length)) check_opengl_error()
+  gl.glCompileShader(name) check_opengl_error()
+
+  compile_status: i32
+  gl.glGetShaderiv(name, gl.GL_COMPILE_STATUS, ^compile_status) check_opengl_error()
+
+  info_log: byte[1000000]
+  info_log_length: i32
+  gl.glGetShaderInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
+
+  if info_log_length > 0 strings.println(info_log[:info_log_length])
+  debug.assert(compile_status != 0, "failed to compile shader")
+
+  return name
+}
+
+link_shaders: proc(vertex_shader_name: i32, fragment_shader_name: i32) -> i32 =
+{
+  name: = gl.glCreateProgram() check_opengl_error()
+  gl.glAttachShader(name, vertex_shader_name) check_opengl_error()
+  gl.glAttachShader(name, fragment_shader_name) check_opengl_error()
+  gl.glLinkProgram(name) check_opengl_error()
+
+  link_status: i32
+  gl.glGetProgramiv(name, gl.GL_LINK_STATUS, ^link_status) check_opengl_error()
+
+  info_log: byte[1000000]
+  info_log_length: i32
+  gl.glGetProgramInfoLog(name, i32(info_log.length), ^info_log_length, info_log.raw) check_opengl_error()
+
+  if info_log_length > 0 strings.println(info_log[:info_log_length])
+  debug.assert(link_status != 0, "failed to link shaders")
+
+  return name
+}
+
+check_opengl_error: proc() =
+{
+  error: = gl.glGetError()
+  if error != gl.GL_NO_ERROR
+  {
+    error_buffer: = glu.gluErrorString(error)
+    error_length: = strings.get_cstring_length(error_buffer)
+    strings.println({ raw = error_buffer, length = error_length })
+  }
+}

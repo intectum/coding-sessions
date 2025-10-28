@@ -13,7 +13,7 @@ import "./type_checking"
 
 main :: proc()
 {
-  /*failed_tests := run_test_suite()
+  failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -22,7 +22,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }*/
+  }
 
   name := "examples/example_01"
   path := strings.concatenate({ name, ".bang" })
@@ -78,25 +78,27 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   the_program: program.program
   program.init(&the_program)
 
-  globals_data, globals_ok := os.read_entire_file("stdlib/globals.bang")
+  globals_data, globals_ok := os.read_entire_file("stdlib/core/globals.bang")
   if !globals_ok
   {
     fmt.println("Failed to read globals module file")
     os.exit(1)
   }
 
-  if !type_checking.type_check_program(&the_program, "globals", string(globals_data))
+  globals_path: []string = { "core", "globals" }
+  if !type_checking.type_check_program(&the_program, globals_path, string(globals_data))
   {
     os.exit(1)
   }
 
-  globals_module := &the_program.modules["globals"]
+  globals_module := &the_program.modules[program.get_qualified_module_name(globals_path)]
   for identifier in globals_module.identifiers
   {
     the_program.identifiers[identifier] = globals_module.identifiers[identifier]
   }
 
-  if !type_checking.type_check_program(&the_program, name, code)
+  path: []string = { "[main]", name }
+  if !type_checking.type_check_program(&the_program, path, code)
   {
     os.exit(1)
   }
@@ -104,7 +106,7 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   gen_ctx: generation.gen_context =
   {
     program = &the_program,
-    path = { name }
+    path = path
   }
 
   strings.builder_init(&gen_ctx.output)

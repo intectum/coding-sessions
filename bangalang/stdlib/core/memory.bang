@@ -1,6 +1,6 @@
-linux: = import("core/os/linux")
+linux: = import("os/linux")
 
-gl: = import("vendor/gl")
+gl: = import("gl", "vendor")
 
 allocator: = proc(size: i64) -> ^byte
 

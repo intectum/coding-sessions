@@ -1,5 +1,5 @@
-os: = import("core/os")
-strings: = import("core/strings")
+os: = import("os")
+strings: = import("strings")
 
 assert: proc(assertion: bool, message: string) =
 {

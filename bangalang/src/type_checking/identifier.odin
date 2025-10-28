@@ -31,29 +31,36 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         return false
       }
     case "[module]":
-      module := &ctx.program.modules[ctx.path[0]]
+      module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
       if !(child_node.value in module.imports)
       {
         src.print_position_message(node.src_position, "Module '%s' has not been imported", child_node.value)
         return false
       }
 
-      imported_module_name := module.imports[child_node.value]
-      imported_module := &ctx.program.modules[imported_module_name]
+      imported_module_path := module.imports[child_node.value]
+      imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
       if !(node.value in imported_module.identifiers)
       {
-        src.print_position_message(node.src_position, "'%s' is not a member or module '%s'", node.value, child_node.value)
+        src.print_position_message(node.src_position, "'%s' is not a member of module '%s'", node.value, child_node.value)
         return false
       }
 
       identifier_node := &imported_module.identifiers[node.value]
+      if identifier_node.directive == "#private"
+      {
+        src.print_position_message(node.src_position, "'%s' is a private member of module '%s'", node.value, child_node.value)
+        return false
+      }
+
       if ast.is_static_procedure(identifier_node)
       {
         qualified_name := program.get_qualified_name(ctx.path[:])
         procedure := &ctx.program.procedures[qualified_name]
 
         path: [dynamic]string
-        append(&path, imported_module_name, node.value)
+        append(&path, ..imported_module_path[:])
+        append(&path, node.value)
         append(&procedure.references, path)
       }
 
