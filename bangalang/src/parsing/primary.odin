@@ -105,6 +105,15 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       stream.error = src.to_position_message(node.src_position, "Invalid keyword '%s'", tokens.peek_token(stream).value)
       return {}, false
     }
+  case .char:
+    if type != .rhs
+    {
+      stream.error = src.to_position_message(node.src_position, "Only a right-hand-side primary can contain a char literal")
+      return {}, false
+    }
+
+    node.type = .char_literal
+    node.value = (tokens.next_token(stream, .char) or_return).value
   case .string_:
     if type != .rhs
     {
@@ -185,16 +194,12 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
 
       if type == .type
       {
-        if tokens.peek_token(stream).type == .number
+        if tokens.peek_token(stream).type != .closing_square_bracket
         {
           node.value = "[array]"
 
-          number_node := ast.node {
-            type = .number_literal,
-            value = (tokens.next_token(stream, .number) or_return).value,
-            src_position = child_node.src_position
-          }
-          append(&node.children, number_node)
+          expression_node := parse_rhs_expression(stream) or_return
+          append(&node.children, expression_node)
         }
       }
       else

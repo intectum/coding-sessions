@@ -34,7 +34,8 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       return false
     }
 
-    append(&node.children, procedure_node^)
+    // TODO cleanup AST
+    append(&node.children, ast.node { type = .type, value = procedure_node.value })
 
     type_node := ast.node { type = .type, value = "[procedure]" }
     append(&type_node.children, ast.node { type = .type, value = "[parameters]" })

@@ -97,6 +97,8 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     type_check_call(node, ctx) or_return
   case .identifier:
     type_check_identifier(node, ctx) or_return
+  case .char_literal:
+    append(&node.children, ctx.program.identifiers["char"])
   case .string_literal:
     append(&node.children, ast.node { type = .type, value = "[any_string]" })
   case .number_literal:

@@ -136,6 +136,8 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     return generate_call(ctx, node, register_num, child_location, false)
   case .identifier:
     return generate_identifier(ctx, node, register_num, child_location, contains_allocations)
+  case .char_literal:
+    return immediate(node.value)
   case .string_literal:
     if type_node.value == "[slice]" && type_node.children[0].value == "u8"
     {

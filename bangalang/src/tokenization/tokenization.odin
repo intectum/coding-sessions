@@ -105,6 +105,23 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
         }
       }
     }
+    else if src.peek_rune(&stream) == '\''
+    {
+      initial_stream := stream
+      src.next_rune(&stream)
+
+      if src.next_rune(&stream) == '\''
+      {
+        return {}, false
+      }
+
+      if src.next_rune(&stream) != '\''
+      {
+        return {}, false
+      }
+
+      append(&result, tokens.token { .char, code[initial_stream.next_index:stream.next_index], initial_stream.position })
+    }
     else if src.peek_rune(&stream) == '"'
     {
       initial_stream := stream

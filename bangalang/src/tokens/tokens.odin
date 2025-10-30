@@ -23,6 +23,7 @@ token_type :: enum
   backslash,
   backslash_equals,
   boolean,
+  char,
   closing_angle_bracket,
   closing_angle_bracket_equals,
   closing_bracket,

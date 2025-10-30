@@ -7,8 +7,14 @@ import "../src"
 
 type_check_rhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context, expected_type_node: ^ast.node) -> bool
 {
-  if node.type == .compound_literal && expected_type_node != nil
+  if node.type == .compound_literal
   {
+    if expected_type_node == nil
+    {
+      src.print_position_message(node.src_position, "Could not determine type of compound literal")
+      return false
+    }
+
     append(&node.children, expected_type_node^)
   }
 

@@ -157,7 +157,9 @@ type_name :: proc(type_node: ^ast.node) -> string
   case "[any_string]":
     return strings.concatenate({ prefix, "<any string>" })
   case "[array]":
-    return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", type_node.children[1].value, "]" })
+    length_expression_node := &type_node.children[1]
+    length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
+    return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", length, "]" })
   case "[procedure]":
     param_type_names: [dynamic]string
     params_type_node := &type_node.children[0]

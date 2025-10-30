@@ -7,6 +7,27 @@ println: proc(message: string) =
   linux.write(1, "\n")
 }
 
+atoi: proc(value: string) -> i64 =
+{
+  result: i64
+
+  factor: i64 = 1
+  for index: i64 = value.length - 1, index >= 0, index -= 1
+  {
+    if index == 0 && value[0] == '-' break
+
+    result += i64(value[index] - '0') * factor
+    factor *= 10
+  }
+
+  if value[0] == '-'
+  {
+    result *= -1
+  }
+
+  return result
+}
+
 itoa: proc(value: i64, buffer: byte[]) -> string =
 {
   length: u64 = 0
@@ -18,14 +39,14 @@ itoa: proc(value: i64, buffer: byte[]) -> string =
   }
   else if value == 0
   {
-    buffer[length] = 48 // '0'
+    buffer[length] = '0'
 
     length += 1
   }
 
   for value > 0
   {
-    buffer[length] = byte(value % 10) + 48 // '0'
+    buffer[length] = byte(value % 10) + '0'
 
     value /= 10
     length += 1
@@ -33,7 +54,7 @@ itoa: proc(value: i64, buffer: byte[]) -> string =
 
   if negative
   {
-    buffer[length] = 45 // '-'
+    buffer[length] = '-'
 
     length += 1
   }

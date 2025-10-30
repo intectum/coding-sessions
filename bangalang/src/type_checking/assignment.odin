@@ -149,32 +149,86 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     allocator := ast.get_allocator(lhs_node)
     if allocator == "heap" || allocator == "vram"
     {
-      if lhs_type_node.type != .reference
-      {
-        src.print_position_message(lhs_node.src_position, "Cannot allocate non-reference type '%s' with allocator '%s'", lhs_type_node.value, allocator)
-        return false
-      }
-
       if len(node.children) > 1
       {
         src.print_position_message(lhs_node.src_position, "Cannot assign when using allocator '%s'", allocator)
         return false
       }
 
-      operator_node := ast.node { type = .assign }
+      length_expression_node: ^ast.node
+      if lhs_type_node.value == "[array]"
+      {
+        length_expression_node = &lhs_type_node.children[1]
+
+        lhs_type_node.value = "[slice]"
+        resize(&lhs_type_node.children, 1)
+      }
+      else
+      {
+        reference_node: ast.node = { type = .reference }
+        append(&reference_node.children, lhs_type_node^)
+        lhs_type_node^ = reference_node
+      }
+
+      operator_node := ast.node { type = .assign, value = "=" }
       append(&node.children, operator_node)
 
-      allocator_node := ast.node { type = .call, src_position = node.src_position }
-      append(&allocator_node.children, ast.node { type = .identifier, value = strings.concatenate({ "allocate_", allocator }), src_position = node.src_position })
-      append(&allocator_node.children[0].children, ast.node { type = .identifier, value = "memory", src_position = node.src_position })
-      append(&allocator_node.children, ast.node { type = .number_literal, src_position = node.src_position })
-      append(&node.children, allocator_node)
+      allocator_node := ast.node { type = .call, directive = "#danger_untyped" }
+      append(&allocator_node.children, ast.node { type = .identifier, value = strings.concatenate({ "allocate_", allocator }) })
+      append(&allocator_node.children[0].children, ast.node { type = .identifier, value = "memory" })
 
-      type_check_rhs_expression(&node.children[2], ctx, nil)
+      if lhs_type_node.value == "[slice]"
+      {
+        append(&allocator_node.children, ast.node { type = .multiply, value = "*" })
+        append(&allocator_node.children[1].children, ast.node { type = .number_literal })
+        append(&allocator_node.children[1].children, length_expression_node^)
+
+        rhs_node: ast.node = { type = .compound_literal }
+        append(&rhs_node.children, ast.node { type = .assignment_statement })
+        append(&rhs_node.children[0].children, ast.node { type = .identifier, value = "raw" })
+        append(&rhs_node.children[0].children, ast.node { type = .assign, value = "=" })
+        append(&rhs_node.children[0].children, allocator_node)
+        append(&rhs_node.children, ast.node { type = .assignment_statement })
+        append(&rhs_node.children[1].children, ast.node { type = .identifier, value = "length" })
+        append(&rhs_node.children[1].children, ast.node { type = .assign, value = "=" })
+        append(&rhs_node.children[1].children, length_expression_node^)
+        append(&node.children, rhs_node)
+      }
+      else
+      {
+        append(&allocator_node.children, ast.node { type = .number_literal })
+        append(&node.children, allocator_node)
+      }
+
+      if contains_non_fixed_array_sizes(lhs_type_node)
+      {
+        src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_type_node))
+        return false
+      }
+
+      type_check_rhs_expression(&node.children[2], ctx, lhs_type_node) or_return
     }
 
     ctx.identifiers[lhs_node.value] = lhs_node^
   }
 
   return true
+}
+
+contains_non_fixed_array_sizes :: proc(type_node: ^ast.node) -> bool
+{
+  if type_node.value == "[array]" && type_node.children[1].type != .number_literal
+  {
+    return true
+  }
+
+  for &child_node in type_node.children
+  {
+    if contains_non_fixed_array_sizes(&child_node)
+    {
+      return true
+    }
+  }
+
+  return false
 }

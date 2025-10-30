@@ -26,6 +26,7 @@ node_type :: enum
   bitwise_or_assign,
   boolean_literal,
   break_statement,
+  char_literal,
   call,
   compound_literal,
   continue_statement,

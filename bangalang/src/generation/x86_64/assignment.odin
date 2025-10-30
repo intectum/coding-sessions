@@ -36,11 +36,19 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
       rhs_node := &node.children[2]
-      param_node := &rhs_node.children[1]
 
       // TODO a bit hacky, adds the size info to the allocator call
       buf: [8]byte
-      param_node.value = strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
+      if lhs_type_node.value == "[slice]"
+      {
+        element_size := strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
+        rhs_node.children[0].children[2].children[1].children[0].value = element_size
+      }
+      else
+      {
+        size := strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
+        rhs_node.children[1].value = size
+      }
     case "none":
       // Do nothing
     case "stack":
