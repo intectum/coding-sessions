@@ -131,3 +131,22 @@ thread_pool_wait: proc(pool: ^thread_pool_t) =
 thread_pool_stop: proc(pool: ^thread_pool_t) =
   for index: i32, index < pool.worker_count, index += 1
     semaphore_signal(^pool.semaphore)
+
+get_cpu_core_count: proc() -> u8 =
+{
+  cpuinfo := linux.open("/proc/cpuinfo", linux.O_RDONLY)
+  buffer: byte[1000]
+  read_count: = linux.read(cpuinfo, buffer.raw, buffer.length)
+
+  cpu_cores_prefix:= "cpu cores\t: "
+  for index: i64, index < read_count - cpu_cores_prefix.length, index += 1
+  {
+    if buffer[index:index + cpu_cores_prefix.length] == cpu_cores_prefix
+    {
+      core_count_string: = buffer[index + cpu_cores_prefix.length:index + cpu_cores_prefix.length + 1]
+      return u8(strings.atoi(core_count_string))
+    }
+  }
+
+  return 1
+}

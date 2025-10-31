@@ -3,10 +3,10 @@ link("glfw")
 monitor_t: = struct {}
 window_t: = struct {}
 
-glfwInit: #extern proc() -> cint
-glfwCreateWindow: #extern proc(width: cint, height: cint, title: cstring, monitor: ^monitor_t, share: ^window_t) -> ^window_t
-glfwMakeContextCurrent: #extern proc(window: ^window_t)
-glfwWindowShouldClose: #extern proc(window: ^window_t) -> cint
-glfwPollEvents: #extern proc()
-glfwSwapBuffers: #extern proc(window: ^window_t)
-glfwSwapInterval: #extern proc(interval: cint)
+glfwInit: proc() -> cint@extern
+glfwCreateWindow: proc(width: cint, height: cint, title: cstring, monitor: ^monitor_t, share: ^window_t) -> ^window_t@extern
+glfwMakeContextCurrent: proc(window: ^window_t)@extern
+glfwWindowShouldClose: proc(window: ^window_t) -> cint@extern
+glfwPollEvents: proc()@extern
+glfwSwapBuffers: proc(window: ^window_t)@extern
+glfwSwapInterval: proc(interval: cint)@extern

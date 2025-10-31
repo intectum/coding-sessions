@@ -14,28 +14,28 @@ GL_SYNC_GPU_COMMANDS_COMPLETE: i32@static = 0x9117
 GL_TRIANGLES: i32@static = 0x4
 GL_VERTEX_SHADER: i32@static = 0x8B31
 
-glAttachShader: #extern proc(program: i32, shader: i32)
-glBindBuffer: #extern proc(target: i32, buffer: i32)
-glBindBufferBase: #extern proc(target: i32, index: i32, buffer: i32)
-glClear: #extern proc(mask: i32)
-glClientWaitSync: #extern proc(sync: i64, flags: i32, timeout: i64) -> i32
-glCompileShader: #extern proc(shader: i32)
-glCreateProgram: #extern proc() -> i32
-glCreateShader: #extern proc(shader_type: i32) -> i32
-glDeleteSync: #extern proc(sync: i64)
-glDispatchCompute: #extern proc(num_groups_x: i32, num_groups_y: i32, num_groups_z: i32)
-glDrawArrays: #extern proc(mode: i32, first: i32, count: i32)
-glEnableVertexAttribArray: #extern proc(index: i32)
-glFenceSync: #extern proc(condition: i32, flags: i32) -> i64
-glGenBuffers: #extern proc(n: i32, buffers: ^i32)
-glGetError: #extern proc() -> i32
-glGetProgramiv: #extern proc(program: i32, pname: i32, params: ^i32)
-glGetProgramInfoLog: #extern proc(program: i32, max_length: i32, length: ^i32, info_log: ^byte)
-glGetShaderInfoLog: #extern proc(shader: i32, max_length: i32, length: ^i32, info_log: ^byte)
-glGetShaderiv: #extern proc(shader: i32, pname: i32, params: ^i32)
-glLinkProgram: #extern proc(program: i32)
-glMapNamedBufferRange: #extern proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^byte
-glNamedBufferStorage: #extern proc(buffer: i32, size: i64, data: ^byte, flags: i32)
-glShaderSource: #extern proc(shader: i32, count: i32, src: ^^byte, length: ^i32)
-glUseProgram: #extern proc(program: i32)
-glVertexAttribPointer: #extern proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^byte)
+glAttachShader: proc(program: i32, shader: i32)@extern
+glBindBuffer: proc(target: i32, buffer: i32)@extern
+glBindBufferBase: proc(target: i32, index: i32, buffer: i32)@extern
+glClear: proc(mask: i32)@extern
+glClientWaitSync: proc(sync: i64, flags: i32, timeout: i64) -> i32@extern
+glCompileShader: proc(shader: i32)@extern
+glCreateProgram: proc() -> i32@extern
+glCreateShader: proc(shader_type: i32) -> i32@extern
+glDeleteSync: proc(sync: i64)@extern
+glDispatchCompute: proc(num_groups_x: i32, num_groups_y: i32, num_groups_z: i32)@extern
+glDrawArrays: proc(mode: i32, first: i32, count: i32)@extern
+glEnableVertexAttribArray: proc(index: i32)@extern
+glFenceSync: proc(condition: i32, flags: i32) -> i64@extern
+glGenBuffers: proc(n: i32, buffers: ^i32)@extern
+glGetError: proc() -> i32@extern
+glGetProgramiv: proc(program: i32, pname: i32, params: ^i32)@extern
+glGetProgramInfoLog: proc(program: i32, max_length: i32, length: ^i32, info_log: ^byte)@extern
+glGetShaderInfoLog: proc(shader: i32, max_length: i32, length: ^i32, info_log: ^byte)@extern
+glGetShaderiv: proc(shader: i32, pname: i32, params: ^i32)@extern
+glLinkProgram: proc(program: i32)@extern
+glMapNamedBufferRange: proc(buffer: i32, offset: i64, length: i64, access: i32) -> ^byte@extern
+glNamedBufferStorage: proc(buffer: i32, size: i64, data: ^byte, flags: i32)@extern
+glShaderSource: proc(shader: i32, count: i32, src: ^^byte, length: ^i32)@extern
+glUseProgram: proc(program: i32)@extern
+glVertexAttribPointer: proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^byte)@extern

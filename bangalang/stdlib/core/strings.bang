@@ -1,10 +1,11 @@
 linux: = import("os/linux")
 
-print: proc(message: string) = linux.write(1, message)
+print: proc(message: string) = linux.write(1, message.raw, message.length)
 println: proc(message: string) =
 {
-  linux.write(1, message)
-  linux.write(1, "\n")
+  linux.write(1, message.raw, message.length)
+  newline := "\n"
+  linux.write(1, newline.raw, newline.length)
 }
 
 atoi: proc(value: string) -> i64 =

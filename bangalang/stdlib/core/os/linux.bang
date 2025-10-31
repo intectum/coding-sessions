@@ -6,11 +6,20 @@ PROT_READ: i64@static = 0x1
 PROT_WRITE: i64@static = 0x2
 MAP_ANONYMOUS: i64@static = 0x20
 MAP_PRIVATE: i64@static = 0x2
+O_RDONLY: i64@static = 0x0
+O_WRONLY: i64@static = 0x1
+O_RDWR: i64@static = 0x2
 
-syscall: #extern proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64
+syscall: proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64@extern
 
-write: proc(file_descriptor: i64, message: string) =
-  syscall(1, file_descriptor, #danger_untyped message.raw, message.length)
+read: proc(file_descriptor: i64, buffer: ^byte, count: i64) -> i64 =
+  syscall(0, file_descriptor, #danger_untyped buffer, count)
+
+write: proc(file_descriptor: i64, buffer: ^byte, count: i64) -> i64 =
+  syscall(1, file_descriptor, #danger_untyped buffer, count)
+
+open: proc(file_name: cstring, flags: i64, mode: i64 = 0) -> i64 =
+  syscall(2, #danger_untyped file_name, flags, mode)
 
 mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^byte =
 {

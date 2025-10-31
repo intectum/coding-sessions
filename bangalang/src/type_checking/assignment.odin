@@ -13,81 +13,25 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
-  if len(node.children) == 1 && ast.is_static_procedure(lhs_node) && ast.get_type(lhs_node).directive != "#extern"
-  {
-    src.print_position_message(lhs_node.src_position, "Procedure '%s' must have a procedure body", lhs_node.value)
-    return false
-  }
-
-  if ast.is_static_procedure(lhs_node)
-  {
-    found_default := false
-    lhs_type_node := ast.get_type(lhs_node)
-    params_type_node := lhs_type_node.children[0]
-    for &param_node in params_type_node.children
-    {
-      if len(param_node.children) == 1 && found_default
-      {
-        src.print_position_message(lhs_node.src_position, "Procedure parameters with defaults cannot be followed by parameters without defaults")
-        return false
-      }
-
-      if len(param_node.children) > 1
-      {
-        found_default = true
-      }
-
-      param_lhs_node := &param_node.children[0]
-      param_lhs_node.allocator = "stack"
-
-      type_check_assignment(&param_node, ctx) or_return
-    }
-  }
-
   if len(node.children) > 1
   {
     operator_node := &node.children[1]
     rhs_node := &node.children[2]
 
+    if rhs_node.type == .scope_statement
+    {
+      rhs_node.type = .compound_literal
+    }
+
+    _, statement := slice.linear_search(ast.statements, rhs_node.type)
+    if statement
+    {
+      src.print_position_message(lhs_node.src_position, "Right-hand-side must be an expression")
+      return false
+    }
+
     lhs_type_node := ast.get_type(lhs_node)
-    if ast.is_static_procedure(lhs_node)
-    {
-      if lhs_type_node.directive == "#extern"
-      {
-        src.print_position_message(lhs_node.src_position, "#extern procedure '%s' cannot have a procedure body", lhs_node.value)
-        return false
-      }
-
-      return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil
-      if return_type_node != nil && rhs_node.type != .if_statement && rhs_node.type != .for_statement && rhs_node.type != .scope_statement && rhs_node.type != .return_statement && rhs_node.type != .assignment_statement
-      {
-        return_node := ast.node {
-          type = .return_statement,
-          src_position = rhs_node.src_position
-        }
-        append(&return_node.children, rhs_node^)
-        rhs_node^ = return_node
-      }
-
-      wrap_in_scope(rhs_node)
-      type_check_statements(ctx, rhs_node.children[:]) or_return
-    }
-    else
-    {
-      if rhs_node.type == .scope_statement
-      {
-        rhs_node.type = .compound_literal
-      }
-
-      _, statement := slice.linear_search(ast.statements, rhs_node.type)
-      if statement
-      {
-        src.print_position_message(lhs_node.src_position, "Right-hand-side must be an expression")
-        return false
-      }
-
-      type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
-    }
+    type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
 
     rhs_type_node := ast.get_type(rhs_node)
     if lhs_type_node.value == "[none]"
@@ -200,13 +144,13 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         append(&node.children, allocator_node)
       }
 
-      if contains_non_fixed_array_sizes(lhs_type_node)
-      {
-        src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_type_node))
-        return false
-      }
-
       type_check_rhs_expression(&node.children[2], ctx, lhs_type_node) or_return
+    }
+
+    if contains_non_fixed_array_sizes(lhs_type_node)
+    {
+      src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_type_node))
+      return false
     }
 
     ctx.identifiers[lhs_node.value] = lhs_node^

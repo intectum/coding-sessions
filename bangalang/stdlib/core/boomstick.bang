@@ -5,8 +5,7 @@ gl: = import("gl", "vendor")
 
 kernel_t: = proc(index: i32, data: vec4[])
 
-#private pool: threading.thread_pool_t@static = { worker_count = 8 } // TODO query core count from kernel
-threading.thread_pool_start(^pool)
+#private pool: threading.thread_pool_t@static
 
 // TODO proper map?!
 #private glsl_kernels: (^string)[]@none
@@ -14,6 +13,9 @@ threading.thread_pool_start(^pool)
 
 init: proc() =
 {
+  pool.worker_count = i32(threading.get_cpu_core_count())
+  threading.thread_pool_start(^pool)
+
   for index: i64, index < glsl_kernels.length, index += 1
   {
     name: = gl.glCreateProgram()

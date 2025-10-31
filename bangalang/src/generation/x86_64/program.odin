@@ -86,12 +86,14 @@ generate_program :: proc(ctx: ^generation.gen_context)
   for string_literal, index in ctx.program.string_literals
   {
     final_string, _ := strings.replace_all(string_literal, "\\n", "\", 10, \"")
+    final_string, _ = strings.replace_all(final_string, "\\t", "\", 9, \"")
     fmt.sbprintfln(&ctx.output, "  string_%i$raw: db %s", index, final_string)
     fmt.sbprintfln(&ctx.output, "  string_%i: dq string_%i$raw, $ - string_%i$raw", index, index, index)
   }
   for cstring_literal, index in ctx.program.cstring_literals
   {
     final_cstring, _ := strings.replace_all(cstring_literal, "\\n", "\", 10, \"")
+    final_cstring, _ = strings.replace_all(final_cstring, "\\t", "\", 9, \"")
     fmt.sbprintfln(&ctx.output, "  cstring_%i: db %s, 0", index, final_cstring)
   }
 
@@ -139,38 +141,43 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
     procedure := &ctx.program.procedures[qualified_name]
     node := &procedure.statements[0]
     lhs_node := &node.children[0]
-    if lhs_node.allocator == "glsl"
+    switch ast.get_allocator(lhs_node)
     {
-      procedure_ctx: generation.gen_context =
+    case "extern":
+      fmt.sbprintfln(&ctx.output, "extern %s", lhs_node.value)
+    case "glsl":
       {
-        program = ctx.program,
-        path = reference[:]
+        procedure_ctx: generation.gen_context =
+        {
+          program = ctx.program,
+          path = reference[:]
+        }
+
+        strings.builder_init(&procedure_ctx.output)
+
+        glsl.generate_program(&procedure_ctx, node)
+
+        static_var_node: ast.node = { type = .assignment_statement }
+        append(&static_var_node.children, ast.node { type = .identifier, value = qualified_name, allocator = "glsl" })
+        append(&static_var_node.children, ast.node { type = .assign, value = "=" })
+        append(&static_var_node.children, ast.node { type = .string_literal, value = strings.to_string(procedure_ctx.output) })
+        ctx.program.static_vars[qualified_name] = static_var_node
       }
-
-      strings.builder_init(&procedure_ctx.output)
-
-      glsl.generate_program(&procedure_ctx, node)
-
-      static_var_node: ast.node = { type = .assignment_statement }
-      append(&static_var_node.children, ast.node { type = .identifier, value = qualified_name, allocator = "glsl" })
-      append(&static_var_node.children, ast.node { type = .assign, value = "=" })
-      append(&static_var_node.children, ast.node { type = .string_literal, value = strings.to_string(procedure_ctx.output) })
-      ctx.program.static_vars[qualified_name] = static_var_node
-    }
-    else
-    {
-      procedure_ctx: generation.gen_context =
+    case "static":
       {
-        program = ctx.program,
-        path = reference[:],
-        output = ctx.output
+        procedure_ctx: generation.gen_context =
+        {
+          program = ctx.program,
+          path = reference[:],
+          output = ctx.output
+        }
+
+        generate_procedure(&procedure_ctx, node)
+
+        ctx.output = procedure_ctx.output
+
+        generate_procedures(ctx, procedure.references[:], generated_procedure_names)
       }
-
-      generate_procedure(&procedure_ctx, node)
-
-      ctx.output = procedure_ctx.output
-
-      generate_procedures(ctx, procedure.references[:], generated_procedure_names)
     }
   }
 }

@@ -28,7 +28,6 @@ triangle_count: = triangle_count_1d * triangle_count_1d
 triangle_size: = 2 / f32(triangle_count_1d)
 vertex_count: = triangle_count * 3
 
-// TODO better error when omitting allocator
 triangle_data: vec4[i64(vertex_count)]@vram
 
 vertex_index: i32

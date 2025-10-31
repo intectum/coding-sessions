@@ -11,12 +11,6 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   lhs_node := &node.children[0]
   lhs_type_node := ast.get_type(lhs_node)
 
-  if lhs_type_node.directive == "#extern"
-  {
-    fmt.sbprintfln(&ctx.output, "extern %s", lhs_node.value)
-    return
-  }
-
   offset := 0
   params_type_node := lhs_type_node.children[0]
   for param_index := len(params_type_node.children) - 1; param_index >= 0; param_index -= 1

@@ -29,10 +29,7 @@ type_check_program :: proc(the_program: ^program.program, path: []string, code: 
       path = proc_path[:]
     }
 
-    for &statement in procedure.statements
-    {
-      type_check_statement(&statement, &procedure_ctx) or_return
-    }
+    type_check_procedure(&procedure.statements[0], &procedure_ctx) or_return
 
     procedure.type_checked = true
     procedure.identifiers = procedure_ctx.identifiers

@@ -49,11 +49,11 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
   }
 
   allocator := ast.get_allocator(node)
-  if allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
+  if allocator == "extern" || allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
   {
     name := node.value
 
-    if type_node.directive != "#extern" && node.value != "cmpxchg" /* TODO yuck */
+    if allocator != "extern" && node.value != "cmpxchg" /* TODO yuck */
     {
       if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
       {

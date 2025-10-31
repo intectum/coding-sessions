@@ -38,6 +38,11 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   lhs_location := generate_expression_1(ctx, lhs_node, lhs_register_num, contains_allocations)
   rhs_location := generate_expression_1(ctx, rhs_node, rhs_register_num, contains_allocations)
 
+  if operand_type_node.value == "[slice]"
+  {
+    return generate_expression_slice(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
+  }
+
   if operand_type_node.value == "bool"
   {
     return generate_expression_bool(ctx, node, lhs_location, rhs_location, operand_type_node, register_num)
@@ -63,6 +68,51 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   }
 
   return generate_expression_any(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
+}
+
+generate_expression_slice :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
+{
+  slice_cmp_index := ctx.label_index
+  ctx.label_index += 1
+
+  result_location := register(register_num, result_type_node)
+
+  lhs_length_location := lhs_location
+  if lhs_location.type != .immediate
+  {
+    lhs_length_location.offset += address_size
+  }
+
+  rhs_length_location := rhs_location
+  if rhs_location.type != .immediate
+  {
+    rhs_length_location.offset += address_size
+  }
+
+  lhs_length_register_location := copy_to_register(ctx, lhs_length_location, register_num + 1, &index_type_node)
+  fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare lengths", to_operand(lhs_length_register_location), to_operand(rhs_length_location));
+  fmt.sbprintfln(&ctx.output, "  jne .slice_cmp_%i_set ; lengths not equals", slice_cmp_index);
+
+  fmt.sbprintfln(&ctx.output, "  lea rsi, %s ; compare: lhs", to_operand(lhs_location));
+  fmt.sbprintln(&ctx.output, "  mov rsi, [rsi] ; compare: lhs");
+  fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
+  fmt.sbprintln(&ctx.output, "  mov rdi, [rdi] ; compare: rhs");
+  fmt.sbprintfln(&ctx.output, "  mov rcx, %s ; compare: count", to_operand(lhs_length_location));
+  fmt.sbprintln(&ctx.output, "  repe cmpsb ; compare");
+
+  fmt.sbprintfln(&ctx.output, ".slice_cmp_%i_set:", slice_cmp_index)
+
+  #partial switch node.type
+  {
+  case .equal:
+    fmt.sbprintfln(&ctx.output, "  sete %s ; equal", to_operand(result_location))
+  case .not_equal:
+    fmt.sbprintfln(&ctx.output, "  setne %s ; not equal", to_operand(result_location))
+  case:
+    assert(false, "Failed to generate expression")
+  }
+
+  return result_location
 }
 
 generate_expression_bool :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, register_num: int) -> location

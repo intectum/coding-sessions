@@ -22,7 +22,7 @@ contains_allocations :: proc(node: ^ast.node) -> bool
     return true
   }
 
-  if node.type == .call && ast.get_type(&node.children[0]).directive != "#extern"
+  if node.type == .call && ast.get_allocator(&node.children[0]) != "extern"
   {
     return true
   }
