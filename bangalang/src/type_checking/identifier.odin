@@ -96,7 +96,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       return false
     }
 
-    if ast.is_static_procedure(identifier_node) && node.value != "cmpxchg" /* TODO yuck */ && node.value != "import" && node.value != "link"
+    if ast.is_static_procedure(identifier_node) && ast.get_allocator(identifier_node) != "none"
     {
       qualified_name := program.get_qualified_name(ctx.path[:])
       procedure := &ctx.program.procedures[qualified_name]

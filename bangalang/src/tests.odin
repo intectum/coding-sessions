@@ -612,6 +612,18 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var6 != var7, "")
   `
 
+  general_tests["soa"] =
+  `
+    debug: = import("debug", "core")
+
+    var0: #soa struct { a: i64, b: i64 }[10]
+    var0[3].a = 42
+    var0.a[3] = 42
+    debug.assert(var0[3].a == 42, "")
+    debug.assert(var0.a[3] == 42, "")
+    debug.assert(var0[3].a == var0.a[3], "")
+  `
+
   value_tests: map[string]string
 
   // TODO

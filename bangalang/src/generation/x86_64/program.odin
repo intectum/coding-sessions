@@ -163,6 +163,8 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
         append(&static_var_node.children, ast.node { type = .string_literal, value = strings.to_string(procedure_ctx.output) })
         ctx.program.static_vars[qualified_name] = static_var_node
       }
+    case "none":
+      // Do nothing
     case "static":
       {
         procedure_ctx: generation.gen_context =

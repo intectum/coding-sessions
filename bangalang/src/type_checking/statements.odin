@@ -20,7 +20,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
 {
   for &statement in statements
   {
-    resolve_types(&statement, ctx)
+    resolve_types(&statement, ctx) or_return
 
     if ast.is_type_alias_statement(&statement)
     {
@@ -127,6 +127,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
     }
   }
 
+  failures := false
   for &statement in statements
   {
     if ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
@@ -134,8 +135,11 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
       continue
     }
 
-    type_check_statement(&statement, ctx) or_return
+    if !type_check_statement(&statement, ctx)
+    {
+      failures = true
+    }
   }
 
-  return true
+  return !failures
 }

@@ -10,7 +10,7 @@ O_RDONLY: i64@static = 0x0
 O_WRONLY: i64@static = 0x1
 O_RDWR: i64@static = 0x2
 
-syscall: proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64@extern
+syscall: proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64@none
 
 read: proc(file_descriptor: i64, buffer: ^byte, count: i64) -> i64 =
   syscall(0, file_descriptor, #danger_untyped buffer, count)

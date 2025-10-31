@@ -53,7 +53,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
   {
     name := node.value
 
-    if allocator != "extern" && node.value != "cmpxchg" /* TODO yuck */
+    if (allocator != "extern" && allocator != "none") || node.value == "glsl_kernels" // TODO hmmm
     {
       if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
       {

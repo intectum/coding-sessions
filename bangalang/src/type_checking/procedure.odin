@@ -12,7 +12,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
   lhs_type_node := ast.get_type(lhs_node)
   allocator := ast.get_allocator(lhs_node)
 
-  if len(node.children) == 1 && allocator != "extern"
+  if len(node.children) == 1 && allocator != "extern" && allocator != "none"
   {
     src.print_position_message(lhs_node.src_position, "Must provide a procedure body when using allocator '%s'", allocator)
     return false
@@ -44,7 +44,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     operator_node := &node.children[1]
     rhs_node := &node.children[2]
 
-    if allocator == "extern"
+    if allocator == "extern" || allocator == "none"
     {
       src.print_position_message(lhs_node.src_position, "Cannot provide a procedure body when using allocator '%s'", allocator)
       return false

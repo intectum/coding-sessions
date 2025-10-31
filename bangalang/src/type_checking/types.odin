@@ -212,7 +212,7 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
   }
 }
 
-resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bool)
 {
   if node.type == .identifier || node.type == .type
   {
@@ -230,7 +230,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
           if ast.is_type(identifier_node)
           {
             node^ = identifier_node^
-            return true
+            return true, true
           }
         }
       }
@@ -241,20 +241,26 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^
-        return true
+        return true, true
       }
     }
   }
 
   if node.type == .type && node.value[0] != '['
   {
-    src.print_position_message(node.src_position, "Type '%s' was not found", node.value)
-    return false
+    src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
+    return false, false
   }
 
   for &child_node in node.children
   {
-    if child_node.type != .scope_statement && resolve_types(&child_node, ctx)
+    child_result, child_ok := resolve_types(&child_node, ctx)
+    if !child_ok
+    {
+      return false, false
+    }
+
+    if child_node.type != .scope_statement && child_result
     {
       if node.type == .index
       {
@@ -268,5 +274,5 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     }
   }
 
-  return false
+  return false, true
 }

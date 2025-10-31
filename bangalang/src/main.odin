@@ -24,6 +24,7 @@ main :: proc()
     os.exit(1)
   }*/
 
+
   name := "examples/example_01"
   path := strings.concatenate({ name, ".bang" })
   code_data, code_ok := os.read_entire_file(path)

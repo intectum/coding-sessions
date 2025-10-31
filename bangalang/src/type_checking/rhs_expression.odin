@@ -43,6 +43,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   {
     type_node := ast.get_type(node)
     directive := node.directive != "" ? node.directive : (type_node != nil ? type_node.directive : "")
+    convert_soa_index(node, ctx)
     type_check_primary(node, ctx) or_return
 
     if directive != ""

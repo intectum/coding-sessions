@@ -93,12 +93,30 @@ generate_expression_slice :: proc(ctx: ^generation.gen_context, node: ^ast.node,
   fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare lengths", to_operand(lhs_length_register_location), to_operand(rhs_length_location));
   fmt.sbprintfln(&ctx.output, "  jne .slice_cmp_%i_set ; lengths not equals", slice_cmp_index);
 
-  fmt.sbprintfln(&ctx.output, "  lea rsi, %s ; compare: lhs", to_operand(lhs_location));
-  fmt.sbprintln(&ctx.output, "  mov rsi, [rsi] ; compare: lhs");
-  fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
-  fmt.sbprintln(&ctx.output, "  mov rdi, [rdi] ; compare: rhs");
+  nil_compare := lhs_location.type == .immediate || rhs_location.type == .immediate
+
+  if lhs_location.type == .immediate
+  {
+    fmt.sbprintln(&ctx.output, "  mov al, 0 ; compare: lhs");
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
+    fmt.sbprintln(&ctx.output, "  mov rdi, [rdi] ; compare: rhs");
+  }
+  else if rhs_location.type == .immediate
+  {
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: lhs", to_operand(lhs_location));
+    fmt.sbprintln(&ctx.output, "  mov rsi, [rdi] ; compare: lhs");
+    fmt.sbprintln(&ctx.output, "  mov al, 0 ; compare: rhs");
+  }
+  else
+  {
+    fmt.sbprintfln(&ctx.output, "  lea rsi, %s ; compare: lhs", to_operand(lhs_location));
+    fmt.sbprintln(&ctx.output, "  mov rsi, [rsi] ; compare: lhs");
+    fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; compare: rhs", to_operand(rhs_location));
+    fmt.sbprintln(&ctx.output, "  mov rdi, [rdi] ; compare: rhs");
+  }
+
   fmt.sbprintfln(&ctx.output, "  mov rcx, %s ; compare: count", to_operand(lhs_length_location));
-  fmt.sbprintln(&ctx.output, "  repe cmpsb ; compare");
+  fmt.sbprintfln(&ctx.output, "  repe %s ; compare", nil_compare ? "scasb" : "cmpsb");
 
   fmt.sbprintfln(&ctx.output, ".slice_cmp_%i_set:", slice_cmp_index)
 

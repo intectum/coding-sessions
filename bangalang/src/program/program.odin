@@ -62,7 +62,7 @@ init :: proc(program: ^program)
   program.identifiers["u32"] = { type = .type, value = "u32" }
   program.identifiers["u64"] = { type = .type, value = "u64" }
 
-  import_proc := ast.node { type = .identifier, value = "import" }
+  import_proc := ast.node { type = .identifier, value = "import", allocator = "none" }
   append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
   append(&import_proc.children[0].children, ast.node { type = .type, value = "[parameters]" })
   append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })

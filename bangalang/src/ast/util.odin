@@ -45,7 +45,7 @@ is_static_procedure :: proc(identifier: ^node) -> bool
   }
 
   allocator := get_allocator(identifier)
-  return allocator == "extern" || allocator == "glsl" || allocator == "static" // TODO glsl is temp here
+  return allocator == "extern" || allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
 }
 
 is_member :: proc(identifier: ^node) -> bool
