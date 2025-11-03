@@ -624,6 +624,19 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0[3].a == var0.a[3], "")
   `
 
+  general_tests["swizzle"] =
+  `
+    debug: = import("debug", "core")
+
+    var0: vec4 = { 2, 4, 6, 8 }
+    var1: = var0.zyx
+    var2: = var0.wzyx
+    var3: = var0.w
+    debug.assert(var1[0] == 6, "")
+    debug.assert(var2[0] == 8, "")
+    debug.assert(var3 == 8, "")
+  `
+
   value_tests: map[string]string
 
   // TODO

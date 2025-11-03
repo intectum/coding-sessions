@@ -62,7 +62,9 @@ convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, 
   {
     if dest_atomic_integer_type || dest_signed_integer_type || dest_unsigned_integer_type
     {
-      fmt.sbprintfln(&ctx.output, "  cvtts%s2si %s, %s ; convert", to_precision_size(src_size), to_operand(dest_location), to_operand(src))
+      large_type_node: ast.node = { type = .type, value = "u64" }
+      large_dest_location := register(register_num, &large_type_node)
+      fmt.sbprintfln(&ctx.output, "  cvtts%s2si %s, %s ; convert", to_precision_size(src_size), to_operand(large_dest_location), to_operand(src))
     }
     else if dest_float_type
     {

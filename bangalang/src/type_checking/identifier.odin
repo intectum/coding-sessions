@@ -1,5 +1,9 @@
 package type_checking
 
+import "core:fmt"
+import "core:slice"
+import "core:strconv"
+
 import "../ast"
 import "../program"
 import "../src"
@@ -27,8 +31,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       }
       else
       {
-        src.print_position_message(node.src_position, "'%s' is not a member of %s '%s'", node.value, child_type_node.value[1:len(child_type_node.value) - 1], child_node.value)
-        return false
+        type_check_swizzle_member(node) or_return
       }
     case "[module]":
       module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
@@ -80,7 +83,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
       if !found_member
       {
-        src.print_position_message(node.src_position, "'%s' is not a member of struct '%s'", node.value, child_node.value)
+        src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
         return false
       }
     case:
@@ -109,6 +112,60 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
     append(&node.children, ast.get_type(identifier_node)^)
     node.allocator = identifier_node.allocator
+  }
+
+  return true
+}
+
+type_check_swizzle_member :: proc(node: ^ast.node) -> bool
+{
+  child_type_node := ast.get_type(&node.children[0])
+  element_type_node := &child_type_node.children[0]
+
+  if element_type_node.value != "f32"
+  {
+    src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
+    return false
+  }
+
+  length := -1
+  if child_type_node.value == "[array]"
+  {
+    length = strconv.atoi(child_type_node.children[1].value)
+  }
+
+  for char in node.value
+  {
+    index := get_swizzle_index(char)
+    if index == -1
+    {
+      src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
+      return false
+    }
+
+    if index != -1 && index >= length
+    {
+      src.print_position_message(node.src_position, "Index %i out of bounds (swizzling with value '%c')", index, char)
+      return false
+    }
+  }
+
+  if len(node.value) > 4
+  {
+    src.print_position_message(node.src_position, "Cannot swizzle with more than 4 values")
+    return false
+  }
+
+  if len(node.value) == 1
+  {
+    append(&node.children, element_type_node^)
+  }
+  else
+  {
+    type_node: ast.node = { type = .type, value = "[array]" }
+    append(&type_node.children, element_type_node^)
+    append(&type_node.children, ast.node { type = .number_literal, value = fmt.aprintf("%i", len(node.value)) })
+    append(&node.children, type_node)
   }
 
   return true

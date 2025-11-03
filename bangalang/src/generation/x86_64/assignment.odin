@@ -179,26 +179,7 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
         assert(false, "Failed to generate assignment")
       }
 
-      if length == 4
-      {
-        fmt.sbprintfln(&ctx.output, "  movup%s %s, %s ; copy", precision, to_operand(lhs_location), to_operand(lhs_register_location))
-      }
-      else
-      {
-        limit := lhs_location
-        limit.offset += (length - 1) * element_size
-
-        for lhs_location.offset <= limit.offset
-        {
-          fmt.sbprintfln(&ctx.output, "  movs%s %s, %s ; copy", precision, to_operand(lhs_location), to_operand(lhs_register_location))
-          if lhs_location.offset < limit.offset
-          {
-            fmt.sbprintfln(&ctx.output, "  shufp%s %s, %s, 0x39 ; shuffle", precision, to_operand(lhs_register_location), to_operand(lhs_register_location))
-          }
-
-          lhs_location.offset += element_size
-        }
-      }
+      copy4(ctx, lhs_register_location, lhs_location, type_node)
 
       return
     }

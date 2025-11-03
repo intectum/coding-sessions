@@ -1,5 +1,7 @@
 package type_checking
 
+import "core:slice"
+
 import "../ast"
 
 auto_dereference :: proc(node: ^ast.node)
@@ -72,4 +74,12 @@ wrap_in_scope :: proc(statement: ^ast.node)
     append(&scope_node.children, statement^)
     statement^ = scope_node
   }
+}
+
+swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
+get_swizzle_index :: proc(char: rune) -> int
+{
+  swizzle_index, swizzle_value := slice.linear_search(swizzle_values, char)
+  if !swizzle_value do return -1
+  return swizzle_index / 2
 }

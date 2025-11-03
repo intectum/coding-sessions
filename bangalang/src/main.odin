@@ -13,7 +13,7 @@ import "./type_checking"
 
 main :: proc()
 {
-  /*failed_tests := run_test_suite()
+  failed_tests := run_test_suite()
   if len(failed_tests) > 0
   {
     fmt.println("Tests failed:")
@@ -22,8 +22,7 @@ main :: proc()
       fmt.printfln("  %s", failed_test)
     }
     os.exit(1)
-  }*/
-
+  }
 
   name := "examples/example_01"
   path := strings.concatenate({ name, ".bang" })

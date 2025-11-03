@@ -5,6 +5,7 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
+import "../../type_checking"
 import ".."
 
 index_type_node := ast.node { type = .type, value = "i64" }
@@ -23,6 +24,11 @@ contains_allocations :: proc(node: ^ast.node) -> bool
   }
 
   if node.type == .call && ast.get_allocator(&node.children[0]) != "extern"
+  {
+    return true
+  }
+
+  if node.type == .identifier && !ast.is_type(&node.children[0]) && ast.get_type(&node.children[0]).value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
   {
     return true
   }
@@ -99,4 +105,27 @@ nilify :: proc(ctx: ^generation.gen_context, location: location, type_node: ^ast
   fmt.sbprintfln(&ctx.output, "  mov rcx, %i ; nil: count", to_byte_size(type_node))
   fmt.sbprintln(&ctx.output, "  mov rax, 0 ; nil: value")
   fmt.sbprintln(&ctx.output, "  rep stosb ; nil")
+}
+
+to_shuffle_code :: proc(swizzle_values: string) -> string
+{
+  shuffle_code: strings.Builder
+  strings.builder_init(&shuffle_code)
+  defer strings.builder_destroy(&shuffle_code)
+
+  fmt.sbprint(&shuffle_code, "0b")
+
+  #reverse for char in swizzle_values
+  {
+    index := type_checking.get_swizzle_index(char)
+    switch index
+    {
+    case 0: fmt.sbprint(&shuffle_code, "00")
+    case 1: fmt.sbprint(&shuffle_code, "01")
+    case 2: fmt.sbprint(&shuffle_code, "10")
+    case 3: fmt.sbprint(&shuffle_code, "11")
+    }
+  }
+
+  return strings.clone(strings.to_string(shuffle_code))
 }

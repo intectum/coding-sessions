@@ -1,5 +1,7 @@
 package x86_64
 
+import "core:fmt"
+
 import "../../ast"
 import "../../program"
 import "../../type_checking"
@@ -26,6 +28,34 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       else if node.value == "length"
       {
         return get_length_location(child_type_node, child_location)
+      }
+      else
+      {
+        element_type_node := &child_type_node.children[0]
+        element_size := to_byte_size(element_type_node)
+
+        address_location := get_raw_location(ctx, child_type_node, child_location, register_num)
+        memory_location := memory(to_operand(address_location), 0)
+
+        if len(node.value) == 1
+        {
+          index := type_checking.get_swizzle_index(rune(node.value[0]))
+
+          memory_location.offset += index * element_size
+          return memory_location
+        }
+
+        precision := to_precision_size(element_size)
+
+        register_location := register(register_num, element_type_node)
+
+        fmt.sbprintfln(&ctx.output, "  movup%s %s, %s ; copy", precision, to_operand(register_location), to_operand(memory_location))
+        fmt.sbprintfln(&ctx.output, "  shufp%s %s, %s, %s ; swizzle", precision, to_operand(register_location), to_operand(register_location), to_shuffle_code(node.value))
+
+        allocate_stack(ctx, to_byte_size(type_node))
+        copy4(ctx, register_location, memory("rsp", 0), type_node)
+
+        return copy_stack_address(ctx, 0, register_num)
       }
     case "[module]":
       // Do nothing
