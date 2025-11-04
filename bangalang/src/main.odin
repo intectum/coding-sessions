@@ -13,19 +13,24 @@ import "./type_checking"
 
 main :: proc()
 {
-  failed_tests := run_test_suite()
-  if len(failed_tests) > 0
+  name := os.args[1]
+
+  if name == "--tests"
   {
-    fmt.println("Tests failed:")
-    for failed_test in failed_tests
+    failed_tests := run_test_suite()
+    if len(failed_tests) > 0
     {
-      fmt.printfln("  %s", failed_test)
+      fmt.println("Tests failed:")
+      for failed_test in failed_tests
+      {
+        fmt.printfln("  %s", failed_test)
+      }
     }
-    os.exit(1)
+
+    os.exit(len(failed_tests) > 0 ? 1 : 0)
   }
 
-  name := "examples/example_01"
-  path := strings.concatenate({ name, ".bang" })
+  path := fmt.aprintf("%s.bang", name)
   code_data, code_ok := os.read_entire_file(path)
   if !code_ok
   {
@@ -33,7 +38,7 @@ main :: proc()
     os.exit(1)
   }
 
-  run(name, string(code_data), "bin/example_01")
+  run(name, string(code_data), fmt.aprintf("bin/%s", name))
 }
 
 run :: proc(name: string, code: string, out_path: string)

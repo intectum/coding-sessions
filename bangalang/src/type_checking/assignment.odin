@@ -1,9 +1,11 @@
 package type_checking
 
+import "core:fmt"
 import "core:slice"
 import "core:strings"
 
 import "../ast"
+import "../program"
 import "../src"
 
 type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
@@ -13,30 +15,64 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
+  procedure_definition := ast.is_static_procedure(lhs_node) || (ast.get_type(lhs_node).value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  if procedure_definition
+  {
+    name := lhs_node.value
+
+    procedure: program.procedure
+    append(&procedure.statements, node^)
+
+    if !ast.is_static_procedure(lhs_node)
+    {
+      proc_index := ctx.next_index
+      ctx.next_index += 1
+      name = fmt.aprintf("$anon_%i", proc_index)
+
+      new_node: ast.node = { type = .assignment_statement }
+      append(&new_node.children, lhs_node^)
+      append(&new_node.children, ast.node { type = .assign, value = "=" })
+      append(&new_node.children, ast.node { type = .identifier, value = name, allocator = "static" })
+      append(&new_node.children[2].children, ast.get_type(lhs_node)^)
+      node^ = new_node
+
+      ctx.identifiers[name] = new_node.children[2]
+      reference(ctx, ctx.path, name)
+    }
+
+    procedure_path: [dynamic]string
+    append(&procedure_path, ..ctx.path)
+    append(&procedure_path, name)
+
+    qualified_name := program.get_qualified_name(procedure_path[:])
+    ctx.program.procedures[qualified_name] = procedure
+    append(&ctx.program.queue, procedure_path)
+  }
+
   if len(node.children) > 1
   {
     operator_node := &node.children[1]
     rhs_node := &node.children[2]
 
-    if rhs_node.type == .scope_statement
+    if !procedure_definition
     {
-      rhs_node.type = .compound_literal
-    }
+      if rhs_node.type == .scope_statement do rhs_node.type = .compound_literal
 
-    _, statement := slice.linear_search(ast.statements, rhs_node.type)
-    if statement
-    {
-      src.print_position_message(lhs_node.src_position, "Right-hand-side must be an expression")
-      return false
-    }
+      _, statement := slice.linear_search(ast.statements, rhs_node.type)
+      if statement
+      {
+        src.print_position_message(lhs_node.src_position, "Right-hand-side must be an expression")
+        return false
+      }
 
-    lhs_type_node := ast.get_type(lhs_node)
-    type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
+      lhs_type_node := ast.get_type(lhs_node)
+      type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
 
-    rhs_type_node := ast.get_type(rhs_node)
-    if lhs_type_node.value == "[none]"
-    {
-      append(&lhs_node.children, rhs_type_node^)
+      rhs_type_node := ast.get_type(rhs_node)
+      if lhs_type_node.value == "[none]"
+      {
+        append(&lhs_node.children, rhs_type_node^)
+      }
     }
 
     if operator_node.type != .assign
@@ -47,6 +83,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         return false
       }
 
+      rhs_type_node := ast.get_type(rhs_node)
       _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
       if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
       {

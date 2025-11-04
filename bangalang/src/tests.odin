@@ -70,21 +70,21 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0, "")
   `
 
-  general_tests["if_false_non_scope"] =
+  general_tests["if_false_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: = false
-    if false var0 = true
+    if false do var0 = true
     debug.assert(var0 == false, "")
   `
 
-  general_tests["if_true_non_scope"] =
+  general_tests["if_true_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: = false
-    if true var0 = true
+    if true do var0 = true
     debug.assert(var0, "")
   `
 
@@ -120,23 +120,23 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0 == 2, "")
   `
 
-  general_tests["if_else_true_non_scope"] =
+  general_tests["if_else_true_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: i8 = 0
-    if true var0 = 1
-    else var0 = 2
+    if true do var0 = 1
+    else do var0 = 2
     debug.assert(var0 == 1, "")
   `
 
-  general_tests["if_else_false_non_scope"] =
+  general_tests["if_else_false_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: i8 = 0
-    if false var0 = 1
-    else var0 = 2
+    if false do var0 = 1
+    else do var0 = 2
     debug.assert(var0 == 2, "")
   `
 
@@ -220,36 +220,36 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0 == 3, "")
   `
 
-  general_tests["if_else_if_true_true_non_scope"] =
+  general_tests["if_else_if_true_true_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: i8 = 0
-    if true var0 = 1
-    else if true var0 = 2
-    else var0 = 3
+    if true do var0 = 1
+    else if true do var0 = 2
+    else do var0 = 3
     debug.assert(var0 == 1, "")
   `
 
-  general_tests["if_else_if_false_true_non_scope"] =
+  general_tests["if_else_if_false_true_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: i8 = 0
-    if false var0 = 1
-    else if true var0 = 2
-    else var0 = 3
+    if false do var0 = 1
+    else if true do var0 = 2
+    else do var0 = 3
     debug.assert(var0 == 2, "")
   `
 
-  general_tests["if_else_if_false_false_non_scope"] =
+  general_tests["if_else_if_false_false_do_scope"] =
   `
     debug: = import("debug", "core")
 
     var0: i8 = 0
-    if false var0 = 1
-    else if false var0 = 2
-    else var0 = 3
+    if false do var0 = 1
+    else if false do var0 = 2
+    else do var0 = 3
     debug.assert(var0 == 3, "")
   `
 
@@ -294,12 +294,12 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     value: bool // 'value' above is no longer in scope
   `
 
-  general_tests["for_pre_expression_post_non_scope_brackets"] =
+  general_tests["for_pre_expression_post_do_scope"] =
   `
     debug: = import("debug", "core")
 
     sum: i64 = 0
-    for (value: i64 = 10, value > 0, value = value - 1) sum += value
+    for value: i64 = 10, value > 0, value = value - 1 do sum += value
     debug.assert(sum == 55, "")
     value: bool // 'value' above is no longer in scope
   `
@@ -311,7 +311,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     sum: i64 = 0
     for value: i64 = 10, value > 0, value -= 1
     {
-        if value == 5 break
+        if value == 5 do break
 
         sum += value
     }
@@ -325,7 +325,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     sum: i64 = 0
     for value: i64 = 10, value > 0, value -= 1
     {
-        if value == 5 continue
+        if value == 5 do continue
 
         sum += value
     }
@@ -624,7 +624,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0[3].a == var0.a[3], "")
   `
 
-  general_tests["swizzle"] =
+  general_tests["swizzle_array"] =
   `
     debug: = import("debug", "core")
 
@@ -635,6 +635,20 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var1[0] == 6, "")
     debug.assert(var2[0] == 8, "")
     debug.assert(var3 == 8, "")
+  `
+
+  general_tests["swizzle_slice"] =
+  `
+    debug: = import("debug", "core")
+
+    var0: vec4 = { 2, 4, 6, 8 }
+    var1: = var0[]
+    var2: = var1.zyx
+    var3: = var1.wzyx
+    var4: = var1.w
+    debug.assert(var2[0] == 6, "")
+    debug.assert(var3[0] == 8, "")
+    debug.assert(var4 == 8, "")
   `
 
   value_tests: map[string]string
@@ -840,27 +854,19 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(proc0() == <value0>, "")
   `
 
-  value_tests["proc_param_non_scope"] =
+  value_tests["proc_param_do_scope"] =
   `
     debug: = import("debug", "core")
 
-    proc0: proc(param0: <type>) = debug.assert(param0 == <value0>, "")
+    proc0: proc(param0: <type>) = do debug.assert(param0 == <value0>, "")
     proc0(<value0>)
   `
 
-  value_tests["proc_return_non_scope"] =
+  value_tests["proc_return_do_scope"] =
   `
     debug: = import("debug", "core")
 
-    proc0: proc() -> <type> = return <value0>
-    debug.assert(proc0() == <value0>, "")
-  `
-
-  value_tests["proc_return_non_scope_expression_only"] =
-  `
-    debug: = import("debug", "core")
-
-    proc0: proc() -> <type> = <value0>
+    proc0: proc() -> <type> = do return <value0>
     debug.assert(proc0() == <value0>, "")
   `
 

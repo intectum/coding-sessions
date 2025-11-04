@@ -10,8 +10,8 @@ import ".."
 
 copy_stack_address :: proc(ctx: ^generation.gen_context, offset: int, register_num: int) -> location
 {
-  dest := register(register_num, &unknown_reference_type_node)
-  copy(ctx, register("sp", &unknown_reference_type_node), dest, &unknown_reference_type_node, "copy stack address")
+  dest := register(register_num, &reference_type_node)
+  copy(ctx, register("sp", &reference_type_node), dest, &reference_type_node, "copy stack address")
   return memory(to_operand(dest), offset)
 }
 

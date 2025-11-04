@@ -9,7 +9,7 @@ import "../../type_checking"
 import ".."
 
 index_type_node := ast.node { type = .type, value = "i64" }
-unknown_reference_type_node: ast.node = { type = .reference }
+reference_type_node: ast.node = { type = .reference }
 
 contains_allocations :: proc(node: ^ast.node) -> bool
 {
@@ -49,7 +49,7 @@ get_raw_location :: proc(ctx: ^generation.gen_context, container_type_node: ^ast
   switch container_type_node.value
   {
   case "[array]":
-    location := register(register_num, &unknown_reference_type_node)
+    location := register(register_num, &reference_type_node)
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
     return location
   case "[slice]":

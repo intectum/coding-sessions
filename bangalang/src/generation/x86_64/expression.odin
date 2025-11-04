@@ -72,8 +72,8 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
 
 generate_expression_slice :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
-  slice_cmp_index := ctx.label_index
-  ctx.label_index += 1
+  slice_cmp_index := ctx.next_index
+  ctx.next_index += 1
 
   result_location := register(register_num, result_type_node)
 

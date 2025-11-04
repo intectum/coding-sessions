@@ -23,7 +23,6 @@ type_check_switch :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     }
 
     case_statement_node := &case_node.children[1]
-    wrap_in_scope(case_statement_node)
     type_check_scope(case_statement_node, ctx) or_return
   }
 

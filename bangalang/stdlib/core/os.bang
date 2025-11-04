@@ -1,6 +1,6 @@
 linux: = import("os/linux")
 
-exit: proc(code: u8) = linux.exit(i64(code))
+exit: proc(code: u8) = do linux.exit(i64(code))
 
 time: proc() -> i64 =
 {

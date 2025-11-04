@@ -185,28 +185,28 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
     }
   }
 
-  vector_assign_index := ctx.label_index
-  ctx.label_index += 1
+  vector_assign_index := ctx.next_index
+  ctx.next_index += 1
 
-  lhs_address_location := register(register_num, &unknown_reference_type_node)
+  lhs_address_location := register(register_num, &reference_type_node)
   if type_node.value == "[array]"
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(lhs_address_location), to_operand(lhs_location))
   }
   else
   {
-    copy(ctx, lhs_location, lhs_address_location, &unknown_reference_type_node)
+    copy(ctx, lhs_location, lhs_address_location, &reference_type_node)
   }
   lhs_location = memory(to_operand(lhs_address_location), 0)
 
-  rhs_address_location := register(register_num + 1, &unknown_reference_type_node)
+  rhs_address_location := register(register_num + 1, &reference_type_node)
   if type_node.value == "[array]"
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(rhs_address_location), to_operand(rhs_location))
   }
   else
   {
-    copy(ctx, rhs_location, rhs_address_location, &unknown_reference_type_node)
+    copy(ctx, rhs_location, rhs_address_location, &reference_type_node)
   }
   rhs_location = memory(to_operand(rhs_address_location), 0)
 

@@ -11,8 +11,8 @@ generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   initial_stack_size := ctx.stack_size
   initial_for_index := ctx.for_index
 
-  ctx.for_index = ctx.label_index
-  ctx.label_index += 1
+  ctx.for_index = ctx.next_index
+  ctx.next_index += 1
 
   child_index := 0
   child_node := &node.children[child_index]

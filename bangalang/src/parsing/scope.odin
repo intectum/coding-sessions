@@ -9,20 +9,25 @@ parse_scope :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast
   node.type = .scope_statement
   node.src_position = tokens.peek_token(stream).src_position
 
-  tokens.next_token(stream, .opening_curly_bracket) or_return
-
-  for stream.next_index < len(stream.tokens)
+  if tokens.peek_token(stream).type == .keyword && tokens.peek_token(stream).value == "do"
   {
-    if tokens.peek_token(stream).type == .closing_curly_bracket
-    {
-      tokens.next_token(stream, .closing_curly_bracket) or_return
-      return node, true
-    }
+    tokens.next_token(stream, .keyword, "do") or_return
 
     statement_node := parse_statement(stream, ctx) or_return
     append(&node.children, statement_node)
   }
+  else
+  {
+    tokens.next_token(stream, .opening_curly_bracket) or_return
 
-  stream.error = src.to_position_message(node.src_position, "Scope never ends")
-  return {}, false
+    for tokens.peek_token(stream).type != .closing_curly_bracket
+    {
+      statement_node := parse_statement(stream, ctx) or_return
+      append(&node.children, statement_node)
+    }
+
+    tokens.next_token(stream, .closing_curly_bracket) or_return
+  }
+
+  return node, true
 }

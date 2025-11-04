@@ -1,6 +1,6 @@
 linux: = import("os/linux")
 
-print: proc(message: string) = linux.write(1, message.raw, message.length)
+print: proc(message: string) = do linux.write(1, message.raw, message.length)
 println: proc(message: string) =
 {
   linux.write(1, message.raw, message.length)
@@ -15,16 +15,13 @@ atoi: proc(value: string) -> i64 =
   factor: i64 = 1
   for index: i64 = value.length - 1, index >= 0, index -= 1
   {
-    if index == 0 && value[0] == '-' break
+    if index == 0 && value[0] == '-' do break
 
     result += i64(value[index] - '0') * factor
     factor *= 10
   }
 
-  if value[0] == '-'
-  {
-    result *= -1
-  }
+  if value[0] == '-' do result *= -1
 
   return result
 }

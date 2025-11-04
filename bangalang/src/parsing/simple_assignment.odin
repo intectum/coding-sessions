@@ -23,7 +23,7 @@ parse_simple_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -
   operator_node := ast.node { type = ast.to_node_type(token.type), value = token.value, src_position = token.src_position }
   append(&node.children, operator_node)
 
-  rhs_node := parse_statement(stream, ctx) or_return
+  rhs_node := parse_scope_or_rhs_expression(stream, ctx) or_return
   append(&node.children, rhs_node)
 
   return node, true

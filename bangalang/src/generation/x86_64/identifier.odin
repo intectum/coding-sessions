@@ -35,7 +35,22 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
         element_size := to_byte_size(element_type_node)
 
         address_location := get_raw_location(ctx, child_type_node, child_location, register_num)
+        address_location = copy_to_register(ctx, address_location, register_num, &reference_type_node)
         memory_location := memory(to_operand(address_location), 0)
+
+        max_index := 0
+        for char in node.value
+        {
+          index := type_checking.get_swizzle_index(char)
+          if index > max_index do max_index = index
+        }
+
+        if child_type_node.value == "[slice]"
+        {
+          length_location := get_length_location(child_type_node, child_location)
+          fmt.sbprintfln(&ctx.output, "  cmp qword %s, %s ; compare", to_operand(length_location), to_operand(immediate(max_index)))
+          fmt.sbprintln(&ctx.output, "  jle panic_out_of_bounds ; panic!")
+        }
 
         if len(node.value) == 1
         {

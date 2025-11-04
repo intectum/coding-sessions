@@ -110,30 +110,14 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
     else if ast.is_static_procedure_statement(&statement)
     {
       lhs_node := &statement.children[0]
-      lhs_type_node := ast.get_type(lhs_node)
-
-      ctx.identifiers[lhs_node.value] = lhs_node^
-
-      procedure: program.procedure
-      append(&procedure.statements, statement)
-
-      procedure_path: [dynamic]string
-      append(&procedure_path, ..ctx.path)
-      append(&procedure_path, lhs_node.value)
-
-      qualified_name := program.get_qualified_name(procedure_path[:])
-      ctx.program.procedures[qualified_name] = procedure
-      append(&ctx.program.queue, procedure_path)
+      ctx.out_of_order_identifiers[lhs_node.value] = lhs_node^
     }
   }
 
   failures := false
   for &statement in statements
   {
-    if ast.is_type_alias_statement(&statement) || ast.is_static_procedure_statement(&statement)
-    {
-      continue
-    }
+    if ast.is_type_alias_statement(&statement) do continue
 
     if !type_check_statement(&statement, ctx)
     {

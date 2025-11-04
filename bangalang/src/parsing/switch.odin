@@ -34,8 +34,8 @@ parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: as
 
     tokens.next_token(stream, .colon) or_return
 
-    case_statement_node := parse_statement(stream, ctx) or_return
-    append(&case_node.children, case_statement_node)
+    case_scope_node := parse_scope(stream, ctx) or_return
+    append(&case_node.children, case_scope_node)
 
     append(&node.children, case_node)
   }

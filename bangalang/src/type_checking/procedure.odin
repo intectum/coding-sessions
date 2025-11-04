@@ -12,7 +12,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
   lhs_type_node := ast.get_type(lhs_node)
   allocator := ast.get_allocator(lhs_node)
 
-  if len(node.children) == 1 && allocator != "extern" && allocator != "none"
+  if len(node.children) == 1 && (allocator == "glsl" || allocator == "static")
   {
     src.print_position_message(lhs_node.src_position, "Must provide a procedure body when using allocator '%s'", allocator)
     return false
@@ -50,18 +50,6 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
       return false
     }
 
-    return_type_node := len(lhs_type_node.children) == 2 ? &lhs_type_node.children[1] : nil
-    if return_type_node != nil && rhs_node.type != .if_statement && rhs_node.type != .for_statement && rhs_node.type != .scope_statement && rhs_node.type != .return_statement && rhs_node.type != .assignment_statement
-    {
-      return_node := ast.node {
-        type = .return_statement,
-        src_position = rhs_node.src_position
-      }
-      append(&return_node.children, rhs_node^)
-      rhs_node^ = return_node
-    }
-
-    wrap_in_scope(rhs_node)
     type_check_statements(ctx, rhs_node.children[:]) or_return
 
     if operator_node.type != .assign

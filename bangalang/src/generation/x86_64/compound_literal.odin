@@ -37,9 +37,9 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       element_size := to_byte_size(element_type_node)
 
       qualified_name := program.get_qualified_name(ctx.path)
-      index := ctx.label_index
-      ctx.label_index += 1
-      static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, index)
+      slice_array_index := ctx.next_index
+      ctx.next_index += 1
+      static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, slice_array_index)
 
       static_var_node: ast.node = { type = .assignment_statement }
       append(&static_var_node.children, ast.node { type = .identifier, value = static_var_name })
@@ -58,7 +58,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
       slice_address_location := memory("rsp", 0)
       slice_length_location := memory("rsp", address_size)
-      copy(ctx, immediate(static_var_name), slice_address_location, &unknown_reference_type_node)
+      copy(ctx, immediate(static_var_name), slice_address_location, &reference_type_node)
       copy(ctx, immediate(len(children)), slice_length_location, &index_type_node)
     case:
       assert(false, "Failed to generate compound literal")
@@ -72,7 +72,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       member_names: []string = { "raw", "length" }
       for member_name in member_names
       {
-        member_type_node := unknown_reference_type_node
+        member_type_node := reference_type_node
         member_location := memory("rsp", 0)
         if member_name == "length"
         {

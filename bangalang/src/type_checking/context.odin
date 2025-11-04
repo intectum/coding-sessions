@@ -9,7 +9,9 @@ type_checking_context :: struct
   path: []string,
 
   identifiers: map[string]ast.node,
+  out_of_order_identifiers: map[string]ast.node,
 
+  next_index: int,
   within_for: bool
 }
 
@@ -30,11 +32,19 @@ copy_type_checking_context := proc(ctx: ^type_checking_context) -> type_checking
   return ctx_copy
 }
 
-get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string) -> (^ast.node, []string)
+get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, skip_out_of_order_identifiers: bool = false) -> (^ast.node, []string)
 {
   if identifier in ctx.identifiers
   {
     return &ctx.identifiers[identifier], ctx.path
+  }
+
+  if !skip_out_of_order_identifiers
+  {
+    if identifier in ctx.out_of_order_identifiers
+    {
+      return &ctx.identifiers[identifier], ctx.path
+    }
   }
 
   for path_length := len(ctx.path); path_length > 1; path_length -= 1

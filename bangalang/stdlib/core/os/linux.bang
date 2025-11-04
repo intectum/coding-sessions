@@ -13,13 +13,13 @@ O_RDWR: i64@static = 0x2
 syscall: proc(syscall_num: i64, param0: i64 = 0, param1: i64 = 0, param2: i64 = 0, param3: i64 = 0, param4: i64 = 0, param5: i64 = 0) -> i64@none
 
 read: proc(file_descriptor: i64, buffer: ^byte, count: i64) -> i64 =
-  syscall(0, file_descriptor, #danger_untyped buffer, count)
+  do syscall(0, file_descriptor, #danger_untyped buffer, count)
 
 write: proc(file_descriptor: i64, buffer: ^byte, count: i64) -> i64 =
-  syscall(1, file_descriptor, #danger_untyped buffer, count)
+  do syscall(1, file_descriptor, #danger_untyped buffer, count)
 
 open: proc(file_name: cstring, flags: i64, mode: i64 = 0) -> i64 =
-  syscall(2, #danger_untyped file_name, flags, mode)
+  do syscall(2, #danger_untyped file_name, flags, mode)
 
 mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: i64, offset: i64) -> ^byte =
 {
@@ -27,10 +27,10 @@ mmap: proc(address: ^byte, length: i64, prot: i64, flags: i64, file_descriptor: 
   return #danger_untyped address_i64
 }
 
-exit: proc(exit_code: i64) = syscall(60, exit_code)
+exit: proc(exit_code: i64) = do syscall(60, exit_code)
 
 timeval_t = struct { seconds: i64, micro_seconds: i64 }
-gettimeofday: proc(timeval: ^timeval_t) = syscall(96, #danger_untyped timeval)
+gettimeofday: proc(timeval: ^timeval_t) = do syscall(96, #danger_untyped timeval)
 
 futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
-  syscall(202, #danger_untyped futex_word, operation, operation_arg0, operation_arg1)
+  do syscall(202, #danger_untyped futex_word, operation, operation_arg0, operation_arg1)

@@ -61,7 +61,7 @@ token_type :: enum
   string_
 }
 
-keywords: []string = { "break", "continue", "default", "else", "for", "if", "proc", "return", "struct", "switch" }
+keywords: []string = { "break", "continue", "default", "do", "else", "for", "if", "proc", "return", "struct", "switch" }
 
 assignment_operators: []token_type = { .ampersand_equals, .asterisk_equals, .backslash_equals, .equals, .minus_equals, .percent_equals, .pipe_equals, .plus_equals }
 binary_operators: []token_type = { .ampersand, .ampersand_ampersand, .asterisk, .backslash, .closing_angle_bracket, .closing_angle_bracket_equals, .equals_equals, .exclamation_equals, .opening_angle_bracket, .opening_angle_bracket_equals, .minus, .percent, .pipe, .pipe_pipe, .plus }

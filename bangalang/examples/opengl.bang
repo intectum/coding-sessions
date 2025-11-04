@@ -65,7 +65,7 @@ fps_time: = os.time()
 frame_count: i64
 
 move_triangles: boomstick.kernel_t@glsl =
-  data[index] += { 0.0001, 0.0001, 0, 0 }
+  do data[index] += { 0.0001, 0.0001, 0, 0 }
 
 for glfw.glfwWindowShouldClose(window) == 0
 {
@@ -73,7 +73,7 @@ for glfw.glfwWindowShouldClose(window) == 0
   glfw.glfwSwapBuffers(window)
 
   /*for index: i32, index < i32(triangle_data.length), index += 1
-    move_triangles(index, triangle_data)*/
+    do move_triangles(index, triangle_data)*/
 
   boomstick.bang(move_triangles, triangle_data)
 

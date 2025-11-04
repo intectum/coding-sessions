@@ -3,6 +3,7 @@ package type_checking
 import "core:slice"
 
 import "../ast"
+import "../program"
 
 auto_dereference :: proc(node: ^ast.node)
 {
@@ -63,23 +64,21 @@ convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
   return -1
 }
 
-wrap_in_scope :: proc(statement: ^ast.node)
-{
-  if statement.type != .scope_statement
-  {
-    scope_node := ast.node {
-      type = .scope_statement,
-      src_position = statement.src_position
-    }
-    append(&scope_node.children, statement^)
-    statement^ = scope_node
-  }
-}
-
 swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
 get_swizzle_index :: proc(char: rune) -> int
 {
   swizzle_index, swizzle_value := slice.linear_search(swizzle_values, char)
   if !swizzle_value do return -1
   return swizzle_index / 2
+}
+
+reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
+{
+  qualified_name := program.get_qualified_name(ctx.path)
+  procedure := &ctx.program.procedures[qualified_name]
+
+  final_path: [dynamic]string
+  append(&final_path, ..path)
+  append(&final_path, name)
+  append(&procedure.references, final_path)
 }

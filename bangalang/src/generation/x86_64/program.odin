@@ -165,7 +165,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
       }
     case "none":
       // Do nothing
-    case "static":
+    case:
       {
         procedure_ctx: generation.gen_context =
         {

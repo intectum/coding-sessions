@@ -9,8 +9,8 @@ import ".."
 
 generate_switch :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  switch_index := ctx.label_index
-  ctx.label_index += 1
+  switch_index := ctx.next_index
+  ctx.next_index += 1
 
   child_index := 0
   expression_node := &node.children[child_index]

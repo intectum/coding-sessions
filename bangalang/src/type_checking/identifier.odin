@@ -58,13 +58,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
       if ast.is_static_procedure(identifier_node)
       {
-        qualified_name := program.get_qualified_name(ctx.path[:])
-        procedure := &ctx.program.procedures[qualified_name]
-
-        path: [dynamic]string
-        append(&path, ..imported_module_path[:])
-        append(&path, node.value)
-        append(&procedure.references, path)
+        reference(ctx, imported_module_path[:], node.value)
       }
 
       append(&node.children, ast.get_type(identifier_node)^)
@@ -101,13 +95,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
     if ast.is_static_procedure(identifier_node) && ast.get_allocator(identifier_node) != "none"
     {
-      qualified_name := program.get_qualified_name(ctx.path[:])
-      procedure := &ctx.program.procedures[qualified_name]
-
-      path: [dynamic]string
-      append(&path, ..identifier_path)
-      append(&path, node.value)
-      append(&procedure.references, path)
+      reference(ctx, identifier_path, node.value)
     }
 
     append(&node.children, ast.get_type(identifier_node)^)
@@ -143,7 +131,7 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
       return false
     }
 
-    if index != -1 && index >= length
+    if length != -1 && index >= length
     {
       src.print_position_message(node.src_position, "Index %i out of bounds (swizzling with value '%c')", index, char)
       return false

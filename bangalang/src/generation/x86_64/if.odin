@@ -9,8 +9,8 @@ import ".."
 
 generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  if_index := ctx.label_index
-  ctx.label_index += 1
+  if_index := ctx.next_index
+  ctx.next_index += 1
 
   fmt.sbprintfln(&ctx.output, "; if_%i", if_index)
 

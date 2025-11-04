@@ -34,7 +34,6 @@ type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     child_index += 1
   }
 
-  wrap_in_scope(child_node)
   type_check_scope(child_node, &for_ctx) or_return
 
   return true

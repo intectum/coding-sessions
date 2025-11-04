@@ -12,7 +12,7 @@ gen_context :: struct
   stack_size: int,
   stack_variable_offsets: map[string]int,
 
-  label_index: int,
+  next_index: int,
   for_index: int,
 
   output: strings.Builder

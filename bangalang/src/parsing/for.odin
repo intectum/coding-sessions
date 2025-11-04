@@ -12,13 +12,6 @@ parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.n
 
   tokens.next_token(stream, .keyword, "for") or_return
 
-  brackets := false
-  if tokens.peek_token(stream).type == .opening_bracket
-  {
-    tokens.next_token(stream, .opening_bracket) or_return
-    brackets = true
-  }
-
   pre_declaration_stream := stream^
   pre_declaration_node, pre_declaration_ok := parse_declaration(&pre_declaration_stream)
 
@@ -41,13 +34,8 @@ parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.n
     append(&node.children, post_assignment_node)
   }
 
-  if brackets
-  {
-    tokens.next_token(stream, .closing_bracket) or_return
-  }
-
-  statement_node := parse_statement(stream, ctx) or_return
-  append(&node.children, statement_node)
+  scope_node := parse_scope(stream, ctx) or_return
+  append(&node.children, scope_node)
 
   return node, true
 }
