@@ -20,7 +20,8 @@ parse_struct_type :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
       tokens.next_token(stream, .comma) or_return
     }
 
-    member_node := parse_identifier(stream) or_return
+    member_token := tokens.next_token(stream, .identifier) or_return
+    member_node := ast.to_node(member_token)
 
     tokens.next_token(stream, .colon) or_return
 

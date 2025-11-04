@@ -6,7 +6,7 @@ import "core:slice"
 import "../../ast"
 import ".."
 
-generate_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
+generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
   child_index := 0
   child_node := &node.children[child_index]

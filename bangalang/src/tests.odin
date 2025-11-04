@@ -332,6 +332,42 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(sum == 50, "")
   `
 
+  general_tests["for_ranged_numbers"] =
+  `
+    debug: = import("debug", "core")
+
+    sum: i64 = 0
+    for value in i64(1)..11
+      do sum += value
+
+    debug.assert(sum == 55, "")
+  `
+
+  general_tests["for_ranged_array"] =
+  `
+    debug: = import("debug", "core")
+
+    sum: i64 = 0
+    values: i64[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
+    for value in values
+      do sum += value
+
+    debug.assert(sum == 55, "")
+  `
+
+  general_tests["for_ranged_slice"] =
+  `
+    debug: = import("debug", "core")
+
+    sum: i64 = 0
+    values: i64[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
+    values_slice: = values[]
+    for value in values_slice
+      do sum += value
+
+    debug.assert(sum == 55, "")
+  `
+
   general_tests["add_assign_1"] =
   `
     debug: = import("debug", "core")
@@ -649,6 +685,14 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var2[0] == 6, "")
     debug.assert(var3[0] == 8, "")
     debug.assert(var4 == 8, "")
+  `
+
+  general_tests["anonymous_proc"] =
+  `
+    debug: = import("debug", "core")
+
+    var0: proc(param0: u8)@stack = do debug.assert(param0 == 2, "")
+    var0(2)
   `
 
   value_tests: map[string]string

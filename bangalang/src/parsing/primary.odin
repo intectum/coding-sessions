@@ -82,7 +82,8 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
 
     tokens.next_token(stream, .closing_bracket) or_return
   case .identifier:
-    node = parse_identifier(stream) or_return
+    token := tokens.next_token(stream, .identifier) or_return
+    node = ast.to_node(token)
 
     if type == .type
     {

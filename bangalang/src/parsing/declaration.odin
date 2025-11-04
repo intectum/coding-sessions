@@ -21,9 +21,8 @@ parse_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
 
   if tokens.peek_token(stream).type == .equals
   {
-    token := tokens.next_token(stream, .equals) or_return
-
-    operator_node := ast.node { type = ast.to_node_type(token.type), value = token.value, src_position = token.src_position }
+    operator_token := tokens.next_token(stream, .equals) or_return
+    operator_node := ast.to_node(operator_token)
     append(&node.children, operator_node)
 
     rhs_node := parse_scope_or_rhs_expression(stream, &ctx) or_return

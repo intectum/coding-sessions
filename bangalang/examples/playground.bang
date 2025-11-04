@@ -1,0 +1,10 @@
+strings: = import("strings", "core")
+
+buf: byte[8]
+
+for value in i64(0)..10
+  do strings.println(strings.itoa(value, buf[]))
+
+foo: vec4 = { 2, 4, 6, 8 }
+for value in foo
+  do strings.println(strings.itoa(i64(value), buf[]))

@@ -1,41 +1,24 @@
 package parsing
 
-import "core:slice"
-
 import "../ast"
 import "../tokens"
 
-parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
+parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.node, bool)
 {
-  node.type = .for_statement
-  node.src_position = tokens.peek_token(stream).src_position
+  basic_stream := stream^
+  basic_node, basic_ok := parse_basic_for(&basic_stream, ctx)
 
-  tokens.next_token(stream, .keyword, "for") or_return
+  ranged_stream := stream^
+  ranged_node, ranged_ok := parse_ranged_for(&ranged_stream, ctx)
 
-  pre_declaration_stream := stream^
-  pre_declaration_node, pre_declaration_ok := parse_declaration(&pre_declaration_stream)
+  max_next_index := max(basic_stream.next_index, ranged_stream.next_index)
 
-  if pre_declaration_ok
+  if max_next_index == basic_stream.next_index
   {
-    stream^ = pre_declaration_stream
-    append(&node.children, pre_declaration_node)
-
-    tokens.next_token(stream, .comma) or_return
+    stream^ = basic_stream
+    return basic_node, basic_ok
   }
 
-  expression_node := parse_rhs_expression(stream) or_return
-  append(&node.children, expression_node)
-
-  if tokens.peek_token(stream).type == .comma
-  {
-    tokens.next_token(stream, .comma) or_return
-
-    post_assignment_node := parse_assignment(stream, ctx) or_return
-    append(&node.children, post_assignment_node)
-  }
-
-  scope_node := parse_scope(stream, ctx) or_return
-  append(&node.children, scope_node)
-
-  return node, true
+  stream^ = ranged_stream
+  return ranged_node, ranged_ok
 }

@@ -30,8 +30,7 @@ parse_rhs_expression_1 :: proc(stream: ^tokens.stream, lhs: ast.node, min_preced
       lookahead = tokens.peek_token(stream)
     }
 
-    new_lhs := ast.node { type = ast.to_node_type(op.type), value = op.value }
-    new_lhs.src_position = op.src_position
+    new_lhs := ast.to_node(op)
 
     append(&new_lhs.children, final_lhs)
     append(&new_lhs.children, rhs)

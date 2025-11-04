@@ -59,7 +59,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       slice_address_location := memory("rsp", 0)
       slice_length_location := memory("rsp", address_size)
       copy(ctx, immediate(static_var_name), slice_address_location, &reference_type_node)
-      copy(ctx, immediate(len(children)), slice_length_location, &index_type_node)
+      copy(ctx, immediate(len(children)), slice_length_location, &length_type_node)
     case:
       assert(false, "Failed to generate compound literal")
     }

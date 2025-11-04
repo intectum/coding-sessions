@@ -11,7 +11,8 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bo
     directive = (tokens.next_token(stream, .directive) or_return).value
   }
 
-  node = parse_identifier(stream) or_return
+  token := tokens.next_token(stream, .identifier) or_return
+  node = ast.to_node(token)
   node.directive = directive
 
   tokens.next_token(stream, .colon) or_return

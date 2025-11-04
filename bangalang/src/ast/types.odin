@@ -20,6 +20,7 @@ node_type :: enum
   and,
   assign,
   assignment_statement,
+  basic_for_statement,
   bitwise_and,
   bitwise_and_assign,
   bitwise_or,
@@ -35,7 +36,6 @@ node_type :: enum
   divide,
   divide_assign,
   equal,
-  for_statement,
   greater_than,
   greater_than_or_equal,
   identifier,
@@ -53,6 +53,7 @@ node_type :: enum
   not_equal,
   number_literal,
   or,
+  ranged_for_statement,
   reference,
   return_statement,
   scope_statement,
@@ -63,7 +64,7 @@ node_type :: enum
   type
 }
 
-statements: []node_type = { .assignment_statement, .break_statement, .continue_statement, .for_statement, .if_statement, .return_statement, .scope_statement }
+statements: []node_type = { .assignment_statement, .basic_for_statement, .break_statement, .continue_statement, .if_statement, .ranged_for_statement, .return_statement, .scope_statement }
 binary_operators: []node_type = { .add, .and, .bitwise_and, .bitwise_or, .divide, .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .modulo, .multiply, .not_equal, .or, .subtract }
 comparison_operators: []node_type = { .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .not_equal }
 literals: []node_type = { .boolean_literal, .compound_literal, .nil_literal, .number_literal, .string_literal }

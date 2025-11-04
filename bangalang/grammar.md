@@ -4,7 +4,9 @@ module\ &\to\ statements\\
 statements\ &\to\ statement*\\
 statement\ &\to\ if\_statement\ |\ for\_statement\ |\ switch\_statement\ |\ continue\_statement\ |\ break\_statement\ |\ return\_statement\ |\ scope\_statement\ |\ assignment\_statement\ |\ rhs\_expression\\
 if\_statement\ &\to\ \text{"if"}\ rhs\_expression\ scope\_statement\ (\ \text{"else"}\ \text{"if"}\ rhs\_expression\ scope\_statement\ )*\ (\ \text{"else"}\ scope\_statement\ )?\\
-for\_statement\ &\to\ \text{"for"}\ (\ declaration\_statement\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ assignment\_statement\ )?\ scope\_statement\\
+basic\_for\_statement\ &\to\ \text{"for"}\ (\ declaration\_statement\ \text{","}\ )?\ rhs\_expression\ (\ \text{","}\ assignment\_statement\ )?\ scope\_statement\\
+ranged\_for\_statement\ &\to\ \text{"for"}\ identifier\ \text{"in"}\ rhs\_expression\ (\ \text{".."}\ rhs\_expression\ )?\ scope\_statement\\
+for\_statement\ &\to\ basic\_for\_statement\ |\ ranged\_for\_statement\\
 switch\_statement\ &\to\ \text{"switch"}\ rhs\_expression\ \text{"\{"}\ (\ (\ rhs\_expression\ |\ \text{"default"}\ )\ \text{":"}\ scope\_statement\ )*\ \text{"\}"}\\
 continue\_statement\ &\to\ \text{"continue"}\\
 break\_statement\ &\to\ \text{"break"}\\

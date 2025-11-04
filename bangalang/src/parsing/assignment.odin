@@ -19,13 +19,13 @@ parse_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node
     ctx.return_value_required = len(lhs_type_node.children) == 2
   }
 
-  token := tokens.peek_token(stream)
-  _, assignment_operator := slice.linear_search(tokens.assignment_operators, token.type)
+  operator_token := tokens.peek_token(stream)
+  _, assignment_operator := slice.linear_search(tokens.assignment_operators, operator_token.type)
   if assignment_operator
   {
-    tokens.next_token(stream, token.type) or_return
+    tokens.next_token(stream, operator_token.type) or_return
 
-    operator_node := ast.node { type = ast.to_node_type(token.type), value = token.value, src_position = token.src_position }
+    operator_node := ast.to_node(operator_token)
     append(&node.children, operator_node)
 
     rhs_node := parse_scope_or_rhs_expression(stream, ctx) or_return

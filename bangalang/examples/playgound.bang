@@ -1,5 +1,0 @@
-strings: = import("strings", "core")
-
-foo: struct { bar: proc() }
-foo.bar = do strings.println("foobar")
-foo.bar()

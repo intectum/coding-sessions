@@ -45,6 +45,7 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
   fixed_token_types["%"] = .percent
   fixed_token_types["%="] = .percent_equals
   fixed_token_types["."] = .period
+  fixed_token_types[".."] = .period_period
   fixed_token_types["|"] = .pipe
   fixed_token_types["|="] = .pipe_equals
   fixed_token_types["||"] = .pipe_pipe
@@ -150,7 +151,7 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
       src.next_rune(&stream)
 
       period_found := false
-      for (src.peek_rune(&stream) >= '0' && src.peek_rune(&stream) <= '9') || (!period_found && src.peek_rune(&stream) == '.')
+      for (src.peek_rune(&stream) >= '0' && src.peek_rune(&stream) <= '9') || (!period_found && src.peek_rune(&stream) == '.' && src.peek_rune(&stream, 1) != '.')
       {
         if src.peek_rune(&stream) == '.'
         {

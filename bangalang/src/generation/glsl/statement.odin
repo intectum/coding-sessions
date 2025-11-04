@@ -12,8 +12,8 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node, includ
   case .if_statement:
     assert(false, "if not supported")
     //generate_if(ctx, node)
-  case .for_statement:
-    generate_for(ctx, node)
+  case .basic_for_statement:
+    generate_basic_for(ctx, node)
   case .switch_:
     assert(false, "switch not supported")
     //generate_switch(ctx, node)
@@ -30,7 +30,7 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node, includ
 
   #partial switch node.type
   {
-  case .if_statement, .for_statement, .scope_statement:
+  case .if_statement, .basic_for_statement, .scope_statement:
   case:
     if include_semi_colon
     {

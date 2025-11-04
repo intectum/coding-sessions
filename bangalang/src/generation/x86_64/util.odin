@@ -9,6 +9,7 @@ import "../../type_checking"
 import ".."
 
 index_type_node := ast.node { type = .type, value = "i64" }
+length_type_node := ast.node { type = .type, value = "i64" }
 reference_type_node: ast.node = { type = .reference }
 
 contains_allocations :: proc(node: ^ast.node) -> bool

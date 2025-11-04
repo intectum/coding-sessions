@@ -11,8 +11,8 @@ generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
   case .if_statement:
     generate_if(ctx, node)
-  case .for_statement:
-    generate_for(ctx, node)
+  case .basic_for_statement:
+    generate_basic_for(ctx, node)
   case .switch_:
     generate_switch(ctx, node)
   case .continue_statement:

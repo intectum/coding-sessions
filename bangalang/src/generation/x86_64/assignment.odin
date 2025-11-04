@@ -210,8 +210,8 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
   }
   rhs_location = memory(to_operand(rhs_address_location), 0)
 
-  limit_location := register(register_num + 2, &index_type_node)
-  copy(ctx, length_location, limit_location, &index_type_node)
+  limit_location := register(register_num + 2, &length_type_node)
+  copy(ctx, length_location, limit_location, &length_type_node)
   fmt.sbprintfln(&ctx.output, "  sub %s, 4 ; subtract", to_operand(limit_location))
   fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply", to_operand(limit_location), to_operand(immediate(element_size)))
   fmt.sbprintfln(&ctx.output, "  add %s, %s ; add", to_operand(limit_location), to_operand(lhs_address_location))

@@ -110,6 +110,15 @@ get_type :: proc(identifier: ^node) -> ^node
   return nil
 }
 
+to_node :: proc(token: tokens.token) -> ast.node
+{
+  return {
+    type = ast.to_node_type(token.type),
+    value = token.value,
+    src_position = token.src_position
+  }
+}
+
 to_node_type :: proc(token_type: tokens.token_type) -> node_type
 {
   #partial switch token_type
@@ -138,6 +147,8 @@ to_node_type :: proc(token_type: tokens.token_type) -> node_type
     return .equal
   case .exclamation_equals:
     return .not_equal
+  case .identifier:
+    return .identifier
   case .minus:
     return .subtract
   case .minus_equals:

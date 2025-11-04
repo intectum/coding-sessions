@@ -4,7 +4,7 @@ import "core:slice"
 
 import "../ast"
 
-type_check_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_basic_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   for_ctx := copy_type_checking_context(ctx)
   for_ctx.within_for = true
