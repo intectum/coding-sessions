@@ -8,8 +8,8 @@ type_checking_context :: struct
   program: ^program.program,
   path: []string,
 
-  identifiers: map[string]ast.node,
-  out_of_order_identifiers: map[string]ast.node,
+  identifiers: map[string]^ast.node,
+  out_of_order_identifiers: map[string]^ast.node,
 
   next_index: int,
   within_for: bool
@@ -36,14 +36,14 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
 {
   if identifier in ctx.identifiers
   {
-    return &ctx.identifiers[identifier], ctx.path
+    return ctx.identifiers[identifier], ctx.path
   }
 
   if !skip_out_of_order_identifiers
   {
     if identifier in ctx.out_of_order_identifiers
     {
-      return &ctx.identifiers[identifier], ctx.path
+      return ctx.identifiers[identifier], ctx.path
     }
   }
 
@@ -55,7 +55,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
 
     if identifier in procedure.identifiers
     {
-      identifier_node := &procedure.identifiers[identifier]
+      identifier_node := procedure.identifiers[identifier]
       if path_length == len(ctx.path) || is_visible_nested(identifier_node)
       {
         return identifier_node, path
@@ -66,7 +66,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
   module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
   if identifier in module.identifiers
   {
-    identifier_node := &module.identifiers[identifier]
+    identifier_node := module.identifiers[identifier]
     if is_visible_nested(identifier_node)
     {
       return identifier_node, ctx.path[:2]
@@ -75,7 +75,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
 
   if identifier in ctx.program.identifiers
   {
-    identifier_node := &ctx.program.identifiers[identifier]
+    identifier_node := ctx.program.identifiers[identifier]
     if is_visible_nested(identifier_node)
     {
       return identifier_node, {}

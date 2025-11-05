@@ -9,7 +9,7 @@ import ".."
 generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
   child_index := 0
-  child_node := &node.children[child_index]
+  child_node := node.children[child_index]
   child_index += 1
 
   fmt.sbprint(&ctx.output, "for (")
@@ -18,7 +18,7 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
     generate_assignment(ctx, child_node)
 
-    child_node = &node.children[child_index]
+    child_node = node.children[child_index]
     child_index += 1
   }
 
@@ -26,7 +26,7 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   generate_expression(ctx, child_node)
 
-  child_node = &node.children[child_index]
+  child_node = node.children[child_index]
   child_index += 1
 
   fmt.sbprint(&ctx.output, "; ")
@@ -38,6 +38,6 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   fmt.sbprintln(&ctx.output, ")")
 
-  statement_node := &node.children[len(node.children) - 1]
+  statement_node := node.children[len(node.children) - 1]
   generate_statement(ctx, statement_node, true)
 }

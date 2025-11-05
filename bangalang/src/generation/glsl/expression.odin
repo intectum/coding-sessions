@@ -15,8 +15,8 @@ generate_expression :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     return
   }
 
-  lhs_node := &node.children[0]
-  rhs_node := &node.children[1]
+  lhs_node := node.children[0]
+  rhs_node := node.children[1]
 
   generate_expression(ctx, lhs_node)
   fmt.sbprintf(&ctx.output, " %s ", node.value)

@@ -5,10 +5,12 @@ import "core:slice"
 import "../ast"
 import "../tokens"
 
-parse_basic_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
+parse_basic_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
 {
-  node.type = .basic_for_statement
-  node.src_position = tokens.peek_token(stream).src_position
+  node = ast.make_node({
+    type = .basic_for_statement,
+    src_position = tokens.peek_token(stream).src_position
+  })
 
   tokens.next_token(stream, .keyword, "for") or_return
 

@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.node, bool)
+parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (^ast.node, bool)
 {
   if tokens.peek_token(stream).type == .keyword
   {

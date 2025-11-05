@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_scope_or_rhs_expression :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.node, bool)
+parse_scope_or_rhs_expression :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (^ast.node, bool)
 {
   scope_stream := stream^
   scope_node, scope_ok := parse_scope(&scope_stream, ctx)

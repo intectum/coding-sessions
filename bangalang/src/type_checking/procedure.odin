@@ -8,7 +8,7 @@ import "../src"
 
 type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  lhs_node := &node.children[0]
+  lhs_node := node.children[0]
   lhs_type_node := ast.get_type(lhs_node)
   allocator := ast.get_allocator(lhs_node)
 
@@ -20,7 +20,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
 
   found_default := false
   params_type_node := lhs_type_node.children[0]
-  for &param_node in params_type_node.children
+  for param_node in params_type_node.children
   {
     if len(param_node.children) == 1 && found_default
     {
@@ -33,16 +33,16 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
       found_default = true
     }
 
-    param_lhs_node := &param_node.children[0]
+    param_lhs_node := param_node.children[0]
     param_lhs_node.allocator = "stack"
 
-    type_check_assignment(&param_node, ctx) or_return
+    type_check_assignment(param_node, ctx) or_return
   }
 
   if len(node.children) > 1
   {
-    operator_node := &node.children[1]
-    rhs_node := &node.children[2]
+    operator_node := node.children[1]
+    rhs_node := node.children[2]
 
     if allocator == "extern" || allocator == "none"
     {

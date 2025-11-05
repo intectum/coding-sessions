@@ -7,7 +7,7 @@ import ".."
 
 generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  procedure_node := &node.children[0]
+  procedure_node := node.children[0]
   if ast.is_type(procedure_node)
   {
     assert(false, "conversions not supported")
@@ -23,11 +23,11 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     expression_node: ^ast.node
     if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
     {
-      expression_node = &node.children[param_index + 1]
+      expression_node = node.children[param_index + 1]
     }
     else
     {
-      expression_node = &param_node_from_type.children[2]
+      expression_node = param_node_from_type.children[2]
     }
 
     generate_expression(ctx, expression_node)

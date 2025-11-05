@@ -139,8 +139,8 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
     append(generated_procedure_names, qualified_name)
 
     procedure := &ctx.program.procedures[qualified_name]
-    node := &procedure.statements[0]
-    lhs_node := &node.children[0]
+    node := procedure.statements[0]
+    lhs_node := node.children[0]
     switch ast.get_allocator(lhs_node)
     {
     case "extern":
@@ -157,10 +157,10 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
         glsl.generate_program(&procedure_ctx, node)
 
-        static_var_node: ast.node = { type = .assignment_statement }
-        append(&static_var_node.children, ast.node { type = .identifier, value = qualified_name, allocator = "glsl" })
-        append(&static_var_node.children, ast.node { type = .assign, value = "=" })
-        append(&static_var_node.children, ast.node { type = .string_literal, value = strings.to_string(procedure_ctx.output) })
+        static_var_node := ast.make_node({ type = .assignment_statement })
+        append(&static_var_node.children, ast.make_node({ type = .identifier, value = qualified_name, allocator = "glsl" }))
+        append(&static_var_node.children, ast.make_node({ type = .assign, value = "=" }))
+        append(&static_var_node.children, ast.make_node({ type = .string_literal, value = strings.to_string(procedure_ctx.output) }))
         ctx.program.static_vars[qualified_name] = static_var_node
       }
     case "none":
@@ -191,12 +191,12 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
 
   for static_var_name in ctx.program.static_vars
   {
-    static_var_node := &ctx.program.static_vars[static_var_name]
-    lhs_node := &static_var_node.children[0]
+    static_var_node := ctx.program.static_vars[static_var_name]
+    lhs_node := static_var_node.children[0]
 
     if lhs_node.allocator == "glsl"
     {
-      rhs_node := &static_var_node.children[2]
+      rhs_node := static_var_node.children[2]
 
       final_string, _ := strings.replace_all(rhs_node.value, "\n", "\", 10, \"")
       fmt.sbprintfln(&ctx.output, "  %s$raw: db \"%s\"", static_var_name, final_string)

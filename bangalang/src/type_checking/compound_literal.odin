@@ -33,12 +33,12 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
         return false
       }
 
-      child_type_node := &type_node.children[0]
-      type_check_rhs_expression(&child_node, ctx, child_type_node)
+      child_type_node := type_node.children[0]
+      type_check_rhs_expression(child_node, ctx, child_type_node)
     }
     else
     {
-      child_lhs_node := &child_node.children[0]
+      child_lhs_node := child_node.children[0]
 
       found_member := false
       switch type_node.value
@@ -47,7 +47,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
         switch child_lhs_node.value
         {
         case "raw":
-          raw_type_node := ast.node { type = .reference }
+          raw_type_node := ast.make_node({ type = .reference })
           append(&raw_type_node.children, type_node.children[0])
           append(&child_lhs_node.children, raw_type_node)
           found_member = true
@@ -56,11 +56,11 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
           found_member = true
         }
       case "[struct]":
-        for &member_node in type_node.children
+        for member_node in type_node.children
         {
           if member_node.value == child_lhs_node.value
           {
-            append(&child_lhs_node.children, ast.get_type(&member_node)^)
+            append(&child_lhs_node.children, ast.get_type(member_node))
             found_member = true
             break
           }
@@ -76,7 +76,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
         return false
       }
 
-      child_rhs_node := &child_node.children[2]
+      child_rhs_node := child_node.children[2]
       type_check_rhs_expression(child_rhs_node, ctx, ast.get_type(child_lhs_node)) or_return
     }
   }

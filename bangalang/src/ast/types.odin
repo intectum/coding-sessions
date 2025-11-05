@@ -8,7 +8,7 @@ node :: struct
   value: string,
   allocator: string, // TODO as node?
   directive: string, // TODO as node?
-  children: [dynamic]node,
+  children: [dynamic]^node,
   src_position: src.position
 }
 

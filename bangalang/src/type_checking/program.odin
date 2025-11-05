@@ -1,6 +1,7 @@
 package type_checking
 
 import "../program"
+import fmt "core:fmt"
 
 type_check_program :: proc(the_program: ^program.program, path: []string, code: string) -> bool
 {
@@ -29,7 +30,7 @@ type_check_program :: proc(the_program: ^program.program, path: []string, code: 
       path = proc_path[:]
     }
 
-    type_check_procedure(&procedure.statements[0], &procedure_ctx) or_return
+    type_check_procedure(procedure.statements[0], &procedure_ctx) or_return
 
     procedure.type_checked = true
     procedure.identifiers = procedure_ctx.identifiers

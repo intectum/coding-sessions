@@ -3,10 +3,12 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
+parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
 {
-  node.type = .switch_
-  node.src_position = tokens.peek_token(stream).src_position
+  node = ast.make_node({
+    type = .switch_,
+    src_position = tokens.peek_token(stream).src_position
+  })
 
   tokens.next_token(stream, .keyword, "switch") or_return
 
@@ -17,13 +19,13 @@ parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: as
 
   for tokens.peek_token(stream).type != .closing_curly_bracket
   {
-    case_node: ast.node
+    case_node := ast.make_node()
 
     if tokens.peek_token(stream).value == "default"
     {
       tokens.next_token(stream, .keyword, "default") or_return
 
-      case_default_node: ast.node = { type = .default }
+      case_default_node := ast.make_node({ type = .default })
       append(&case_node.children, case_default_node)
     }
     else

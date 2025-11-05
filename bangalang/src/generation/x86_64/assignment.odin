@@ -11,7 +11,7 @@ import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  lhs_node := &node.children[0]
+  lhs_node := node.children[0]
   if ast.is_type(lhs_node)
   {
     return
@@ -35,18 +35,18 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       allocate_stack(ctx, to_byte_size(lhs_type_node))
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
-      rhs_node := &node.children[2]
+      rhs_node := node.children[2]
 
       // TODO a bit hacky, adds the size info to the allocator call
       buf: [8]byte
       if lhs_type_node.value == "[slice]"
       {
-        element_size := strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
+        element_size := strconv.itoa(buf[:], to_byte_size(lhs_type_node.children[0]))
         rhs_node.children[0].children[2].children[1].children[0].value = element_size
       }
       else
       {
-        size := strconv.itoa(buf[:], to_byte_size(&lhs_type_node.children[0]))
+        size := strconv.itoa(buf[:], to_byte_size(lhs_type_node.children[0]))
         rhs_node.children[1].value = size
       }
     case "none":
@@ -63,7 +63,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       qualified_name := program.get_qualified_name(path[:])
       if !(qualified_name in ctx.program.static_vars)
       {
-        ctx.program.static_vars[qualified_name] = node^
+        ctx.program.static_vars[qualified_name] = node
       }
     case:
       assert(false, "Failed to generate assignment")
@@ -82,8 +82,8 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   }
   else
   {
-    operator_node := &node.children[1]
-    rhs_node := &node.children[2]
+    operator_node := node.children[1]
+    rhs_node := node.children[2]
 
     rhs_location := generate_expression(ctx, rhs_node, 1)
 
@@ -149,7 +149,7 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
   lhs_location := lhs_location
   rhs_location := rhs_location
 
-  element_type_node := &type_node.children[0]
+  element_type_node := type_node.children[0]
   element_size := to_byte_size(element_type_node)
   precision := to_precision_size(element_size)
 
@@ -188,30 +188,30 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
   vector_assign_index := ctx.next_index
   ctx.next_index += 1
 
-  lhs_address_location := register(register_num, &reference_type_node)
+  lhs_address_location := register(register_num, reference_type_node)
   if type_node.value == "[array]"
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(lhs_address_location), to_operand(lhs_location))
   }
   else
   {
-    copy(ctx, lhs_location, lhs_address_location, &reference_type_node)
+    copy(ctx, lhs_location, lhs_address_location, reference_type_node)
   }
   lhs_location = memory(to_operand(lhs_address_location), 0)
 
-  rhs_address_location := register(register_num + 1, &reference_type_node)
+  rhs_address_location := register(register_num + 1, reference_type_node)
   if type_node.value == "[array]"
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(rhs_address_location), to_operand(rhs_location))
   }
   else
   {
-    copy(ctx, rhs_location, rhs_address_location, &reference_type_node)
+    copy(ctx, rhs_location, rhs_address_location, reference_type_node)
   }
   rhs_location = memory(to_operand(rhs_address_location), 0)
 
-  limit_location := register(register_num + 2, &length_type_node)
-  copy(ctx, length_location, limit_location, &length_type_node)
+  limit_location := register(register_num + 2, length_type_node)
+  copy(ctx, length_location, limit_location, length_type_node)
   fmt.sbprintfln(&ctx.output, "  sub %s, 4 ; subtract", to_operand(limit_location))
   fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply", to_operand(limit_location), to_operand(immediate(element_size)))
   fmt.sbprintfln(&ctx.output, "  add %s, %s ; add", to_operand(limit_location), to_operand(lhs_address_location))

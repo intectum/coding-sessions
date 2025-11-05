@@ -10,10 +10,10 @@ import "../tokens"
 
 procedure :: struct
 {
-  statements: [dynamic]ast.node,
+  statements: [dynamic]^ast.node,
   references: [dynamic][dynamic]string,
 
-  identifiers: map[string]ast.node,
+  identifiers: map[string]^ast.node,
 
   type_checked: bool
 }
@@ -22,7 +22,7 @@ module :: struct
 {
   imports: map[string][2]string,
 
-  identifiers: map[string]ast.node
+  identifiers: map[string]^ast.node
 }
 
 program :: struct
@@ -31,50 +31,36 @@ program :: struct
   procedures: map[string]procedure,
   links: [dynamic]string,
 
-  identifiers: map[string]ast.node,
+  identifiers: map[string]^ast.node,
   f32_literals: [dynamic]string,
   f64_literals: [dynamic]string,
   string_literals: [dynamic]string,
   cstring_literals: [dynamic]string,
-  static_vars: map[string]ast.node,
+  static_vars: map[string]^ast.node,
 
   queue: [dynamic][dynamic]string
 }
 
 init :: proc(program: ^program)
 {
-  program.identifiers["atomic_i8"] = { type = .type, value = "atomic_i8" }
-  program.identifiers["atomic_i16"] = { type = .type, value = "atomic_i16" }
-  program.identifiers["atomic_i32"] = { type = .type, value = "atomic_i32" }
-  program.identifiers["atomic_i64"] = { type = .type, value = "atomic_i64" }
-  program.identifiers["bool"] = { type = .type, value = "bool" }
-  program.identifiers["cint"] = { type = .type, value = "cint" }
-  program.identifiers["cstring"] = { type = .type, value = "cstring" }
-  program.identifiers["cuint"] = { type = .type, value = "cuint" }
-  program.identifiers["f32"] = { type = .type, value = "f32" }
-  program.identifiers["f64"] = { type = .type, value = "f64" }
-  program.identifiers["i8"] = { type = .type, value = "i8" }
-  program.identifiers["i16"] = { type = .type, value = "i16" }
-  program.identifiers["i32"] = { type = .type, value = "i32" }
-  program.identifiers["i64"] = { type = .type, value = "i64" }
-  program.identifiers["u8"] = { type = .type, value = "u8" }
-  program.identifiers["u16"] = { type = .type, value = "u16" }
-  program.identifiers["u32"] = { type = .type, value = "u32" }
-  program.identifiers["u64"] = { type = .type, value = "u64" }
-
-  import_proc := ast.node { type = .identifier, value = "import", allocator = "none" }
-  append(&import_proc.children, ast.node { type = .type, value = "[procedure]" })
-  append(&import_proc.children[0].children, ast.node { type = .type, value = "[parameters]" })
-  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })
-  append(&import_proc.children[0].children[0].children[0].children, ast.node { type = .identifier, value = "module" })
-  append(&import_proc.children[0].children[0].children[0].children[0].children, program.identifiers["string"])
-  append(&import_proc.children[0].children[0].children, ast.node { type = .assignment_statement })
-  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .identifier, value = "lib" })
-  append(&import_proc.children[0].children[0].children[1].children[0].children, program.identifiers["string"])
-  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .assign, value = "=" })
-  append(&import_proc.children[0].children[0].children[1].children, ast.node { type = .string_literal, value = "\"\"" })
-  append(&import_proc.children[0].children, ast.node { type = .type, value = "[module]" })
-  program.identifiers["import"] = import_proc
+  program.identifiers["atomic_i8"] = ast.make_node({ type = .type, value = "atomic_i8" })
+  program.identifiers["atomic_i16"] = ast.make_node({ type = .type, value = "atomic_i16" })
+  program.identifiers["atomic_i32"] = ast.make_node({ type = .type, value = "atomic_i32" })
+  program.identifiers["atomic_i64"] = ast.make_node({ type = .type, value = "atomic_i64" })
+  program.identifiers["bool"] = ast.make_node({ type = .type, value = "bool" })
+  program.identifiers["cint"] = ast.make_node({ type = .type, value = "cint" })
+  program.identifiers["cstring"] = ast.make_node({ type = .type, value = "cstring" })
+  program.identifiers["cuint"] = ast.make_node({ type = .type, value = "cuint" })
+  program.identifiers["f32"] = ast.make_node({ type = .type, value = "f32" })
+  program.identifiers["f64"] = ast.make_node({ type = .type, value = "f64" })
+  program.identifiers["i8"] = ast.make_node({ type = .type, value = "i8" })
+  program.identifiers["i16"] = ast.make_node({ type = .type, value = "i16" })
+  program.identifiers["i32"] = ast.make_node({ type = .type, value = "i32" })
+  program.identifiers["i64"] = ast.make_node({ type = .type, value = "i64" })
+  program.identifiers["u8"] = ast.make_node({ type = .type, value = "u8" })
+  program.identifiers["u16"] = ast.make_node({ type = .type, value = "u16" })
+  program.identifiers["u32"] = ast.make_node({ type = .type, value = "u32" })
+  program.identifiers["u64"] = ast.make_node({ type = .type, value = "u64" })
 }
 
 load_module :: proc(program: ^program, path: []string, code: string) -> bool

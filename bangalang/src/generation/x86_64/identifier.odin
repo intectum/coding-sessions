@@ -17,7 +17,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
   if ast.is_member(node)
   {
-    child_type_node := ast.get_type(&node.children[0])
+    child_type_node := ast.get_type(node.children[0])
     switch child_type_node.value
     {
     case "[array]", "[slice]":
@@ -31,11 +31,11 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       }
       else
       {
-        element_type_node := &child_type_node.children[0]
+        element_type_node := child_type_node.children[0]
         element_size := to_byte_size(element_type_node)
 
         address_location := get_raw_location(ctx, child_type_node, child_location, register_num)
-        address_location = copy_to_register(ctx, address_location, register_num, &reference_type_node)
+        address_location = copy_to_register(ctx, address_location, register_num, reference_type_node)
         memory_location := memory(to_operand(address_location), 0)
 
         max_index := 0
@@ -77,14 +77,14 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     case "[struct]":
       location := child_location
 
-      for &member_node in child_type_node.children
+      for member_node in child_type_node.children
       {
         if member_node.value == node.value
         {
           break
         }
 
-        location.offset += to_byte_size(ast.get_type(&member_node))
+        location.offset += to_byte_size(ast.get_type(member_node))
       }
 
       return location
@@ -100,7 +100,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
     if (allocator != "extern" && allocator != "none") || node.value == "glsl_kernels" // TODO hmmm
     {
-      if ast.is_member(node) && ast.get_type(&node.children[0]).value == "[module]"
+      if ast.is_member(node) && ast.get_type(node.children[0]).value == "[module]"
       {
         module := ctx.program.modules[program.get_qualified_module_name(ctx.path)]
         imported_module_path := module.imports[node.children[0].value]

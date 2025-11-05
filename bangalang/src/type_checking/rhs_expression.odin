@@ -15,7 +15,7 @@ type_check_rhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context, 
       return false
     }
 
-    append(&node.children, expected_type_node^)
+    append(&node.children, expected_type_node)
   }
 
   type_check_rhs_expression_1(node, ctx) or_return
@@ -54,10 +54,10 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
     return true
   }
 
-  lhs_node := &node.children[0]
+  lhs_node := node.children[0]
   type_check_rhs_expression_1(lhs_node, ctx) or_return
 
-  rhs_node := &node.children[1]
+  rhs_node := node.children[1]
   type_check_rhs_expression_1(rhs_node, ctx) or_return
 
   lhs_type_node := ast.get_type(lhs_node)
@@ -75,13 +75,13 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
     append(&node.children, ctx.program.identifiers["bool"])
     if coerced_type_node.value == "[any_float]"
     {
-      upgrade_types(lhs_node, &ctx.program.identifiers["f64"], ctx)
-      upgrade_types(rhs_node, &ctx.program.identifiers["f64"], ctx)
+      upgrade_types(lhs_node, ctx.program.identifiers["f64"], ctx)
+      upgrade_types(rhs_node, ctx.program.identifiers["f64"], ctx)
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      upgrade_types(lhs_node, &ctx.program.identifiers["i64"], ctx)
-      upgrade_types(rhs_node, &ctx.program.identifiers["i64"], ctx)
+      upgrade_types(lhs_node, ctx.program.identifiers["i64"], ctx)
+      upgrade_types(rhs_node, ctx.program.identifiers["i64"], ctx)
     }
     else
     {
@@ -91,7 +91,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   }
   else
   {
-    append(&node.children, coerced_type_node^)
+    append(&node.children, coerced_type_node)
     upgrade_types(lhs_node, coerced_type_node, ctx)
     upgrade_types(rhs_node, coerced_type_node, ctx)
   }

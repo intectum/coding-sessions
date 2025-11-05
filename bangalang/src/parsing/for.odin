@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (ast.node, bool)
+parse_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (^ast.node, bool)
 {
   basic_stream := stream^
   basic_node, basic_ok := parse_basic_for(&basic_stream, ctx)

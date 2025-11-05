@@ -9,7 +9,7 @@ import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  lhs_node := &node.children[0]
+  lhs_node := node.children[0]
   if ast.is_type(lhs_node)
   {
     return
@@ -49,8 +49,8 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   }
   else
   {
-    operator_node := &node.children[1]
-    rhs_node := &node.children[2]
+    operator_node := node.children[1]
+    rhs_node := node.children[2]
 
     fmt.sbprintf(&ctx.output, " %s ", operator_node.value)
 

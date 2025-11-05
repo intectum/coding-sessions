@@ -23,14 +23,14 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
   case "[procedure]", "cstring": return address_size
   case "[slice]": return address_size + 8 /* i64 */
   case "[array]":
-    element_size := to_byte_size(&type_node.children[0])
+    element_size := to_byte_size(type_node.children[0])
     length := strconv.atoi(type_node.children[1].value)
     return element_size * length
   case "[struct]":
     size := 0
-    for &member_node in type_node.children
+    for member_node in type_node.children
     {
-      size += to_byte_size(ast.get_type(&member_node))
+      size += to_byte_size(ast.get_type(member_node))
     }
 
     return size

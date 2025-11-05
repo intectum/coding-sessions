@@ -4,10 +4,12 @@ import "../ast"
 import "../src"
 import "../tokens"
 
-parse_scope :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ast.node, ok: bool)
+parse_scope :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
 {
-  node.type = .scope_statement
-  node.src_position = tokens.peek_token(stream).src_position
+  node = ast.make_node({
+    type = .scope_statement,
+    src_position = tokens.peek_token(stream).src_position
+  })
 
   if tokens.peek_token(stream).type == .keyword && tokens.peek_token(stream).value == "do"
   {

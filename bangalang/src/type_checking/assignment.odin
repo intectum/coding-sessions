@@ -10,7 +10,7 @@ import "../src"
 
 type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  lhs_node := &node.children[0]
+  lhs_node := node.children[0]
   declaration := ast.get_type(lhs_node) != nil
 
   type_check_lhs_expression(lhs_node, ctx) or_return
@@ -21,7 +21,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     name := lhs_node.value
 
     procedure: program.procedure
-    append(&procedure.statements, node^)
+    append(&procedure.statements, ast.make_node(node^))
 
     if !ast.is_static_procedure(lhs_node)
     {
@@ -30,10 +30,10 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       name = fmt.aprintf("$anon_%i", proc_index)
 
       new_node: ast.node = { type = .assignment_statement }
-      append(&new_node.children, lhs_node^)
-      append(&new_node.children, ast.node { type = .assign, value = "=" })
-      append(&new_node.children, ast.node { type = .identifier, value = name, allocator = "static" })
-      append(&new_node.children[2].children, ast.get_type(lhs_node)^)
+      append(&new_node.children, lhs_node)
+      append(&new_node.children, ast.make_node({ type = .assign, value = "=" }))
+      append(&new_node.children, ast.make_node({ type = .identifier, value = name, allocator = "static" }))
+      append(&new_node.children[2].children, ast.get_type(lhs_node))
       node^ = new_node
 
       ctx.identifiers[name] = new_node.children[2]
@@ -51,8 +51,8 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   if len(node.children) > 1
   {
-    operator_node := &node.children[1]
-    rhs_node := &node.children[2]
+    operator_node := node.children[1]
+    rhs_node := node.children[2]
 
     if !procedure_definition
     {
@@ -71,7 +71,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       rhs_type_node := ast.get_type(rhs_node)
       if lhs_type_node.value == "[none]"
       {
-        append(&lhs_node.children, rhs_type_node^)
+        append(&lhs_node.children, rhs_type_node)
       }
     }
 
@@ -87,7 +87,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
       if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
       {
-        element_type_node := &rhs_type_node.children[0]
+        element_type_node := rhs_type_node.children[0]
         _, float_type := slice.linear_search(float_types, element_type_node.value)
         if !float_type || operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign
         {
@@ -139,7 +139,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       length_expression_node: ^ast.node
       if lhs_type_node.value == "[array]"
       {
-        length_expression_node = &lhs_type_node.children[1]
+        length_expression_node = lhs_type_node.children[1]
 
         lhs_type_node.value = "[slice]"
         resize(&lhs_type_node.children, 1)
@@ -147,41 +147,41 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       else
       {
         reference_node: ast.node = { type = .reference }
-        append(&reference_node.children, lhs_type_node^)
+        append(&reference_node.children, ast.clone_node(lhs_type_node))
         lhs_type_node^ = reference_node
       }
 
-      operator_node := ast.node { type = .assign, value = "=" }
+      operator_node := ast.make_node({ type = .assign, value = "=" })
       append(&node.children, operator_node)
 
-      allocator_node := ast.node { type = .call, directive = "#danger_untyped" }
-      append(&allocator_node.children, ast.node { type = .identifier, value = strings.concatenate({ "allocate_", allocator }) })
-      append(&allocator_node.children[0].children, ast.node { type = .identifier, value = "memory" })
+      allocator_node := ast.make_node({ type = .call, directive = "#danger_untyped" })
+      append(&allocator_node.children, ast.make_node({ type = .identifier, value = strings.concatenate({ "allocate_", allocator }) }))
+      append(&allocator_node.children[0].children, ast.make_node({ type = .identifier, value = "memory" }))
 
       if lhs_type_node.value == "[slice]"
       {
-        append(&allocator_node.children, ast.node { type = .multiply, value = "*" })
-        append(&allocator_node.children[1].children, ast.node { type = .number_literal })
-        append(&allocator_node.children[1].children, length_expression_node^)
+        append(&allocator_node.children, ast.make_node({ type = .multiply, value = "*" }))
+        append(&allocator_node.children[1].children, ast.make_node({ type = .number_literal }))
+        append(&allocator_node.children[1].children, ast.clone_node(length_expression_node))
 
-        rhs_node: ast.node = { type = .compound_literal }
-        append(&rhs_node.children, ast.node { type = .assignment_statement })
-        append(&rhs_node.children[0].children, ast.node { type = .identifier, value = "raw" })
-        append(&rhs_node.children[0].children, ast.node { type = .assign, value = "=" })
+        rhs_node := ast.make_node({ type = .compound_literal })
+        append(&rhs_node.children, ast.make_node({ type = .assignment_statement }))
+        append(&rhs_node.children[0].children, ast.make_node({ type = .identifier, value = "raw" }))
+        append(&rhs_node.children[0].children, ast.make_node({ type = .assign, value = "=" }))
         append(&rhs_node.children[0].children, allocator_node)
-        append(&rhs_node.children, ast.node { type = .assignment_statement })
-        append(&rhs_node.children[1].children, ast.node { type = .identifier, value = "length" })
-        append(&rhs_node.children[1].children, ast.node { type = .assign, value = "=" })
-        append(&rhs_node.children[1].children, length_expression_node^)
+        append(&rhs_node.children, ast.make_node({ type = .assignment_statement }))
+        append(&rhs_node.children[1].children, ast.make_node({ type = .identifier, value = "length" }))
+        append(&rhs_node.children[1].children, ast.make_node({ type = .assign, value = "=" }))
+        append(&rhs_node.children[1].children, ast.clone_node(length_expression_node))
         append(&node.children, rhs_node)
       }
       else
       {
-        append(&allocator_node.children, ast.node { type = .number_literal })
+        append(&allocator_node.children, ast.make_node({ type = .number_literal }))
         append(&node.children, allocator_node)
       }
 
-      type_check_rhs_expression(&node.children[2], ctx, lhs_type_node) or_return
+      type_check_rhs_expression(node.children[2], ctx, lhs_type_node) or_return
     }
 
     if contains_non_fixed_array_sizes(lhs_type_node)
@@ -190,7 +190,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       return false
     }
 
-    ctx.identifiers[lhs_node.value] = lhs_node^
+    ctx.identifiers[lhs_node.value] = lhs_node
   }
 
   return true
@@ -203,9 +203,9 @@ contains_non_fixed_array_sizes :: proc(type_node: ^ast.node) -> bool
     return true
   }
 
-  for &child_node in type_node.children
+  for child_node in type_node.children
   {
-    if contains_non_fixed_array_sizes(&child_node)
+    if contains_non_fixed_array_sizes(child_node)
     {
       return true
     }

@@ -8,9 +8,9 @@ import "../../ast"
 import "../../type_checking"
 import ".."
 
-index_type_node := ast.node { type = .type, value = "i64" }
-length_type_node := ast.node { type = .type, value = "i64" }
-reference_type_node: ast.node = { type = .reference }
+index_type_node := ast.make_node({ type = .type, value = "i64" })
+length_type_node := ast.make_node({ type = .type, value = "i64" })
+reference_type_node := ast.make_node({ type = .reference })
 
 contains_allocations :: proc(node: ^ast.node) -> bool
 {
@@ -24,19 +24,19 @@ contains_allocations :: proc(node: ^ast.node) -> bool
     return true
   }
 
-  if node.type == .call && ast.get_allocator(&node.children[0]) != "extern"
+  if node.type == .call && ast.get_allocator(node.children[0]) != "extern"
   {
     return true
   }
 
-  if node.type == .identifier && !ast.is_type(&node.children[0]) && ast.get_type(&node.children[0]).value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
+  if node.type == .identifier && !ast.is_type(node.children[0]) && ast.get_type(node.children[0]).value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
   {
     return true
   }
 
-  for &child_node in node.children
+  for child_node in node.children
   {
-    if contains_allocations(&child_node)
+    if contains_allocations(child_node)
     {
       return true
     }
@@ -50,7 +50,7 @@ get_raw_location :: proc(ctx: ^generation.gen_context, container_type_node: ^ast
   switch container_type_node.value
   {
   case "[array]":
-    location := register(register_num, &reference_type_node)
+    location := register(register_num, reference_type_node)
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
     return location
   case "[slice]":

@@ -17,27 +17,27 @@ type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) 
 
     if type_node.value == "[array]" && type_node.directive == "#soa"
     {
-      child_type_node := &type_node.children[0]
+      child_type_node := type_node.children[0]
       if child_type_node.value == "[struct]"
       {
-        length_expression_node := &type_node.children[1]
+        length_expression_node := type_node.children[1]
 
-        new_type_node: ast.node = { type = .type, value = "[struct]", directive = "#soa" }
+        new_type_node := ast.make_node({ type = .type, value = "[struct]", directive = "#soa" })
 
-        for &member_node in child_type_node.children
+        for member_node in child_type_node.children
         {
-          new_member_node: ast.node = { type = .identifier, value = member_node.value }
+          new_member_node := ast.make_node({ type = .identifier, value = member_node.value })
 
-          member_type_node := ast.get_type(&member_node)
-          new_member_type_node: ast.node = { type = .type, value = "[array]" }
-          append(&new_member_type_node.children, ast.node { type = .type, value = member_type_node.value })
-          append(&new_member_type_node.children, length_expression_node^)
+          member_type_node := ast.get_type(member_node)
+          new_member_type_node := ast.make_node({ type = .type, value = "[array]" })
+          append(&new_member_type_node.children, ast.make_node({ type = .type, value = member_type_node.value }))
+          append(&new_member_type_node.children, length_expression_node)
 
           append(&new_member_node.children, new_member_type_node)
           append(&new_type_node.children, new_member_node)
         }
 
-        type_node^ = new_type_node
+        type_node^ = new_type_node^
       }
     }
   }

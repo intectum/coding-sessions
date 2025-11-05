@@ -5,6 +5,26 @@ import "core:slice"
 import "../ast"
 import "../tokens"
 
+make_node :: proc(init: node = {}) -> ^node
+{
+  new_node := new(ast.node)
+  new_node^ = init
+  return new_node
+}
+
+clone_node :: proc(root: ^node) -> ^node
+{
+  clone := make_node(root^)
+
+  clone.children = {}
+  for child in root.children
+  {
+    append(&clone.children, clone_node(child))
+  }
+
+  return clone
+}
+
 is_link_statement :: proc(statement: ^node) -> bool
 {
   return statement.type == .call && statement.children[0].value == "link"
@@ -14,7 +34,7 @@ is_import_statement :: proc(statement: ^node) -> bool
 {
   if statement.type == .assignment_statement && len(statement.children) > 1
   {
-    rhs_node := &statement.children[2]
+    rhs_node := statement.children[2]
     return rhs_node.type == .call && rhs_node.children[0].value == "import"
   }
 
@@ -23,12 +43,12 @@ is_import_statement :: proc(statement: ^node) -> bool
 
 is_type_alias_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment_statement && len(statement.children) > 1 && is_type(&statement.children[2])
+  return statement.type == .assignment_statement && len(statement.children) > 1 && is_type(statement.children[2])
 }
 
 is_static_procedure_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment_statement && !is_type(&statement.children[0]) && is_static_procedure(&statement.children[0])
+  return statement.type == .assignment_statement && !is_type(statement.children[0]) && is_static_procedure(statement.children[0])
 }
 
 is_static_procedure :: proc(identifier: ^node) -> bool
@@ -39,7 +59,7 @@ is_static_procedure :: proc(identifier: ^node) -> bool
     return false
   }
 
-  if is_member(identifier) && get_type(&identifier.children[0]).value != "[module]"
+  if is_member(identifier) && get_type(identifier.children[0]).value != "[module]"
   {
     return false
   }
@@ -58,7 +78,7 @@ is_member :: proc(identifier: ^node) -> bool
   final_identifier := identifier
   for final_identifier.children[0].type == .dereference || final_identifier.children[0].type == .index || final_identifier.children[0].type == .reference
   {
-    final_identifier = &final_identifier.children[0]
+    final_identifier = final_identifier.children[0]
   }
 
   return final_identifier.children[0].type == .identifier
@@ -71,9 +91,9 @@ get_allocator :: proc(identifier: ^node) -> string
     return identifier.allocator
   }
 
-  if is_member(identifier) && get_type(&identifier.children[0]).value != "[module]"
+  if is_member(identifier) && get_type(identifier.children[0]).value != "[module]"
   {
-    return get_allocator(&identifier.children[0])
+    return get_allocator(identifier.children[0])
   }
 
   return get_type(identifier).value == "[procedure]" ? "static" : "stack"
@@ -88,7 +108,7 @@ is_type :: proc(type: ^node) -> bool
 
   if type.type == .reference
   {
-    return is_type(&type.children[0])
+    return is_type(type.children[0])
   }
 
   return false
@@ -102,21 +122,21 @@ get_type :: proc(identifier: ^node) -> ^node
     return nil
   }
 
-  if is_type(&identifier.children[child_count - 1])
+  if is_type(identifier.children[child_count - 1])
   {
-    return &identifier.children[child_count - 1]
+    return identifier.children[child_count - 1]
   }
 
   return nil
 }
 
-to_node :: proc(token: tokens.token) -> ast.node
+to_node :: proc(token: tokens.token) -> ^ast.node
 {
-  return {
+  return make_node({
     type = ast.to_node_type(token.type),
     value = token.value,
     src_position = token.src_position
-  }
+  })
 }
 
 to_node_type :: proc(token_type: tokens.token_type) -> node_type

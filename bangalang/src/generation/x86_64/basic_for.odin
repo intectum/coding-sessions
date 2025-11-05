@@ -15,14 +15,14 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   ctx.next_index += 1
 
   child_index := 0
-  child_node := &node.children[child_index]
+  child_node := node.children[child_index]
   child_index += 1
 
   if child_node.type == .assignment_statement
   {
     generate_assignment(ctx, child_node)
 
-    child_node = &node.children[child_index]
+    child_node = node.children[child_index]
     child_index += 1
   }
 
@@ -36,10 +36,10 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   fmt.sbprintfln(&ctx.output, "  cmp %s %s, 0 ; test expression", expression_operation_size, to_operand(expression_location))
   fmt.sbprintfln(&ctx.output, "  je .for_%i_end ; skip for scope when false/zero", ctx.for_index)
 
-  child_node = &node.children[child_index]
+  child_node = node.children[child_index]
   child_index += 1
 
-  statement_node := &node.children[len(node.children) - 1]
+  statement_node := node.children[len(node.children) - 1]
   generate_scope(ctx, statement_node)
 
   fmt.sbprintfln(&ctx.output, ".for_%i_continue:", ctx.for_index)

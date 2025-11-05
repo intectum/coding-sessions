@@ -9,7 +9,7 @@ import "../src"
 type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   child_index := 0
-  procedure_node := &node.children[child_index]
+  procedure_node := node.children[child_index]
   child_index += 1
 
   if ast.is_type(procedure_node)
@@ -20,7 +20,7 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       return false
     }
 
-    param_node := &node.children[child_index]
+    param_node := node.children[child_index]
     child_index += 1
 
     type_check_rhs_expression(param_node, ctx, nil) or_return
@@ -34,14 +34,13 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       return false
     }
 
-    // TODO cleanup AST
-    append(&node.children, ast.node { type = .type, value = procedure_node.value })
+    append(&node.children, ast.clone_node(procedure_node))
 
-    type_node := ast.node { type = .type, value = "[procedure]" }
-    append(&type_node.children, ast.node { type = .type, value = "[parameters]" })
-    append(&type_node.children[0].children, ast.node { type = .identifier, value = "value" })
-    append(&type_node.children[0].children[0].children, param_type_node^)
-    append(&type_node.children, procedure_node^)
+    type_node := ast.make_node({ type = .type, value = "[procedure]" })
+    append(&type_node.children, ast.make_node({ type = .type, value = "[parameters]" }))
+    append(&type_node.children[0].children, ast.make_node({ type = .identifier, value = "value" }))
+    append(&type_node.children[0].children[0].children, param_type_node)
+    append(&type_node.children, ast.clone_node(procedure_node))
     append(&procedure_node.children, type_node)
 
     return true
@@ -72,10 +71,10 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   for child_index < len(node.children)
   {
-    param_node_from_type := &params_type_node.children[child_index - 1]
-    param_lhs_node_from_type := &param_node_from_type.children[0]
+    param_node_from_type := params_type_node.children[child_index - 1]
+    param_lhs_node_from_type := param_node_from_type.children[0]
 
-    param_node := &node.children[child_index]
+    param_node := node.children[child_index]
     child_index += 1
 
     type_check_rhs_expression(param_node, ctx, ast.get_type(param_lhs_node_from_type)) or_return
@@ -83,8 +82,8 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
   if len(procedure_type_node.children) == 2
   {
-    return_type_node := &procedure_type_node.children[1]
-    append(&node.children, return_type_node^)
+    return_type_node := procedure_type_node.children[1]
+    append(&node.children, return_type_node)
   }
 
   return true

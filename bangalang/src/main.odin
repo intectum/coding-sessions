@@ -6,6 +6,7 @@ import "core:os"
 import "core:strings"
 import "core:sys/linux"
 
+import "./ast"
 import "./generation"
 import "./generation/x86_64"
 import "./program"
@@ -99,6 +100,12 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   globals_module := &the_program.modules[program.get_qualified_module_name(globals_path)]
   for identifier in globals_module.identifiers
   {
+    if identifier == "import"
+    {
+      identifier_node := globals_module.identifiers[identifier]
+      append(&identifier_node.children[0].children, ast.make_node({ type = .type, value = "[module]" }))
+    }
+
     the_program.identifiers[identifier] = globals_module.identifiers[identifier]
   }
 

@@ -6,13 +6,13 @@ import "../ast"
 import "../tokens"
 
 // Based on https://en.wikipedia.org/wiki/Operator-precedence_parser#Pseudocode
-parse_rhs_expression :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
+parse_rhs_expression :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   first_primary_node := parse_primary(stream, .rhs) or_return
   return parse_rhs_expression_1(stream, first_primary_node, 0)
 }
 
-parse_rhs_expression_1 :: proc(stream: ^tokens.stream, lhs: ast.node, min_precedence: int) -> (final_lhs: ast.node, ok: bool)
+parse_rhs_expression_1 :: proc(stream: ^tokens.stream, lhs: ^ast.node, min_precedence: int) -> (final_lhs: ^ast.node, ok: bool)
 {
   final_lhs = lhs
 

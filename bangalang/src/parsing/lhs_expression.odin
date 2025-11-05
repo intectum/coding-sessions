@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_lhs_expression :: proc(stream: ^tokens.stream) -> (ast.node, bool)
+parse_lhs_expression :: proc(stream: ^tokens.stream) -> (^ast.node, bool)
 {
   declaration_stream := stream^
   declaration_node, declaration_ok := parse_lhs_declaration(&declaration_stream)

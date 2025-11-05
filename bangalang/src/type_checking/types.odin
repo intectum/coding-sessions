@@ -16,12 +16,12 @@ unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
 
 coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 {
-  if a == nil || a.value == "[none]" || a.directive == "#danger_untyped"
+  if a == nil || a.value == "[none]"
   {
     return b, true
   }
 
-  if b == nil || b.value == "[none]" || b.directive == "#danger_untyped"
+  if b == nil || b.value == "[none]"
   {
     return a, true
   }
@@ -115,7 +115,7 @@ coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 
     for child_index := 0; child_index < len(a.children); child_index += 1
     {
-      _, child_coerce_ok := coerce_type(&a.children[child_index], &b.children[child_index])
+      _, child_coerce_ok := coerce_type(a.children[child_index], b.children[child_index])
       if !child_coerce_ok
       {
         return nil, false
@@ -143,7 +143,7 @@ type_name :: proc(type_node: ^ast.node) -> string
 
   if type_node.type == .reference
   {
-    return strings.concatenate({ prefix, "^", type_name(&type_node.children[0]) })
+    return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
   }
 
   switch type_node.value
@@ -157,33 +157,33 @@ type_name :: proc(type_node: ^ast.node) -> string
   case "[any_string]":
     return strings.concatenate({ prefix, "<any string>" })
   case "[array]":
-    length_expression_node := &type_node.children[1]
+    length_expression_node := type_node.children[1]
     length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
-    return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[", length, "]" })
+    return strings.concatenate({ prefix, type_name(type_node.children[0]), "[", length, "]" })
   case "[procedure]":
     param_type_names: [dynamic]string
-    params_type_node := &type_node.children[0]
+    params_type_node := type_node.children[0]
     for param_node in params_type_node.children
     {
-      param_lhs_node := &type_node.children[0]
+      param_lhs_node := type_node.children[0]
       append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(ast.get_type(param_lhs_node)) }))
     }
 
     return_type_name: string
     if len(type_node.children) == 2
     {
-      return_type_node := &type_node.children[1]
+      return_type_node := type_node.children[1]
       return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
     }
 
     return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
   case "[slice]":
-    return strings.concatenate({ prefix, type_name(&type_node.children[0]), "[]" })
+    return strings.concatenate({ prefix, type_name(type_node.children[0]), "[]" })
   case "[struct]":
     member_type_names: [dynamic]string
-    for &member_node in type_node.children
+    for member_node in type_node.children
     {
-      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(ast.get_type(&member_node)) }))
+      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(ast.get_type(member_node)) }))
     }
 
     return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
@@ -198,17 +198,18 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
   {
     if new_type_node.value == "[any_string]" && node.value == "[any_string]"
     {
-      node^ = ctx.program.identifiers["string"]
+      // TODO not shallow copy...
+      node^ = ctx.program.identifiers["string"]^
     }
-    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]" || node.directive == "#danger_untyped"
+    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]"
     {
       node^ = new_type_node^
     }
   }
 
-  for &child_node in node.children
+  for child_node in node.children
   {
-    upgrade_types(&child_node, new_type_node, ctx)
+    upgrade_types(child_node, new_type_node, ctx)
   }
 }
 
@@ -218,7 +219,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
   {
     if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
     {
-      child_node := &node.children[0]
+      child_node := node.children[0]
       module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
       if child_node.value in module.imports
       {
@@ -226,7 +227,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
         imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
         if node.value in imported_module.identifiers
         {
-          identifier_node := &imported_module.identifiers[node.value]
+          identifier_node := imported_module.identifiers[node.value]
           if ast.is_type(identifier_node)
           {
             node^ = identifier_node^
@@ -252,15 +253,17 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
     return false, false
   }
 
-  for &child_node in node.children
+  for child_node in node.children
   {
-    child_result, child_ok := resolve_types(&child_node, ctx)
+    if child_node.type == .scope_statement do continue
+
+    child_result, child_ok := resolve_types(child_node, ctx)
     if !child_ok
     {
       return false, false
     }
 
-    if child_node.type != .scope_statement && child_result
+    if child_result
     {
       if node.type == .index
       {

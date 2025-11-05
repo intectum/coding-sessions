@@ -13,7 +13,7 @@ auto_dereference :: proc(node: ^ast.node)
     return
   }
 
-  child_node := node^
+  child_node := ast.clone_node(node)
 
   node^ = {
     type = .dereference,
@@ -29,9 +29,9 @@ auto_dereference :: proc(node: ^ast.node)
 
 convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
 {
-  if len(node.children) > 0 && !ast.is_type(&node.children[0])
+  if len(node.children) > 0 && !ast.is_type(node.children[0])
   {
-    child_result := convert_soa_index(&node.children[0], ctx)
+    child_result := convert_soa_index(node.children[0], ctx)
     if child_result == 0 && node.type == .index
     {
       return 1
@@ -39,15 +39,15 @@ convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
     else if child_result == 1 && node.type == .identifier
     {
       member_node := node
-      index_node := &member_node.children[0]
-      soa_node := &index_node.children[0]
+      index_node := member_node.children[0]
+      soa_node := index_node.children[0]
 
-      new_node: ast.node = { type = .index }
-      append(&new_node.children, ast.node { type = .identifier, value = member_node.value })
-      append(&new_node.children[0].children, ast.node { type = .identifier, value = soa_node.value })
+      new_node := ast.make_node({ type = .index })
+      append(&new_node.children, ast.make_node({ type = .identifier, value = member_node.value }))
+      append(&new_node.children[0].children, ast.make_node({ type = .identifier, value = soa_node.value }))
       append(&new_node.children, index_node.children[1])
 
-      node^ = new_node
+      node^ = new_node^
     }
   }
 

@@ -10,8 +10,8 @@ import ".."
 
 copy_stack_address :: proc(ctx: ^generation.gen_context, offset: int, register_num: int) -> location
 {
-  dest := register(register_num, &reference_type_node)
-  copy(ctx, register("sp", &reference_type_node), dest, &reference_type_node, "copy stack address")
+  dest := register(register_num, reference_type_node)
+  copy(ctx, register("sp", reference_type_node), dest, reference_type_node, "copy stack address")
   return memory(to_operand(dest), offset)
 }
 
@@ -71,7 +71,7 @@ copy4 :: proc(ctx: ^generation.gen_context, src: location, dest: location, type_
   assert(src.type == .register, "Cannot copy4 from non-register")
   assert(dest.type == .memory, "Cannot copy4 to non-memory")
 
-  element_type_node := &type_node.children[0]
+  element_type_node := type_node.children[0]
   element_size := to_byte_size(element_type_node)
   precision := to_precision_size(element_size)
 

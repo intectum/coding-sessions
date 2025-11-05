@@ -12,9 +12,11 @@ primary_type :: enum
   type
 }
 
-parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.node, ok: bool)
+parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast.node, ok: bool)
 {
-  node.src_position = tokens.peek_token(stream).src_position
+  node = ast.make_node({
+    src_position = tokens.peek_token(stream).src_position
+  })
 
   #partial switch tokens.peek_token(stream).type
   {
@@ -172,9 +174,9 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
 
       tokens.next_token(stream, .hat) or_return
 
-      child_node := node
+      child_node := ast.clone_node(node)
 
-      node = {
+      node^ = {
         type = .dereference,
         src_position = child_node.src_position
       }
@@ -183,9 +185,9 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
     case .opening_square_bracket:
       tokens.next_token(stream, .opening_square_bracket) or_return
 
-      child_node := node
+      child_node := ast.clone_node(node)
 
-      node = {
+      node^ = {
         type = type == .type ? .type : .index,
         value = type == .type ? "[slice]" : "",
         src_position = child_node.src_position
@@ -207,13 +209,13 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
       {
         if tokens.peek_token(stream).type == .closing_square_bracket
         {
-          append(&node.children, ast.node { type = .nil_literal })
+          append(&node.children, ast.make_node({ type = .nil_literal }))
 
-          append(&node.children, ast.node { type = .nil_literal })
+          append(&node.children, ast.make_node({ type = .nil_literal }))
         }
         else if tokens.peek_token(stream).type == .colon
         {
-          append(&node.children, ast.node { type = .nil_literal })
+          append(&node.children, ast.make_node({ type = .nil_literal }))
 
           tokens.next_token(stream, .colon) or_return
 
@@ -231,7 +233,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
 
             if tokens.peek_token(stream).type == .closing_square_bracket
             {
-              append(&node.children, ast.node { type = .nil_literal })
+              append(&node.children, ast.make_node({ type = .nil_literal }))
             }
             else
             {
@@ -246,14 +248,14 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
     case .period:
       tokens.next_token(stream, .period) or_return
 
-      child_node := node
+      child_node := ast.clone_node(node)
 
       node = parse_primary(stream, type) or_return
 
-      leaf_node := &node
+      leaf_node := node
       for len(leaf_node.children) > 0
       {
-        leaf_node = &leaf_node.children[0]
+        leaf_node = leaf_node.children[0]
       }
 
       append(&leaf_node.children, child_node)
@@ -264,7 +266,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ast.
         return {}, false
       }
 
-      child_node := node
+      child_node := ast.clone_node(node)
 
       node = parse_call(stream) or_return
 

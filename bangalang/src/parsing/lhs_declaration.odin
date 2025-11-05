@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bool)
+parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   directive: string
   if tokens.peek_token(stream).type == .directive
@@ -26,7 +26,7 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ast.node, ok: bo
   }
   else
   {
-    append(&node.children, ast.node { type = .type, value = "[none]" })
+    append(&node.children, ast.make_node({ type = .type, value = "[none]" }))
   }
 
   if tokens.peek_token(stream).type == .at

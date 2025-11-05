@@ -16,22 +16,22 @@ lib_locations: []string =
   "lib"
 }
 
-type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.node) -> bool
+type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.node) -> bool
 {
-  for &statement in statements
+  for statement in statements
   {
-    resolve_types(&statement, ctx) or_return
+    resolve_types(statement, ctx) or_return
 
-    if ast.is_type_alias_statement(&statement)
+    if ast.is_type_alias_statement(statement)
     {
-      lhs_node := &statement.children[0]
-      rhs_node := &statement.children[2]
+      lhs_node := statement.children[0]
+      rhs_node := statement.children[2]
 
       name := lhs_node.value
       lhs_node^ = rhs_node^
-      ctx.identifiers[name] = lhs_node^
+      ctx.identifiers[name] = lhs_node
     }
-    else if ast.is_link_statement(&statement)
+    else if ast.is_link_statement(statement)
     {
       link := statement.children[1].value
 
@@ -43,12 +43,12 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
 
       append(&ctx.program.links, link)
     }
-    else if ast.is_import_statement(&statement)
+    else if ast.is_import_statement(statement)
     {
-      lhs_node := &statement.children[0]
+      lhs_node := statement.children[0]
       reference := lhs_node.value
 
-      rhs_node := &statement.children[2]
+      rhs_node := statement.children[2]
       module_name := rhs_node.children[1].value
       module_name = module_name[1:len(module_name) - 1]
       lib_name := len(rhs_node.children) == 3 ? rhs_node.children[2].value : strings.concatenate({ "\"", ctx.path[0], "\"" })
@@ -107,19 +107,19 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []ast.nod
       module := &ctx.program.modules[qualified_module_name]
       module.imports[reference] = path
     }
-    else if ast.is_static_procedure_statement(&statement)
+    else if ast.is_static_procedure_statement(statement)
     {
-      lhs_node := &statement.children[0]
-      ctx.out_of_order_identifiers[lhs_node.value] = lhs_node^
+      lhs_node := statement.children[0]
+      ctx.out_of_order_identifiers[lhs_node.value] = lhs_node
     }
   }
 
   failures := false
-  for &statement in statements
+  for statement in statements
   {
-    if ast.is_type_alias_statement(&statement) do continue
+    if ast.is_type_alias_statement(statement) do continue
 
-    if !type_check_statement(&statement, ctx)
+    if !type_check_statement(statement, ctx)
     {
       failures = true
     }

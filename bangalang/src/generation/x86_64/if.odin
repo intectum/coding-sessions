@@ -15,10 +15,10 @@ generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   fmt.sbprintfln(&ctx.output, "; if_%i", if_index)
 
   child_index := 0
-  expression_node := &node.children[child_index]
+  expression_node := node.children[child_index]
   child_index += 1
 
-  statement_node := &node.children[child_index]
+  statement_node := node.children[child_index]
   child_index += 1
 
   else_index := 0
@@ -38,7 +38,7 @@ generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     fmt.sbprintfln(&ctx.output, ".if_%i_else_%i:", if_index, else_index)
     else_index += 1
 
-    expression_location = generate_expression(ctx, &node.children[child_index])
+    expression_location = generate_expression(ctx, node.children[child_index])
     expression_location = copy_to_non_immediate(ctx, expression_location, 0, expression_type_node)
     child_index += 1
 
@@ -48,7 +48,7 @@ generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     else_with_index := strings.concatenate({ "else_", strconv.itoa(buf[:], else_index) })
     fmt.sbprintfln(&ctx.output, "  je .if_%i_%s ; skip else if scope when false/zero", if_index, child_index + 1 < len(node.children) ? else_with_index : "end")
 
-    generate_scope(ctx, &node.children[child_index])
+    generate_scope(ctx, node.children[child_index])
     child_index += 1
   }
 
@@ -58,7 +58,7 @@ generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     fmt.sbprintfln(&ctx.output, ".if_%i_else_%i:", if_index, else_index)
     else_index += 1
 
-    generate_scope(ctx, &node.children[child_index])
+    generate_scope(ctx, node.children[child_index])
     child_index += 1
   }
 

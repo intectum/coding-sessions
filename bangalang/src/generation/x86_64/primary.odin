@@ -12,9 +12,9 @@ import ".."
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
 {
   child_location: location
-  if node.type != .compound_literal && len(node.children) > 0 && !ast.is_type(&node.children[0])
+  if node.type != .compound_literal && len(node.children) > 0 && !ast.is_type(node.children[0])
   {
-    child_location = generate_primary(ctx, &node.children[0], register_num, contains_allocations)
+    child_location = generate_primary(ctx, node.children[0], register_num, contains_allocations)
   }
 
   type_node := ast.get_type(node)
@@ -46,14 +46,14 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     fmt.sbprintfln(&ctx.output, "  xor byte %s, 1 ; not", to_operand(location))
     return location
   case .dereference:
-    location := copy_to_register(ctx, child_location, register_num, &reference_type_node, "dereference")
+    location := copy_to_register(ctx, child_location, register_num, reference_type_node, "dereference")
     return memory(to_operand(location), 0)
   case .index:
-    child_type_node := ast.get_type(&node.children[0])
+    child_type_node := ast.get_type(node.children[0])
 
     child_length_location := get_length_location(child_type_node, child_location)
 
-    start_expression_node := &node.children[1]
+    start_expression_node := node.children[1]
     start_expression_location := immediate(0)
     if start_expression_node.type != .nil_literal
     {
@@ -62,7 +62,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
     start_expression_type_node := ast.get_type(start_expression_node)
     start_expression_location = copy_to_register(ctx, start_expression_location, register_num + 1, start_expression_type_node)
-    start_expression_location = convert(ctx, start_expression_location, register_num + 1, start_expression_type_node, &index_type_node)
+    start_expression_location = convert(ctx, start_expression_location, register_num + 1, start_expression_type_node, index_type_node)
 
     if start_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
     {
@@ -77,7 +77,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       data_location := child_location
       if child_type_node.value == "[slice]"
       {
-        data_location = copy_to_register(ctx, data_location, register_num, &reference_type_node, "dereference")
+        data_location = copy_to_register(ctx, data_location, register_num, reference_type_node, "dereference")
         data_location = memory(to_operand(data_location), 0)
       }
 
@@ -86,9 +86,9 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     }
 
     address_location := get_raw_location(ctx, child_type_node, child_location, register_num)
-    address_location = copy_to_register(ctx, address_location, register_num, &reference_type_node)
-    offset_location := register(register_num + 2, &reference_type_node)
-    element_type_node := child_type_node.value == "[array]" || child_type_node.value == "[slice]" ? &child_type_node.children[0] : child_type_node
+    address_location = copy_to_register(ctx, address_location, register_num, reference_type_node)
+    offset_location := register(register_num + 2, reference_type_node)
+    element_type_node := child_type_node.value == "[array]" || child_type_node.value == "[slice]" ? child_type_node.children[0] : child_type_node
 
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; copy", to_operand(offset_location), to_operand(start_expression_location))
     fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply by element size", to_operand(offset_location), to_operand(immediate(to_byte_size(element_type_node))))
@@ -100,9 +100,9 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       slice_address_location := memory("rsp", 0)
       slice_length_location := memory("rsp", address_size)
 
-      copy(ctx, address_location, slice_address_location, &reference_type_node)
+      copy(ctx, address_location, slice_address_location, reference_type_node)
 
-      end_expression_node := &node.children[2]
+      end_expression_node := node.children[2]
       end_expression_location := child_length_location
       if end_expression_node.type != .nil_literal
       {
@@ -111,7 +111,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
       end_expression_type_node := ast.get_type(end_expression_node)
       end_expression_location = copy_to_register(ctx, end_expression_location, register_num + 2, end_expression_type_node)
-      end_expression_location = convert(ctx, end_expression_location, register_num + 2, end_expression_type_node, &index_type_node)
+      end_expression_location = convert(ctx, end_expression_location, register_num + 2, end_expression_type_node, index_type_node)
 
       if end_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
       {

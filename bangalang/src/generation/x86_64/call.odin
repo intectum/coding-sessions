@@ -12,7 +12,7 @@ syscall_param_registers_numbered: []int = { -1, -3, -2 }
 
 generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, deallocate_return: bool) -> location
 {
-  procedure_node := &node.children[0]
+  procedure_node := node.children[0]
   if ast.is_type(procedure_node)
   {
     return generate_conversion_call(ctx, node, register_num)
@@ -22,7 +22,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   procedure_allocator := ast.get_allocator(procedure_node)
 
   params_type_node := procedure_type_node.children[0]
-  return_type_node := len(procedure_type_node.children) == 2 ? &procedure_type_node.children[1] : nil
+  return_type_node := len(procedure_type_node.children) == 2 ? procedure_type_node.children[1] : nil
 
   call_stack_size := 0
   return_only_call_stack_size := 0
@@ -30,7 +30,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   {
     for param_node in params_type_node.children
     {
-      param_lhs_node := &param_node.children[0]
+      param_lhs_node := param_node.children[0]
       call_stack_size += to_byte_size(ast.get_type(param_lhs_node))
     }
     if return_type_node != nil
@@ -54,7 +54,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   {
     for param_node_from_type, param_index in params_type_node.children
     {
-      param_lhs_node_from_type := &param_node_from_type.children[0]
+      param_lhs_node_from_type := param_node_from_type.children[0]
       param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
 
       param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
@@ -63,11 +63,11 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
       expression_node: ^ast.node
       if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
       {
-        expression_node = &node.children[param_index + 1]
+        expression_node = node.children[param_index + 1]
       }
       else
       {
-        expression_node = &param_node_from_type.children[2]
+        expression_node = param_node_from_type.children[2]
       }
 
       expression_location := generate_expression(ctx, expression_node, register_num)
@@ -94,18 +94,18 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     offset := call_stack_size - return_only_call_stack_size
     for &param_node_from_type, param_index in params_type_node.children
     {
-      param_lhs_node_from_type := &param_node_from_type.children[0]
+      param_lhs_node_from_type := param_node_from_type.children[0]
       param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
       offset -= to_byte_size(param_lhs_type_node)
 
       expression_node: ^ast.node
       if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
       {
-        expression_node = &node.children[param_index + 1]
+        expression_node = node.children[param_index + 1]
       }
       else
       {
-        expression_node = &param_node_from_type.children[2]
+        expression_node = param_node_from_type.children[2]
       }
 
       expression_location := generate_expression(ctx, expression_node, register_num)
@@ -151,13 +151,13 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 
 generate_conversion_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int) -> location
 {
-  procedure_node := &node.children[0]
+  procedure_node := node.children[0]
   procedure_type_node := ast.get_type(procedure_node)
 
-  param_type_node := &procedure_type_node.children[0].children[0].children[0]
-  return_type_node := &procedure_type_node.children[1]
+  param_type_node := procedure_type_node.children[0].children[0].children[0]
+  return_type_node := procedure_type_node.children[1]
 
-  param_location := generate_expression(ctx, &node.children[1], register_num)
+  param_location := generate_expression(ctx, node.children[1], register_num)
 
   return convert(ctx, param_location, register_num, param_type_node, return_type_node)
 }

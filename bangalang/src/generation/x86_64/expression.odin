@@ -26,8 +26,8 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
     return generate_primary(ctx, node, register_num, contains_allocations)
   }
 
-  lhs_node := &node.children[0]
-  rhs_node := &node.children[1]
+  lhs_node := node.children[0]
+  rhs_node := node.children[1]
 
   operand_type_node := ast.get_type(lhs_node)
   result_type_node := ast.get_type(node)
@@ -89,7 +89,7 @@ generate_expression_slice :: proc(ctx: ^generation.gen_context, node: ^ast.node,
     rhs_length_location.offset += address_size
   }
 
-  lhs_length_register_location := copy_to_register(ctx, lhs_length_location, register_num + 1, &length_type_node)
+  lhs_length_register_location := copy_to_register(ctx, lhs_length_location, register_num + 1, length_type_node)
   fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare lengths", to_operand(lhs_length_register_location), to_operand(rhs_length_location));
   fmt.sbprintfln(&ctx.output, "  jne .slice_cmp_%i_set ; lengths not equals", slice_cmp_index);
 

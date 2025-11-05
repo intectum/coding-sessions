@@ -12,7 +12,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 {
   if ast.is_member(node)
   {
-    child_node := &node.children[0]
+    child_node := node.children[0]
     auto_dereference(child_node)
 
     child_type_node := ast.get_type(child_node)
@@ -21,7 +21,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     case "[array]", "[slice]":
       if node.value == "raw"
       {
-        raw_type_node := ast.node { type = .reference }
+        raw_type_node := ast.make_node({ type = .reference })
         append(&raw_type_node.children, child_type_node.children[0])
         append(&node.children, raw_type_node)
       }
@@ -49,7 +49,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         return false
       }
 
-      identifier_node := &imported_module.identifiers[node.value]
+      identifier_node := imported_module.identifiers[node.value]
       if identifier_node.directive == "#private"
       {
         src.print_position_message(node.src_position, "'%s' is a private member of module '%s'", node.value, child_node.value)
@@ -61,15 +61,15 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         reference(ctx, imported_module_path[:], node.value)
       }
 
-      append(&node.children, ast.get_type(identifier_node)^)
+      append(&node.children, ast.get_type(identifier_node))
       node.allocator = identifier_node.allocator
     case "[struct]":
       found_member := false
-      for &member_node in child_type_node.children
+      for member_node in child_type_node.children
       {
         if member_node.value == node.value
         {
-          append(&node.children, ast.get_type(&member_node)^)
+          append(&node.children, ast.get_type(member_node))
           found_member = true
           break
         }
@@ -98,7 +98,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       reference(ctx, identifier_path, node.value)
     }
 
-    append(&node.children, ast.get_type(identifier_node)^)
+    append(&node.children, ast.get_type(identifier_node))
     node.allocator = identifier_node.allocator
   }
 
@@ -107,8 +107,8 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
 type_check_swizzle_member :: proc(node: ^ast.node) -> bool
 {
-  child_type_node := ast.get_type(&node.children[0])
-  element_type_node := &child_type_node.children[0]
+  child_type_node := ast.get_type(node.children[0])
+  element_type_node := child_type_node.children[0]
 
   if element_type_node.value != "f32"
   {
@@ -146,13 +146,13 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
 
   if len(node.value) == 1
   {
-    append(&node.children, element_type_node^)
+    append(&node.children, element_type_node)
   }
   else
   {
-    type_node: ast.node = { type = .type, value = "[array]" }
-    append(&type_node.children, element_type_node^)
-    append(&type_node.children, ast.node { type = .number_literal, value = fmt.aprintf("%i", len(node.value)) })
+    type_node := ast.make_node({ type = .type, value = "[array]" })
+    append(&type_node.children, element_type_node)
+    append(&type_node.children, ast.make_node({ type = .number_literal, value = fmt.aprintf("%i", len(node.value)) }))
     append(&node.children, type_node)
   }
 

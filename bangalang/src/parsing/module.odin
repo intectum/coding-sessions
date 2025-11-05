@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_module :: proc(stream: ^tokens.stream) -> (nodes: [dynamic]ast.node, ok: bool)
+parse_module :: proc(stream: ^tokens.stream) -> (nodes: [dynamic]^ast.node, ok: bool)
 {
   ctx: parsing_context = { true }
 
