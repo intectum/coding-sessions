@@ -206,7 +206,7 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
     }
     else
     {
-      lhs_type_node := ast.get_type(lhs_node)
+      lhs_type_node := lhs_node.data_type
       if lhs_node.directive == "#align4" || lhs_type_node.directive == "#align4"
       {
         fmt.sbprintln(&ctx.output, "  align 4")

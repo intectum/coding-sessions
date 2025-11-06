@@ -27,8 +27,7 @@ parse_struct_type :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 
     tokens.next_token(stream, .colon) or_return
 
-    member_type_node := parse_primary(stream, .type) or_return
-    append(&member_node.children, member_type_node)
+    member_node.data_type = parse_primary(stream, .type) or_return
 
     append(&node.children, member_node)
   }

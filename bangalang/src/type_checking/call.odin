@@ -25,28 +25,28 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
     type_check_rhs_expression(param_node, ctx, nil) or_return
 
-    param_type_node := ast.get_type(param_node)
-    _, param_numerical_type := slice.linear_search(numerical_types, param_type_node.value)
+    _, param_numerical_type := slice.linear_search(numerical_types, param_node.data_type.value)
     _, return_numerical_type := slice.linear_search(numerical_types, procedure_node.value)
     if !param_numerical_type && !return_numerical_type
     {
-      src.print_position_message(node.src_position, "Type '%s' cannot be converted to type '%s'", param_type_node.value, procedure_node.value)
+      src.print_position_message(node.src_position, "Type '%s' cannot be converted to type '%s'", param_node.data_type.value, procedure_node.value)
       return false
     }
 
-    append(&node.children, ast.clone_node(procedure_node))
+    upgrade_types(param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"], ctx)
 
-    type_node := ast.make_node({ type = .type, value = "[procedure]" })
-    append(&type_node.children, ast.make_node({ type = .type, value = "[parameters]" }))
-    append(&type_node.children[0].children, ast.make_node({ type = .identifier, value = "value" }))
-    append(&type_node.children[0].children[0].children, param_type_node)
-    append(&type_node.children, ast.clone_node(procedure_node))
-    append(&procedure_node.children, type_node)
+    node.data_type = ast.clone_node(procedure_node)
+
+    procedure_type_node := ast.make_node({ type = .type, value = "[procedure]" })
+    append(&procedure_type_node.children, ast.make_node({ type = .type, value = "[parameters]" }))
+    append(&procedure_type_node.children[0].children, ast.make_node({ type = .identifier, value = "value", data_type = param_node.data_type }))
+    append(&procedure_type_node.children, ast.clone_node(procedure_node))
+    procedure_node.data_type = procedure_type_node
 
     return true
   }
 
-  procedure_type_node := ast.get_type(procedure_node)
+  procedure_type_node := procedure_node.data_type
   if procedure_type_node.value != "[procedure]"
   {
     src.print_position_message(node.src_position, "'%s' does not refer to a procedure", procedure_node.value)
@@ -77,13 +77,12 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     param_node := node.children[child_index]
     child_index += 1
 
-    type_check_rhs_expression(param_node, ctx, ast.get_type(param_lhs_node_from_type)) or_return
+    type_check_rhs_expression(param_node, ctx, param_lhs_node_from_type.data_type) or_return
   }
 
   if len(procedure_type_node.children) == 2
   {
-    return_type_node := procedure_type_node.children[1]
-    append(&node.children, return_type_node)
+    node.data_type = procedure_type_node.children[1]
   }
 
   return true

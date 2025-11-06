@@ -30,7 +30,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
     size := 0
     for member_node in type_node.children
     {
-      size += to_byte_size(ast.get_type(member_node))
+      size += to_byte_size(member_node.data_type)
     }
 
     return size

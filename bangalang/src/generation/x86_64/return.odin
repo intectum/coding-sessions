@@ -14,7 +14,7 @@ generate_return :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     if len(node.children) > 0
     {
       expression_node := node.children[0]
-      expression_type_node := ast.get_type(expression_node)
+      expression_type_node := expression_node.data_type
 
       expression_location := generate_expression(ctx, expression_node)
 
@@ -36,7 +36,7 @@ generate_return :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   else
   {
     expression_node := node.children[0]
-    expression_type_node := ast.get_type(expression_node)
+    expression_type_node := expression_node.data_type
 
     expression_location := generate_expression(ctx, expression_node)
 

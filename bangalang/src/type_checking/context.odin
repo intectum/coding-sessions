@@ -15,19 +15,21 @@ type_checking_context :: struct
   within_for: bool
 }
 
-copy_type_checking_context := proc(ctx: ^type_checking_context) -> type_checking_context
+copy_context := proc(ctx: ^type_checking_context) -> type_checking_context
 {
-  ctx_copy: type_checking_context
+  ctx_copy := ctx^
 
-  ctx_copy.program = ctx.program
-  ctx_copy.path = ctx.path
-
+  ctx_copy.identifiers = {}
   for key in ctx.identifiers
   {
     ctx_copy.identifiers[key] = ctx.identifiers[key]
   }
 
-  ctx_copy.within_for = ctx.within_for
+  ctx_copy.out_of_order_identifiers = {}
+  for key in ctx.out_of_order_identifiers
+  {
+    ctx_copy.out_of_order_identifiers[key] = ctx.out_of_order_identifiers[key]
+  }
 
   return ctx_copy
 }
@@ -87,5 +89,5 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
 
 is_visible_nested :: proc(identifier_node: ^ast.node) -> bool
 {
-  return ast.is_type(identifier_node) || ast.get_type(identifier_node).value == "[module]" || ast.get_allocator(identifier_node) == "extern" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "none" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
+  return ast.is_type(identifier_node) || identifier_node.data_type.value == "[module]" || ast.get_allocator(identifier_node) == "extern" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "none" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
 }

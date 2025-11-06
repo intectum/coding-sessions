@@ -22,11 +22,11 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: b
   if type_ok
   {
     stream^ = type_stream
-    append(&node.children, type_node)
+    node.data_type = type_node
   }
   else
   {
-    append(&node.children, ast.make_node({ type = .type, value = "[none]" }))
+    node.data_type = ast.make_node({ type = .type, value = "[none]" })
   }
 
   if tokens.peek_token(stream).type == .at

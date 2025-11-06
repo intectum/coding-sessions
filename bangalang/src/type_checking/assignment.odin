@@ -11,11 +11,11 @@ import "../src"
 type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   lhs_node := node.children[0]
-  declaration := ast.get_type(lhs_node) != nil
+  declaration := lhs_node.data_type != nil
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
-  procedure_definition := ast.is_static_procedure(lhs_node) || (ast.get_type(lhs_node).value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := ast.is_static_procedure(lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value
@@ -32,8 +32,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       new_node: ast.node = { type = .assignment_statement }
       append(&new_node.children, lhs_node)
       append(&new_node.children, ast.make_node({ type = .assign, value = "=" }))
-      append(&new_node.children, ast.make_node({ type = .identifier, value = name, allocator = "static" }))
-      append(&new_node.children[2].children, ast.get_type(lhs_node))
+      append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = "static" }))
       node^ = new_node
 
       ctx.identifiers[name] = new_node.children[2]
@@ -65,13 +64,18 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         return false
       }
 
-      lhs_type_node := ast.get_type(lhs_node)
+      lhs_type_node := lhs_node.data_type
       type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
 
-      rhs_type_node := ast.get_type(rhs_node)
       if lhs_type_node.value == "[none]"
       {
-        append(&lhs_node.children, rhs_type_node)
+        if rhs_node.data_type == nil
+        {
+          src.print_position_message(rhs_node.src_position, "Must return value from right-hand-side")
+          return false
+        }
+
+        lhs_node.data_type = rhs_node.data_type
       }
     }
 
@@ -83,7 +87,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         return false
       }
 
-      rhs_type_node := ast.get_type(rhs_node)
+      rhs_type_node := rhs_node.data_type
       _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
       if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
       {
@@ -117,8 +121,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     }
   }
 
-  lhs_type_node := ast.get_type(lhs_node)
-  if lhs_type_node == nil || lhs_type_node.value == "[any_float]" || lhs_type_node.value == "[any_int]" || lhs_type_node.value == "[any_number]" || lhs_type_node.value == "[any_string]"
+  if lhs_node.data_type == nil || lhs_node.data_type.value == "[any_float]" || lhs_node.data_type.value == "[any_int]" || lhs_node.data_type.value == "[any_number]" || lhs_node.data_type.value == "[any_string]"
   {
     src.print_position_message(lhs_node.src_position, "Could not determine type of '%s'", lhs_node.value)
     return false
@@ -137,18 +140,18 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       }
 
       length_expression_node: ^ast.node
-      if lhs_type_node.value == "[array]"
+      if lhs_node.data_type.value == "[array]"
       {
-        length_expression_node = lhs_type_node.children[1]
+        length_expression_node = lhs_node.data_type.children[1]
 
-        lhs_type_node.value = "[slice]"
-        resize(&lhs_type_node.children, 1)
+        lhs_node.data_type.value = "[slice]"
+        resize(&lhs_node.data_type.children, 1)
       }
       else
       {
-        reference_node: ast.node = { type = .reference }
-        append(&reference_node.children, ast.clone_node(lhs_type_node))
-        lhs_type_node^ = reference_node
+        reference_node := ast.make_node({ type = .reference })
+        append(&reference_node.children, ast.clone_node(lhs_node.data_type))
+        lhs_node.data_type = reference_node
       }
 
       operator_node := ast.make_node({ type = .assign, value = "=" })
@@ -158,7 +161,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       append(&allocator_node.children, ast.make_node({ type = .identifier, value = strings.concatenate({ "allocate_", allocator }) }))
       append(&allocator_node.children[0].children, ast.make_node({ type = .identifier, value = "memory" }))
 
-      if lhs_type_node.value == "[slice]"
+      if lhs_node.data_type.value == "[slice]"
       {
         append(&allocator_node.children, ast.make_node({ type = .multiply, value = "*" }))
         append(&allocator_node.children[1].children, ast.make_node({ type = .number_literal }))
@@ -181,12 +184,12 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         append(&node.children, allocator_node)
       }
 
-      type_check_rhs_expression(node.children[2], ctx, lhs_type_node) or_return
+      type_check_rhs_expression(node.children[2], ctx, lhs_node.data_type) or_return
     }
 
-    if contains_non_fixed_array_sizes(lhs_type_node)
+    if contains_non_fixed_array_sizes(lhs_node.data_type)
     {
-      src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_type_node))
+      src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_node.data_type))
       return false
     }
 

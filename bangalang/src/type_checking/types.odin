@@ -166,7 +166,7 @@ type_name :: proc(type_node: ^ast.node) -> string
     for param_node in params_type_node.children
     {
       param_lhs_node := type_node.children[0]
-      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(ast.get_type(param_lhs_node)) }))
+      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(param_lhs_node.data_type) }))
     }
 
     return_type_name: string
@@ -183,7 +183,7 @@ type_name :: proc(type_node: ^ast.node) -> string
     member_type_names: [dynamic]string
     for member_node in type_node.children
     {
-      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(ast.get_type(member_node)) }))
+      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(member_node.data_type) }))
     }
 
     return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
@@ -194,16 +194,15 @@ type_name :: proc(type_node: ^ast.node) -> string
 
 upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_checking_context)
 {
-  if node.type == .type
+  if node.data_type != nil
   {
-    if new_type_node.value == "[any_string]" && node.value == "[any_string]"
+    if new_type_node.value == "[any_string]" && node.data_type.value == "[any_string]"
     {
-      // TODO not shallow copy...
-      node^ = ctx.program.identifiers["string"]^
+      node.data_type = ctx.program.identifiers["string"]
     }
-    else if node.value == "[none]" || node.value == "[any_float]" || node.value == "[any_int]" || node.value == "[any_number]" || node.value == "[any_string]"
+    else if node.data_type.value == "[none]" || node.data_type.value == "[any_float]" || node.data_type.value == "[any_int]" || node.data_type.value == "[any_number]" || node.data_type.value == "[any_string]"
     {
-      node^ = new_type_node^
+      node.data_type = new_type_node
     }
   }
 
@@ -251,6 +250,15 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
   {
     src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
     return false, false
+  }
+
+  if node.data_type != nil
+  {
+    _, data_type_ok := resolve_types(node.data_type, ctx)
+    if !data_type_ok
+    {
+      return false, false
+    }
   }
 
   for child_node in node.children

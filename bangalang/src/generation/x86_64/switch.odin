@@ -26,10 +26,9 @@ generate_switch :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     case_expression_node := case_node.children[0]
     if case_expression_node.type != .default
     {
-      comparison_expression_node := ast.make_node({ type = .equal, value = "=" })
+      comparison_expression_node := ast.make_node({ type = .equal, value = "=", data_type = ast.make_node({ type = .type, value = "bool" }) })
       append(&comparison_expression_node.children, expression_node)
       append(&comparison_expression_node.children, case_expression_node)
-      append(&comparison_expression_node.children, ast.make_node({ type = .type, value = "bool" }))
 
       generate_expression(ctx, comparison_expression_node)
       if child_index < len(node.children)

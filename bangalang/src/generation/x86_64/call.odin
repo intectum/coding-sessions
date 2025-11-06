@@ -18,7 +18,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     return generate_conversion_call(ctx, node, register_num)
   }
 
-  procedure_type_node := ast.get_type(procedure_node)
+  procedure_type_node := procedure_node.data_type
   procedure_allocator := ast.get_allocator(procedure_node)
 
   params_type_node := procedure_type_node.children[0]
@@ -31,7 +31,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     for param_node in params_type_node.children
     {
       param_lhs_node := param_node.children[0]
-      call_stack_size += to_byte_size(ast.get_type(param_lhs_node))
+      call_stack_size += to_byte_size(param_lhs_node.data_type)
     }
     if return_type_node != nil
     {
@@ -55,13 +55,13 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     for param_node_from_type, param_index in params_type_node.children
     {
       param_lhs_node_from_type := param_node_from_type.children[0]
-      param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
+      param_lhs_type_node := param_lhs_node_from_type.data_type
 
       param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
       param_registers_numbered := procedure_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
 
       expression_node: ^ast.node
-      if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
+      if param_index + 1 < len(node.children)
       {
         expression_node = node.children[param_index + 1]
       }
@@ -95,11 +95,11 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     for &param_node_from_type, param_index in params_type_node.children
     {
       param_lhs_node_from_type := param_node_from_type.children[0]
-      param_lhs_type_node := ast.get_type(param_lhs_node_from_type)
+      param_lhs_type_node := param_lhs_node_from_type.data_type
       offset -= to_byte_size(param_lhs_type_node)
 
       expression_node: ^ast.node
-      if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
+      if param_index + 1 < len(node.children)
       {
         expression_node = node.children[param_index + 1]
       }
@@ -152,9 +152,9 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 generate_conversion_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int) -> location
 {
   procedure_node := node.children[0]
-  procedure_type_node := ast.get_type(procedure_node)
+  procedure_type_node := procedure_node.data_type
 
-  param_type_node := procedure_type_node.children[0].children[0].children[0]
+  param_type_node := procedure_type_node.children[0].children[0].data_type
   return_type_node := procedure_type_node.children[1]
 
   param_location := generate_expression(ctx, node.children[1], register_num)

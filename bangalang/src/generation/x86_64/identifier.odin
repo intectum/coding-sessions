@@ -9,7 +9,7 @@ import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
 {
-  type_node := ast.get_type(node)
+  type_node := node.data_type
   if type_node.value == "[module]"
   {
     return {}
@@ -17,7 +17,21 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
   if ast.is_member(node)
   {
-    child_type_node := ast.get_type(node.children[0])
+    child_node := node.children[0]
+    if ast.is_type(child_node)
+    {
+      if node.value == "name"
+      {
+        // TODO as static var?
+        return memory(get_literal_name(&ctx.program.string_literals, "string_", fmt.aprintf("\"%s\"", type_checking.type_name(child_node))), 0)
+      }
+      else if node.value == "size"
+      {
+        return immediate(to_byte_size(child_node))
+      }
+    }
+
+    child_type_node := child_node.data_type
     switch child_type_node.value
     {
     case "[array]", "[slice]":
@@ -84,7 +98,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
           break
         }
 
-        location.offset += to_byte_size(ast.get_type(member_node))
+        location.offset += to_byte_size(member_node.data_type)
       }
 
       return location
@@ -100,7 +114,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
     if (allocator != "extern" && allocator != "none") || node.value == "glsl_kernels" // TODO hmmm
     {
-      if ast.is_member(node) && ast.get_type(node.children[0]).value == "[module]"
+      if ast.is_member(node) && node.children[0].data_type.value == "[module]"
       {
         module := ctx.program.modules[program.get_qualified_module_name(ctx.path)]
         imported_module_path := module.imports[node.children[0].value]

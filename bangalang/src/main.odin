@@ -103,7 +103,7 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
     if identifier == "import"
     {
       identifier_node := globals_module.identifiers[identifier]
-      append(&identifier_node.children[0].children, ast.make_node({ type = .type, value = "[module]" }))
+      append(&identifier_node.data_type.children, ast.make_node({ type = .type, value = "[module]" }))
     }
 
     the_program.identifiers[identifier] = globals_module.identifiers[identifier]

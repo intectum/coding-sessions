@@ -9,7 +9,7 @@ import "../src"
 type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
   lhs_node := node.children[0]
-  lhs_type_node := ast.get_type(lhs_node)
+  lhs_type_node := lhs_node.data_type
   allocator := ast.get_allocator(lhs_node)
 
   if len(node.children) == 1 && (allocator == "glsl" || allocator == "static")

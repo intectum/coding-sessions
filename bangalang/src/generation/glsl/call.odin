@@ -14,14 +14,14 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     return
   }
 
-  procedure_type_node := ast.get_type(procedure_node)
+  procedure_type_node := procedure_node.data_type
   params_type_node := procedure_type_node.children[0]
 
   fmt.sbprintf(&ctx.output, "(")
   for param_node_from_type, param_index in params_type_node.children
   {
     expression_node: ^ast.node
-    if param_index + 1 < len(node.children) && node.children[param_index + 1].type != .type
+    if param_index + 1 < len(node.children)
     {
       expression_node = node.children[param_index + 1]
     }

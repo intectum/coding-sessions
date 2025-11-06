@@ -15,12 +15,12 @@ type_check_rhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context, 
       return false
     }
 
-    append(&node.children, expected_type_node)
+    node.data_type = expected_type_node
   }
 
   type_check_rhs_expression_1(node, ctx) or_return
 
-  type_node := ast.get_type(node)
+  type_node := node.data_type
   coerced_type_node, coerce_ok := coerce_type(type_node, expected_type_node)
   if !coerce_ok
   {
@@ -41,14 +41,14 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   _, binary_operator := slice.linear_search(ast.binary_operators, node.type)
   if !binary_operator
   {
-    type_node := ast.get_type(node)
+    type_node := node.data_type
     directive := node.directive != "" ? node.directive : (type_node != nil ? type_node.directive : "")
     convert_soa_index(node, ctx)
     type_check_primary(node, ctx) or_return
 
     if directive != ""
     {
-      ast.get_type(node).directive = directive
+      node.data_type.directive = directive
     }
 
     return true
@@ -60,8 +60,8 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   rhs_node := node.children[1]
   type_check_rhs_expression_1(rhs_node, ctx) or_return
 
-  lhs_type_node := ast.get_type(lhs_node)
-  rhs_type_node := ast.get_type(rhs_node)
+  lhs_type_node := lhs_node.data_type
+  rhs_type_node := rhs_node.data_type
   coerced_type_node, coerce_ok := coerce_type(lhs_type_node, rhs_type_node)
   if !coerce_ok
   {
@@ -72,7 +72,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   _, comparison_operator := slice.linear_search(ast.comparison_operators, node.type)
   if comparison_operator
   {
-    append(&node.children, ctx.program.identifiers["bool"])
+    node.data_type = ctx.program.identifiers["bool"]
     if coerced_type_node.value == "[any_float]"
     {
       upgrade_types(lhs_node, ctx.program.identifiers["f64"], ctx)
@@ -91,7 +91,7 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
   }
   else
   {
-    append(&node.children, coerced_type_node)
+    node.data_type = coerced_type_node
     upgrade_types(lhs_node, coerced_type_node, ctx)
     upgrade_types(rhs_node, coerced_type_node, ctx)
   }
@@ -103,27 +103,27 @@ type_check_rhs_expression_1 :: proc(node: ^ast.node, ctx: ^type_checking_context
     {
       if node.type != .and && node.type != .or
       {
-        src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+        src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
         return false
       }
     }
     else if !numerical_type || node.type == .and || node.type == .or
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
       return false
     }
 
     _, float_type := slice.linear_search(float_types, coerced_type_node.value)
     if float_type && (node.type == .bitwise_and || node.type == .bitwise_or || node.type == .modulo)
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
       return false
     }
 
     _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
     if atomic_integer_type && !comparison_operator
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(ast.get_type(node)))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
       return false
     }
   }

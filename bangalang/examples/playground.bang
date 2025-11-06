@@ -8,3 +8,6 @@ for value in i64(0)..10
 foo: vec4 = { 2, 4, 6, 8 }
 for value in foo
   do strings.println(strings.itoa(i64(value), buf[]))
+
+strings.println(strings.itoa(vec4.size, buf[]))
+strings.println(vec4.name)

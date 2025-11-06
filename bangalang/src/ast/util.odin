@@ -48,18 +48,18 @@ is_type_alias_statement :: proc(statement: ^node) -> bool
 
 is_static_procedure_statement :: proc(statement: ^node) -> bool
 {
-  return statement.type == .assignment_statement && !is_type(statement.children[0]) && is_static_procedure(statement.children[0])
+  return statement.type == .assignment_statement && is_static_procedure(statement.children[0])
 }
 
 is_static_procedure :: proc(identifier: ^node) -> bool
 {
-  type := get_type(identifier)
+  type := identifier.data_type
   if type == nil || type.value != "[procedure]"
   {
     return false
   }
 
-  if is_member(identifier) && get_type(identifier.children[0]).value != "[module]"
+  if is_member(identifier) && identifier.children[0].data_type.value != "[module]"
   {
     return false
   }
@@ -81,7 +81,7 @@ is_member :: proc(identifier: ^node) -> bool
     final_identifier = final_identifier.children[0]
   }
 
-  return final_identifier.children[0].type == .identifier
+  return final_identifier.children[0].type == .identifier || final_identifier.children[0].type == .type
 }
 
 get_allocator :: proc(identifier: ^node) -> string
@@ -91,12 +91,12 @@ get_allocator :: proc(identifier: ^node) -> string
     return identifier.allocator
   }
 
-  if is_member(identifier) && get_type(identifier.children[0]).value != "[module]"
+  if is_member(identifier) && identifier.children[0].data_type.value != "[module]"
   {
     return get_allocator(identifier.children[0])
   }
 
-  return get_type(identifier).value == "[procedure]" ? "static" : "stack"
+  return identifier.data_type.value == "[procedure]" ? "static" : "stack"
 }
 
 is_type :: proc(type: ^node) -> bool
@@ -112,22 +112,6 @@ is_type :: proc(type: ^node) -> bool
   }
 
   return false
-}
-
-get_type :: proc(identifier: ^node) -> ^node
-{
-  child_count := len(identifier.children)
-  if child_count == 0
-  {
-    return nil
-  }
-
-  if is_type(identifier.children[child_count - 1])
-  {
-    return identifier.children[child_count - 1]
-  }
-
-  return nil
 }
 
 to_node :: proc(token: tokens.token) -> ^ast.node

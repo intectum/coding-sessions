@@ -29,8 +29,8 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   lhs_node := node.children[0]
   rhs_node := node.children[1]
 
-  operand_type_node := ast.get_type(lhs_node)
-  result_type_node := ast.get_type(node)
+  operand_type_node := lhs_node.data_type
+  result_type_node := node.data_type
 
   lhs_register_num := register_num
   rhs_register_num := lhs_register_num + 1

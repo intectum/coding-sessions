@@ -12,12 +12,10 @@ import ".."
 
 generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int) -> location
 {
-  type_node := ast.get_type(node)
+  type_node := node.data_type
   allocate_stack(ctx, to_byte_size(type_node))
 
-  children := node.children[:len(node.children) - 1]
-
-  if len(children) > 0 && children[0].type != .assignment_statement
+  if len(node.children) > 0 && node.children[0].type != .assignment_statement
   {
     switch type_node.value
     {
@@ -26,7 +24,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       element_size := to_byte_size(element_type_node)
 
       element_location := memory("rsp", 0)
-      for child_node in children
+      for child_node in node.children
       {
         expression_location := generate_expression(ctx, child_node, register_num)
         copy(ctx, expression_location, element_location, element_type_node)
@@ -41,15 +39,16 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       ctx.next_index += 1
       static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, slice_array_index)
 
+      static_var_type_node := ast.make_node({ type = .type, value = "[array]" })
+      append(&static_var_type_node.children, element_type_node)
+      append(&static_var_type_node.children, ast.make_node({ type = .number_literal, value = fmt.aprintf("%i", len(node.children)) }))
+
       static_var_node := ast.make_node({ type = .assignment_statement })
-      append(&static_var_node.children, ast.make_node({ type = .identifier, value = static_var_name }))
-      append(&static_var_node.children[0].children, ast.make_node({ type = .type, value = "[array]" }))
-      append(&static_var_node.children[0].children[0].children, element_type_node)
-      append(&static_var_node.children[0].children[0].children, ast.make_node({ type = .number_literal, value = fmt.aprintf("%i", len(children)) }))
+      append(&static_var_node.children, ast.make_node({ type = .identifier, value = static_var_name, data_type = static_var_type_node }))
       ctx.program.static_vars[static_var_name] = static_var_node
 
       element_location := memory(static_var_name, 0)
-      for child_node in children
+      for child_node in node.children
       {
         expression_location := generate_expression(ctx, child_node, register_num)
         copy(ctx, expression_location, element_location, element_type_node)
@@ -59,7 +58,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       slice_address_location := memory("rsp", 0)
       slice_length_location := memory("rsp", address_size)
       copy(ctx, immediate(static_var_name), slice_address_location, reference_type_node)
-      copy(ctx, immediate(len(children)), slice_length_location, length_type_node)
+      copy(ctx, immediate(len(node.children)), slice_length_location, length_type_node)
     case:
       assert(false, "Failed to generate compound literal")
     }
@@ -81,7 +80,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
         }
 
         found_assignment := false
-        for child_node in children
+        for child_node in node.children
         {
           child_lhs_node := child_node.children[0]
           child_rhs_node := child_node.children[2]
@@ -104,7 +103,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       member_location := memory("rsp", 0)
       for member_node in type_node.children
       {
-        member_type_node := ast.get_type(member_node)
+        member_type_node := member_node.data_type
 
         found_assignment := false
         for child_node in node.children
@@ -126,7 +125,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
           nilify(ctx, member_location, member_type_node)
         }
 
-        member_location.offset += to_byte_size(ast.get_type(member_node))
+        member_location.offset += to_byte_size(member_node.data_type)
       }
     case:
       assert(false, "Failed to generate compound literal")

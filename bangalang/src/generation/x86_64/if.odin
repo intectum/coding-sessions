@@ -22,7 +22,7 @@ generate_if :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   child_index += 1
 
   else_index := 0
-  expression_type_node := ast.get_type(expression_node)
+  expression_type_node := expression_node.data_type
   expression_operation_size := to_operation_size(to_byte_size(expression_type_node))
 
   expression_location := generate_expression(ctx, expression_node)

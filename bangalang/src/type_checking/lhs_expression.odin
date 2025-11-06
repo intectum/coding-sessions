@@ -5,8 +5,7 @@ import "../src"
 
 type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  type_node := ast.get_type(node)
-  if type_node != nil
+  if node.data_type != nil
   {
     identifier_node, _ := get_identifier_node(ctx, node.value, true)
     if identifier_node != nil
@@ -15,12 +14,12 @@ type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) 
       return false
     }
 
-    if type_node.value == "[array]" && type_node.directive == "#soa"
+    if node.data_type.value == "[array]" && node.data_type.directive == "#soa"
     {
-      child_type_node := type_node.children[0]
+      child_type_node := node.data_type.children[0]
       if child_type_node.value == "[struct]"
       {
-        length_expression_node := type_node.children[1]
+        length_expression_node := node.data_type.children[1]
 
         new_type_node := ast.make_node({ type = .type, value = "[struct]", directive = "#soa" })
 
@@ -28,16 +27,15 @@ type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) 
         {
           new_member_node := ast.make_node({ type = .identifier, value = member_node.value })
 
-          member_type_node := ast.get_type(member_node)
           new_member_type_node := ast.make_node({ type = .type, value = "[array]" })
-          append(&new_member_type_node.children, ast.make_node({ type = .type, value = member_type_node.value }))
+          append(&new_member_type_node.children, ast.make_node({ type = .type, value = member_node.data_type.value }))
           append(&new_member_type_node.children, length_expression_node)
+          new_member_node.data_type = new_member_type_node
 
-          append(&new_member_node.children, new_member_type_node)
           append(&new_type_node.children, new_member_node)
         }
 
-        type_node^ = new_type_node^
+        node.data_type = new_type_node
       }
     }
   }

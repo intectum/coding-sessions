@@ -19,7 +19,7 @@ contains_allocations :: proc(node: ^ast.node) -> bool
     return true
   }
 
-  if node.type == .index && ast.get_type(node).value != "[slice]"
+  if node.type == .index && node.data_type.value != "[slice]"
   {
     return true
   }
@@ -29,7 +29,7 @@ contains_allocations :: proc(node: ^ast.node) -> bool
     return true
   }
 
-  if node.type == .identifier && !ast.is_type(node.children[0]) && ast.get_type(node.children[0]).value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
+  if node.type == .identifier && len(node.children) > 0 && !ast.is_type(node.children[0]) && node.children[0].data_type.value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
   {
     return true
   }

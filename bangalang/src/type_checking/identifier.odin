@@ -13,75 +13,94 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
   if ast.is_member(node)
   {
     child_node := node.children[0]
-    auto_dereference(child_node)
-
-    child_type_node := ast.get_type(child_node)
-    switch child_type_node.value
+    if ast.is_type(child_node)
     {
-    case "[array]", "[slice]":
-      if node.value == "raw"
+      if node.value == "name"
       {
-        raw_type_node := ast.make_node({ type = .reference })
-        append(&raw_type_node.children, child_type_node.children[0])
-        append(&node.children, raw_type_node)
+        node.data_type = ctx.program.identifiers["string"]
       }
-      else if node.value == "length"
+      else if node.value == "size"
       {
-        append(&node.children, ctx.program.identifiers["i64"])
+        node.data_type = ctx.program.identifiers["i64"]
       }
       else
       {
-        type_check_swizzle_member(node) or_return
-      }
-    case "[module]":
-      module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
-      if !(child_node.value in module.imports)
-      {
-        src.print_position_message(node.src_position, "Module '%s' has not been imported", child_node.value)
+        src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
         return false
       }
+    }
+    else
+    {
+      auto_dereference(child_node)
 
-      imported_module_path := module.imports[child_node.value]
-      imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
-      if !(node.value in imported_module.identifiers)
+      child_type_node := child_node.data_type
+      switch child_type_node.value
       {
-        src.print_position_message(node.src_position, "'%s' is not a member of module '%s'", node.value, child_node.value)
-        return false
-      }
-
-      identifier_node := imported_module.identifiers[node.value]
-      if identifier_node.directive == "#private"
-      {
-        src.print_position_message(node.src_position, "'%s' is a private member of module '%s'", node.value, child_node.value)
-        return false
-      }
-
-      if ast.is_static_procedure(identifier_node)
-      {
-        reference(ctx, imported_module_path[:], node.value)
-      }
-
-      append(&node.children, ast.get_type(identifier_node))
-      node.allocator = identifier_node.allocator
-    case "[struct]":
-      found_member := false
-      for member_node in child_type_node.children
-      {
-        if member_node.value == node.value
+      case "[array]", "[slice]":
+        if node.value == "raw"
         {
-          append(&node.children, ast.get_type(member_node))
-          found_member = true
-          break
+          raw_type_node := ast.make_node({ type = .reference })
+          append(&raw_type_node.children, child_type_node.children[0])
+          node.data_type = raw_type_node
         }
-      }
+        else if node.value == "length"
+        {
+          node.data_type = ctx.program.identifiers["i64"]
+        }
+        else
+        {
+          type_check_swizzle_member(node) or_return
+        }
+      case "[module]":
+        module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
+        if !(child_node.value in module.imports)
+        {
+          src.print_position_message(node.src_position, "Module '%s' has not been imported", child_node.value)
+          return false
+        }
 
-      if !found_member
-      {
-        src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
-        return false
+        imported_module_path := module.imports[child_node.value]
+        imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
+        if !(node.value in imported_module.identifiers)
+        {
+          src.print_position_message(node.src_position, "'%s' is not a member of module '%s'", node.value, child_node.value)
+          return false
+        }
+
+        identifier_node := imported_module.identifiers[node.value]
+        if identifier_node.directive == "#private"
+        {
+          src.print_position_message(node.src_position, "'%s' is a private member of module '%s'", node.value, child_node.value)
+          return false
+        }
+
+        if ast.is_static_procedure(identifier_node)
+        {
+          reference(ctx, imported_module_path[:], node.value)
+        }
+
+        node.data_type = identifier_node.data_type
+        node.allocator = identifier_node.allocator
+      case "[struct]":
+        found_member := false
+        for member_node in child_type_node.children
+        {
+          if member_node.value == node.value
+          {
+            node.data_type = member_node.data_type
+            found_member = true
+            break
+          }
+        }
+
+        if !found_member
+        {
+          src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
+          return false
+        }
+      case:
+        assert(false, "Failed to type check identifier")
       }
-    case:
-      assert(false, "Failed to type check identifier")
     }
   }
   else
@@ -98,7 +117,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       reference(ctx, identifier_path, node.value)
     }
 
-    append(&node.children, ast.get_type(identifier_node))
+    node.data_type = identifier_node.data_type
     node.allocator = identifier_node.allocator
   }
 
@@ -107,12 +126,13 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
 type_check_swizzle_member :: proc(node: ^ast.node) -> bool
 {
-  child_type_node := ast.get_type(node.children[0])
+  child_node := node.children[0]
+  child_type_node := child_node.data_type
   element_type_node := child_type_node.children[0]
 
   if element_type_node.value != "f32"
   {
-    src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
+    src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
     return false
   }
 
@@ -146,14 +166,14 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
 
   if len(node.value) == 1
   {
-    append(&node.children, element_type_node)
+    node.data_type = element_type_node
   }
   else
   {
     type_node := ast.make_node({ type = .type, value = "[array]" })
     append(&type_node.children, element_type_node)
     append(&type_node.children, ast.make_node({ type = .number_literal, value = fmt.aprintf("%i", len(node.value)) }))
-    append(&node.children, type_node)
+    node.data_type = type_node
   }
 
   return true

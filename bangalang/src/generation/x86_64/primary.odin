@@ -12,12 +12,12 @@ import ".."
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
 {
   child_location: location
-  if node.type != .compound_literal && len(node.children) > 0 && !ast.is_type(node.children[0])
+  if node.type != .compound_literal && len(node.children) > 0
   {
     child_location = generate_primary(ctx, node.children[0], register_num, contains_allocations)
   }
 
-  type_node := ast.get_type(node)
+  type_node := node.data_type
 
   #partial switch node.type
   {
@@ -49,7 +49,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     location := copy_to_register(ctx, child_location, register_num, reference_type_node, "dereference")
     return memory(to_operand(location), 0)
   case .index:
-    child_type_node := ast.get_type(node.children[0])
+    child_type_node := node.children[0].data_type
 
     child_length_location := get_length_location(child_type_node, child_location)
 
@@ -60,7 +60,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       start_expression_location = generate_expression(ctx, start_expression_node, register_num + 1)
     }
 
-    start_expression_type_node := ast.get_type(start_expression_node)
+    start_expression_type_node := start_expression_node.data_type
     start_expression_location = copy_to_register(ctx, start_expression_location, register_num + 1, start_expression_type_node)
     start_expression_location = convert(ctx, start_expression_location, register_num + 1, start_expression_type_node, index_type_node)
 
@@ -109,7 +109,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
         end_expression_location = generate_expression(ctx, end_expression_node, register_num + 2)
       }
 
-      end_expression_type_node := ast.get_type(end_expression_node)
+      end_expression_type_node := end_expression_node.data_type
       end_expression_location = copy_to_register(ctx, end_expression_location, register_num + 2, end_expression_type_node)
       end_expression_location = convert(ctx, end_expression_location, register_num + 2, end_expression_type_node, index_type_node)
 
@@ -167,6 +167,8 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     return generate_compound_literal(ctx, node, register_num)
   case .nil_literal:
     return immediate(0)
+  case .type:
+    return {}
   case:
     return generate_expression_1(ctx, node, register_num, contains_allocations)
   }

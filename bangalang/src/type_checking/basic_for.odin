@@ -6,7 +6,7 @@ import "../ast"
 
 type_check_basic_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  for_ctx := copy_type_checking_context(ctx)
+  for_ctx := copy_context(ctx)
   for_ctx.within_for = true
 
   child_index := 0
@@ -35,6 +35,8 @@ type_check_basic_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
   }
 
   type_check_scope(child_node, &for_ctx) or_return
+
+  ctx.next_index = for_ctx.next_index
 
   return true
 }

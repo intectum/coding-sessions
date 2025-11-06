@@ -6,6 +6,7 @@ node :: struct
 {
   type: node_type,
   value: string,
+  data_type: ^node,
   allocator: string, // TODO as node?
   directive: string, // TODO as node?
   children: [dynamic]^node,

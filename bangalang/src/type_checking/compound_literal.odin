@@ -9,11 +9,9 @@ import "../src"
 
 type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  type_node := ast.get_type(node)
+  type_node := node.data_type
 
-  children := node.children[:len(node.children) - 1]
-
-  for &child_node in children
+  for &child_node in node.children
   {
     if child_node.type != .assignment_statement
     {
@@ -21,7 +19,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
       {
       case "[array]":
         length := strconv.atoi(type_node.children[1].value)
-        if len(children) != length
+        if len(node.children) != length
         {
           src.print_position_message(node.src_position, "Compound literal for type '%s' must contain %i elements", type_name(type_node), length)
           return false
@@ -49,10 +47,10 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
         case "raw":
           raw_type_node := ast.make_node({ type = .reference })
           append(&raw_type_node.children, type_node.children[0])
-          append(&child_lhs_node.children, raw_type_node)
+          child_lhs_node.data_type = raw_type_node
           found_member = true
         case "length":
-          append(&child_lhs_node.children, ctx.program.identifiers["i64"])
+          child_lhs_node.data_type = ctx.program.identifiers["i64"]
           found_member = true
         }
       case "[struct]":
@@ -60,7 +58,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
         {
           if member_node.value == child_lhs_node.value
           {
-            append(&child_lhs_node.children, ast.get_type(member_node))
+            child_lhs_node.data_type = member_node.data_type
             found_member = true
             break
           }
@@ -77,7 +75,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
       }
 
       child_rhs_node := child_node.children[2]
-      type_check_rhs_expression(child_rhs_node, ctx, ast.get_type(child_lhs_node)) or_return
+      type_check_rhs_expression(child_rhs_node, ctx, child_lhs_node.data_type) or_return
     }
   }
 

@@ -8,11 +8,10 @@ import ".."
 
 generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  initial_stack_size := ctx.stack_size
-  initial_for_index := ctx.for_index
+  for_ctx := generation.copy_context(ctx)
 
-  ctx.for_index = ctx.next_index
-  ctx.next_index += 1
+  for_ctx.for_index = for_ctx.next_index
+  for_ctx.next_index += 1
 
   child_index := 0
   child_node := node.children[child_index]
@@ -20,38 +19,39 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if child_node.type == .assignment_statement
   {
-    generate_assignment(ctx, child_node)
+    generate_assignment(&for_ctx, child_node)
 
     child_node = node.children[child_index]
     child_index += 1
   }
 
-  fmt.sbprintfln(&ctx.output, ".for_%i:", ctx.for_index)
+  fmt.sbprintfln(&for_ctx.output, ".for_%i:", for_ctx.for_index)
 
-  expression_type_node := ast.get_type(child_node)
+  expression_type_node := child_node.data_type
   expression_operation_size := to_operation_size(to_byte_size(expression_type_node))
 
-  expression_location := generate_expression(ctx, child_node)
-  expression_location = copy_to_non_immediate(ctx, expression_location, 0, expression_type_node)
-  fmt.sbprintfln(&ctx.output, "  cmp %s %s, 0 ; test expression", expression_operation_size, to_operand(expression_location))
-  fmt.sbprintfln(&ctx.output, "  je .for_%i_end ; skip for scope when false/zero", ctx.for_index)
+  expression_location := generate_expression(&for_ctx, child_node)
+  expression_location = copy_to_non_immediate(&for_ctx, expression_location, 0, expression_type_node)
+  fmt.sbprintfln(&for_ctx.output, "  cmp %s %s, 0 ; test expression", expression_operation_size, to_operand(expression_location))
+  fmt.sbprintfln(&for_ctx.output, "  je .for_%i_end ; skip for scope when false/zero", for_ctx.for_index)
 
   child_node = node.children[child_index]
   child_index += 1
 
   statement_node := node.children[len(node.children) - 1]
-  generate_scope(ctx, statement_node)
+  generate_scope(&for_ctx, statement_node)
 
-  fmt.sbprintfln(&ctx.output, ".for_%i_continue:", ctx.for_index)
+  fmt.sbprintfln(&for_ctx.output, ".for_%i_continue:", for_ctx.for_index)
 
   if len(node.children) > child_index
   {
-    generate_assignment(ctx, child_node)
+    generate_assignment(&for_ctx, child_node)
   }
 
-  fmt.sbprintfln(&ctx.output, "  jmp .for_%i ; back to top", ctx.for_index)
-  fmt.sbprintfln(&ctx.output, ".for_%i_end:", ctx.for_index)
+  fmt.sbprintfln(&for_ctx.output, "  jmp .for_%i ; back to top", for_ctx.for_index)
+  fmt.sbprintfln(&for_ctx.output, ".for_%i_end:", for_ctx.for_index)
 
-  deallocate_stack(ctx, ctx.stack_size - initial_stack_size)
-  ctx.for_index = initial_for_index
+  deallocate_stack(&for_ctx, for_ctx.stack_size - ctx.stack_size)
+  ctx.next_index = for_ctx.next_index
+  ctx.output = for_ctx.output
 }

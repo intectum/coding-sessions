@@ -16,7 +16,7 @@ parse_simple_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -
   lhs_node := ast.to_node(lhs_token)
   append(&node.children, lhs_node)
 
-  lhs_type_node := ast.get_type(lhs_node)
+  lhs_type_node := lhs_node.data_type
   if lhs_type_node != nil && lhs_type_node.value == "[procedure]"
   {
     ctx.return_value_required = len(lhs_type_node.children) == 2

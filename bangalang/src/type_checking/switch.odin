@@ -9,7 +9,7 @@ type_check_switch :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
   child_index += 1
 
   type_check_rhs_expression(expression_node, ctx, nil) or_return
-  expression_type_node := ast.get_type(expression_node)
+  expression_type_node := expression_node.data_type
 
   for child_index < len(node.children)
   {

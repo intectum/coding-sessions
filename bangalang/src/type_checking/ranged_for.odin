@@ -7,9 +7,6 @@ import "../ast"
 
 type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
-  for_ctx := copy_type_checking_context(ctx)
-  for_ctx.within_for = true
-
   basic_for_node := ast.make_node({ type = .basic_for_statement })
 
   if len(node.children) == 3
@@ -26,7 +23,7 @@ type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
     pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&pre_declaration_node.children, ast.clone_node(index_node))
-    append(&pre_declaration_node.children[0].children, length_type_node)
+    pre_declaration_node.children[0].data_type = length_type_node
     append(&pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&pre_declaration_node.children, ast.make_node({ type = .number_literal, value = "0" }))
     append(&basic_for_node.children, pre_declaration_node)
@@ -45,7 +42,7 @@ type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
     element_assignment_node := ast.make_node({ type = .assignment_statement })
     append(&element_assignment_node.children, element_node)
-    append(&element_assignment_node.children[0].children, ast.make_node({ type = .type, value = "[none]" }))
+    element_assignment_node.children[0].data_type = ast.make_node({ type = .type, value = "[none]" })
     append(&element_assignment_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&element_assignment_node.children, ast.make_node({ type = .index }))
     append(&element_assignment_node.children[2].children, start_expression_node)
@@ -63,7 +60,7 @@ type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
     pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&pre_declaration_node.children, ast.clone_node(element_node))
-    append(&pre_declaration_node.children[0].children, ast.make_node({ type = .type, value = "[none]" }))
+    pre_declaration_node.children[0].data_type = ast.make_node({ type = .type, value = "[none]" })
     append(&pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&pre_declaration_node.children, start_expression_node)
     append(&basic_for_node.children, pre_declaration_node)

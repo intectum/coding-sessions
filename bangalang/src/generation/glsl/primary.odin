@@ -11,7 +11,7 @@ import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  if node.type != .compound_literal && len(node.children) > 0 && !ast.is_type(node.children[0])
+  if node.type != .compound_literal && len(node.children) > 0
   {
     generate_primary(ctx, node.children[0])
   }
@@ -29,7 +29,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   case .index:
     // TODO add bounds checking?
 
-    type_node := ast.get_type(node)
+    type_node := node.data_type
     assert(type_node.value != "[slice]", "Failed to generate primary")
 
     fmt.sbprintf(&ctx.output, "[")
@@ -43,12 +43,10 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   case .boolean_literal, .number_literal, .string_literal:
     fmt.sbprint(&ctx.output, node.value)
   case .compound_literal:
-    children := node.children[:len(node.children) - 1]
-
-    if len(children) > 0 && children[0].type != .assignment_statement
+    if len(node.children) > 0 && node.children[0].type != .assignment_statement
     {
-      fmt.sbprintf(&ctx.output, "%s(", type_name(ast.get_type(node)))
-      for child_node, index in children
+      fmt.sbprintf(&ctx.output, "%s(", type_name(node.data_type))
+      for child_node, index in node.children
       {
         if index > 0
         {
@@ -65,6 +63,8 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     }
   case .nil_literal:
     fmt.sbprint(&ctx.output, "0")
+  case .type:
+    // Do nothing
   case:
     fmt.sbprint(&ctx.output, "(")
     generate_expression(ctx, node)

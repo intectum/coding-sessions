@@ -7,7 +7,7 @@ import "../program"
 
 auto_dereference :: proc(node: ^ast.node)
 {
-  type_node := ast.get_type(node)^
+  type_node := node.data_type
   if type_node.type != .reference
   {
     return
@@ -21,10 +21,10 @@ auto_dereference :: proc(node: ^ast.node)
   }
 
   append(&node.children, child_node)
-  append(&node.children, type_node.children[0])
+  node.data_type = type_node.children[0]
 
   // TODO not sure if this best, propagates #danger_boundless
-  ast.get_type(node).directive = type_node.directive
+  node.data_type.directive = type_node.directive
 }
 
 convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
@@ -54,7 +54,7 @@ convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
   identifier_node, _ := get_identifier_node(ctx, node.value)
   if identifier_node != nil
   {
-    identifier_type_node := ast.get_type(identifier_node)
+    identifier_type_node := identifier_node.data_type
     if identifier_type_node.value == "[struct]" && identifier_type_node.directive == "#soa"
     {
       return 0
