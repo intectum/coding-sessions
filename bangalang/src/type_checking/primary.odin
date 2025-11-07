@@ -7,11 +7,11 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  if node.type != .compound_literal && len(node.children) > 0
+  if node.type != .compound_literal && node.type != .type && len(node.children) > 0
   {
-    type_check_primary(node.children[0], ctx) or_return
+    type_check_primary(ctx, node.children[0]) or_return
   }
 
   #partial switch node.type
@@ -68,8 +68,8 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 
     any_int_type_node := ast.make_node({ type = .type, value = "[any_int]" })
 
-    type_check_rhs_expression(node.children[1], ctx, any_int_type_node) or_return
-    upgrade_types(node.children[1], ctx.program.identifiers["i64"], ctx)
+    type_check_rhs_expression(ctx, node.children[1], any_int_type_node) or_return
+    upgrade_types(ctx, node.children[1], ctx.program.identifiers["i64"])
 
     if len(node.children) == 2
     {
@@ -77,8 +77,8 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     }
     else
     {
-      type_check_rhs_expression(node.children[2], ctx, any_int_type_node) or_return
-      upgrade_types(node.children[2], ctx.program.identifiers["i64"], ctx)
+      type_check_rhs_expression(ctx, node.children[2], any_int_type_node) or_return
+      upgrade_types(ctx, node.children[2], ctx.program.identifiers["i64"])
 
       type_node := ast.make_node({ type = .type, value = "[slice]" })
       append(&type_node.children, child_type_node.children[0])
@@ -96,9 +96,9 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       }
     }
   case .call:
-    type_check_call(node, ctx) or_return
+    type_check_call(ctx, node) or_return
   case .identifier:
-    type_check_identifier(node, ctx) or_return
+    type_check_identifier(ctx, node) or_return
   case .char_literal:
     node.data_type = ctx.program.identifiers["char"]
   case .string_literal:
@@ -109,13 +109,26 @@ type_check_primary :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
   case .boolean_literal:
     node.data_type = ctx.program.identifiers["bool"]
   case .compound_literal:
-    type_check_compound_literal(node, ctx) or_return
+    type_check_compound_literal(ctx, node) or_return
   case .nil_literal:
     node.data_type = ast.make_node({ type = .type, value = "[none]" })
   case .type:
-    // Do nothing
+    if node.value == "[enum]"
+    {
+      for member_node, index in node.children[:len(node.children) - 1]
+      {
+        for other_member_node in node.children[index + 1:]
+        {
+          if other_member_node.value == member_node.value
+          {
+            src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, type_name(node))
+            return false
+          }
+        }
+      }
+    }
   case:
-    type_check_rhs_expression_1(node, ctx) or_return
+    type_check_rhs_expression_1(ctx, node) or_return
   }
 
   if node.directive == "#danger_untyped"

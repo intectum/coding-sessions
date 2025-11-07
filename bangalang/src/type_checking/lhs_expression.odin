@@ -4,7 +4,7 @@ import "../ast"
 import "../src"
 import slice "core:slice"
 
-type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   if node.data_type != nil
   {
@@ -40,19 +40,19 @@ type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) 
       }
     }
 
-    type_check_allocator(node, ctx) or_return
+    type_check_allocator(ctx, node) or_return
   }
   else
   {
-    convert_soa_index(node, ctx)
-    type_check_primary(node, ctx) or_return
+    convert_soa_index(ctx, node)
+    type_check_primary(ctx, node) or_return
   }
 
   return true
 }
 
 core_allocator_names: []string = { "code", "extern", "none", "stack", "static" }
-type_check_allocator :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   if node.allocator == nil
   {
@@ -70,7 +70,7 @@ type_check_allocator :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     }
   }
 
-  type_check_rhs_expression(node.allocator, ctx, nil) or_return
+  type_check_rhs_expression(ctx, node.allocator, nil) or_return
 
   _, code_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["code_allocator"])
   _, memory_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])

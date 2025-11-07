@@ -6,7 +6,7 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   lhs_node := node.children[0]
   lhs_type_node := lhs_node.data_type
@@ -36,7 +36,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     param_lhs_node := param_node.children[0]
     param_lhs_node.allocator = ctx.program.identifiers["stack"]
 
-    type_check_assignment(param_node, ctx) or_return
+    type_check_assignment(ctx, param_node) or_return
   }
 
   if len(node.children) > 1

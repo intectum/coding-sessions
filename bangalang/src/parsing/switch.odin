@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
+parse_switch :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
     type = .switch_,
@@ -36,7 +36,7 @@ parse_switch :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^a
 
     tokens.next_token(stream, .colon) or_return
 
-    case_scope_node := parse_scope(stream, ctx) or_return
+    case_scope_node := parse_scope(ctx, stream) or_return
     append(&case_node.children, case_scope_node)
 
     append(&node.children, case_node)

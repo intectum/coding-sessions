@@ -24,7 +24,7 @@ parse_compound_literal :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: 
     }
 
     member_assignment_stream := stream^
-    member_assignment_node, member_assignment_ok := parse_simple_assignment(&member_assignment_stream, &dummy_ctx)
+    member_assignment_node, member_assignment_ok := parse_simple_assignment(&dummy_ctx, &member_assignment_stream)
 
     member_expression_stream := stream^
     member_expression_node, member_expression_ok := parse_rhs_expression(&member_expression_stream)

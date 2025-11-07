@@ -6,7 +6,7 @@ import "core:slice"
 import "../ast"
 import "../src"
 
-type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   child_index := 0
   procedure_node := node.children[child_index]
@@ -23,7 +23,7 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     param_node := node.children[child_index]
     child_index += 1
 
-    type_check_rhs_expression(param_node, ctx, nil) or_return
+    type_check_rhs_expression(ctx, param_node, nil) or_return
 
     _, param_numerical_type := slice.linear_search(numerical_types, param_node.data_type.value)
     _, return_numerical_type := slice.linear_search(numerical_types, procedure_node.value)
@@ -33,7 +33,7 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
       return false
     }
 
-    upgrade_types(param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"], ctx)
+    upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"])
 
     node.data_type = ast.clone_node(procedure_node)
 
@@ -77,7 +77,7 @@ type_check_call :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
     param_node := node.children[child_index]
     child_index += 1
 
-    type_check_rhs_expression(param_node, ctx, param_lhs_node_from_type.data_type) or_return
+    type_check_rhs_expression(ctx, param_node, param_lhs_node_from_type.data_type) or_return
   }
 
   if len(procedure_type_node.children) == 2

@@ -8,12 +8,12 @@ import "../ast"
 import "../program"
 import "../src"
 
-type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   lhs_node := node.children[0]
   declaration := lhs_node.data_type != nil
 
-  type_check_lhs_expression(lhs_node, ctx) or_return
+  type_check_lhs_expression(ctx, lhs_node) or_return
 
   procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
@@ -72,7 +72,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       }
 
       lhs_type_node := lhs_node.data_type
-      type_check_rhs_expression(rhs_node, ctx, lhs_type_node) or_return
+      type_check_rhs_expression(ctx, rhs_node, lhs_type_node) or_return
 
       if lhs_type_node.value == "[none]"
       {
@@ -189,7 +189,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
         append(&node.children, allocator_node)
       }
 
-      type_check_rhs_expression(node.children[2], ctx, lhs_node.data_type) or_return
+      type_check_rhs_expression(ctx, node.children[2], lhs_node.data_type) or_return
     }
 
     if contains_non_fixed_array_sizes(lhs_node.data_type)

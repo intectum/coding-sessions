@@ -19,8 +19,8 @@ declaration\_statement\ &\to\ lhs\_declaration\ (\ \text{"="}\ (\ scope\_stateme
 lhs\_declaration\ &\to\ directive?\ identifier\ \text{":"}\ type\_primary?\ (\ \text{"@"}\ rhs\_expression\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ |\ \text{":"}\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ \text{"("}\ lhs\_primary\ \text{")"}\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"|"}\ |\ \text{"||"}\ |\ \text{"&"}\ |\ \text{"&&"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
-rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ |\ \text{":"}\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ boolean\_literal\ |\ number\_literal\ |\ char\_literal\ |\ string\_literal\ |\ compound\_literal\ |\ nil\_literal\\
-type\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ )\ type\_primary\ |\ type\_primary\ (\ \text{"["}\ rhs\_expression?\ \text{"]"}\ |\ \text{"."}\ type\_primary\ )\ |\ \text{"("}\ type\_primary\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\\
+rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ |\ \text{":"}\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ enum\_type\ |\ struct\_type\ |\ procedure\_type\ |\ boolean\_literal\ |\ number\_literal\ |\ char\_literal\ |\ string\_literal\ |\ compound\_literal\ |\ nil\_literal\\
+type\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ )\ type\_primary\ |\ type\_primary\ (\ \text{"["}\ rhs\_expression?\ \text{"]"}\ |\ \text{"."}\ type\_primary\ )\ |\ \text{"("}\ type\_primary\ \text{")"}\ |\ identifier\ |\ enum\_type\ |\ struct\_type\ |\ procedure\_type\\
 call\ &\to\ \text{"("}\ (\ rhs\_expression\ (\ \text{","}\ rhs\_expression\ )*\ )?\ \text{")"}\\
 boolean\_literal\ &\to\ \text{"false"}\ |\ \text{"true"}\\
 number\_literal\ &\to\ \text{'-'}?\ digit+\ (\ \text{'.'}\ digit*\ )?\\
@@ -28,6 +28,7 @@ char\_literal\ &\to\ \text{'''}\ !\text{'''}\ \text{'''}\\
 string\_literal\ &\to\ \text{'"'}\ (\ !\text{'"'}\ )*\ \text{'"'}\\
 compound\_literal\ &\to\ \text{"\{"}\ (\ (\ simple\_assignment\_statement\ (\ \text{","}\ simple\_assignment\_statement\ )*\ )?\ |\ (\ rhs\_expression\ (\ \text{","}\ rhs\_expression\ )*\ )?\ )\ \text{"\}"}\\
 nil\_literal\ &\to\ \text{"nil"}\\
+enum\_type\ &\to\ \text{"enum"}\ \text{"\{"}\ (\ identifier\ (\ \text{","}\ identifier\ )*\ )?\ \text{"\}"}\\
 struct\_type\ &\to\ \text{"struct"}\ \text{"\{"}\ (\ identifier\ \text{":"}\ type\_primary\ (\ \text{","}\ identifier\ \text{":"}\ type\_primary\ )*\ )?\ \text{"\}"}\\
 procedure\_type\ &\to\ \text{"proc"}\ \text{"("}\ (\ declaration\_statement\ (\ \text{","}\ declaration\_statement\ )*\ )?\ \text{")"}\ (\ \text{"->"}\ type\_primary\ )?\\
 digit\ &\to\ \text{'0'}\ |\ \text{'1'}\ |\ \text{'2'}\ |\ \text{'3'}\ |\ \text{'4'}\ |\ \text{'5'}\ |\ \text{'6'}\ |\ \text{'7'}\ |\ \text{'8'}\ |\ \text{'9'}\\

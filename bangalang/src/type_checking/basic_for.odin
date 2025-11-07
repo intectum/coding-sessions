@@ -4,7 +4,7 @@ import "core:slice"
 
 import "../ast"
 
-type_check_basic_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_basic_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   for_ctx := copy_context(ctx)
   for_ctx.within_for = true
@@ -15,26 +15,26 @@ type_check_basic_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
 
   if child_node.type == .assignment_statement
   {
-    type_check_assignment(child_node, &for_ctx) or_return
+    type_check_assignment(&for_ctx, child_node) or_return
 
     child_node = node.children[child_index]
     child_index += 1
   }
 
-  type_check_rhs_expression(child_node, &for_ctx, for_ctx.program.identifiers["bool"]) or_return
+  type_check_rhs_expression(&for_ctx, child_node, for_ctx.program.identifiers["bool"]) or_return
 
   child_node = node.children[child_index]
   child_index += 1
 
   if len(node.children) > child_index
   {
-    type_check_assignment(child_node, &for_ctx) or_return
+    type_check_assignment(&for_ctx, child_node) or_return
 
     child_node = node.children[child_index]
     child_index += 1
   }
 
-  type_check_scope(child_node, &for_ctx) or_return
+  type_check_scope(&for_ctx, child_node) or_return
 
   ctx.next_index = for_ctx.next_index
 

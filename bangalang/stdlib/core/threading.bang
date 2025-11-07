@@ -1,4 +1,5 @@
 linux: = import("os/linux")
+os: = import("os")
 strings: = import("strings")
 
 mutex_lock: proc(mutex: ^i32) =
@@ -32,16 +33,16 @@ semaphore_signal: proc(semaphore: ^semaphore_t) =
 
 start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
 {
-  stack: = linux.mmap(nil, 4096, linux.PROT_READ | linux.PROT_WRITE, linux.MAP_PRIVATE | linux.MAP_ANONYMOUS, -1, 0)
+  stack: byte[4096]@os.heap
 
-  stack_i64: i64 = #danger_untyped stack
-  stack_i64 += 4096
-  stack_i64 -= 2 * 8 // account for params
+  stack_i64: i64 = #danger_untyped stack.raw
+  stack_i64 += stack.length
+  stack_i64 -= 2 * u64.size // account for params
   stack_params: ^i64[2] = #danger_untyped stack_i64
   stack_params[1] = #danger_untyped func
   stack_params[0] = arg
-  stack_i64 -= 8 // account for instruction pointer
-  stack_i64 -= 5 * 8 // account for local vars declared before clone
+  stack_i64 -= u64.size // account for instruction pointer
+  stack_i64 -= 5 * u64.size // account for local vars declared before clone
 
   pid: = linux.syscall(56, linux.CLONE_VM | linux.CLONE_FILES | linux.CLONE_SIGHAND | linux.CLONE_THREAD, stack_i64, 0, 0, 0, 0)
 

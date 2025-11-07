@@ -9,7 +9,7 @@ parse_module :: proc(stream: ^tokens.stream) -> (nodes: [dynamic]^ast.node, ok: 
 
   for stream.next_index < len(stream.tokens)
   {
-    statement_node := parse_statement(stream, &ctx) or_return
+    statement_node := parse_statement(&ctx, stream) or_return
     append(&nodes, statement_node)
   }
 

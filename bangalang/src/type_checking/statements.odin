@@ -20,7 +20,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 {
   for statement in statements
   {
-    resolve_types(statement, ctx) or_return
+    resolve_types(ctx, statement) or_return
 
     if ast.is_type_alias_statement(statement)
     {
@@ -119,7 +119,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
   {
     if ast.is_type_alias_statement(statement) do continue
 
-    if !type_check_statement(statement, ctx)
+    if !type_check_statement(ctx, statement)
     {
       failures = true
     }

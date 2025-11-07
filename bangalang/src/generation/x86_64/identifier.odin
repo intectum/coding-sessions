@@ -1,6 +1,8 @@
 package x86_64
 
+import "core:c"
 import "core:fmt"
+import "core:math"
 
 import "../../ast"
 import "../../program"
@@ -20,14 +22,58 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     child_node := node.children[0]
     if ast.is_type(child_node)
     {
-      if node.value == "name"
+      if child_node.value == "[enum]"
       {
+        for member_node, index in child_node.children
+        {
+          if member_node.value == node.value
+          {
+            return immediate(index)
+          }
+        }
+      }
+
+      switch node.value
+      {
+      case "max":
+        switch child_node.value
+        {
+        case "f32": return memory(get_literal_name(&ctx.program.f32_literals, "f32_", fmt.aprintf("%f", math.max(f32))), 0)
+        case "f64": return memory(get_literal_name(&ctx.program.f64_literals, "f64_", fmt.aprintf("%f", math.max(f64))), 0)
+        case "atomic_i8", "i8": return immediate(int(math.max(i8)))
+        case "atomic_i16", "i16": return immediate(int(math.max(i16)))
+        case "atomic_i32", "i32": return immediate(int(math.max(i32)))
+        case "atomic_i64", "i64": return immediate(int(math.max(i64)))
+        case "cint": return immediate(int(math.max(c.int)))
+        case "cuint": return immediate(int(math.max(c.uint)))
+        case "u8": return immediate(int(math.max(u8)))
+        case "u16": return immediate(int(math.max(u16)))
+        case "u32": return immediate(int(math.max(u32)))
+        case "u64": return immediate(fmt.aprintf("%i", math.max(u64)))
+        case: assert(false, "Failed to generate identifier")
+        }
+      case "min":
+        switch child_node.value
+        {
+        case "f32": return memory(get_literal_name(&ctx.program.f32_literals, "f32_", fmt.aprintf("%f", math.min(f32))), 0)
+        case "f64": return memory(get_literal_name(&ctx.program.f64_literals, "f64_", fmt.aprintf("%f", math.min(f64))), 0)
+        case "atomic_i8", "i8": return immediate(int(math.min(i8)))
+        case "atomic_i16", "i16": return immediate(int(math.min(i16)))
+        case "atomic_i32", "i32": return immediate(int(math.min(i32)))
+        case "atomic_i64", "i64": return immediate(int(math.min(i64)))
+        case "cint": return immediate(int(math.min(c.int)))
+        case "cuint": return immediate(int(math.min(c.uint)))
+        case "u8": return immediate(int(math.min(u8)))
+        case "u16": return immediate(int(math.min(u16)))
+        case "u32": return immediate(int(math.min(u32)))
+        case "u64": return immediate(int(math.min(u64)))
+        case: assert(false, "Failed to generate identifier")
+        }
+      case "name":
         // TODO as static var?
         return memory(get_literal_name(&ctx.program.string_literals, "string_", fmt.aprintf("\"%s\"", type_checking.type_name(child_node))), 0)
-      }
-      else if node.value == "size"
-      {
-        return immediate(to_byte_size(child_node))
+      case "size": return immediate(to_byte_size(child_node))
+      case: assert(false, "Failed to generate identifier")
       }
     }
 
@@ -142,7 +188,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       }
     }
 
-    if type_node.value == "[procedure]" || type_node.value == "cstring"
+    if type_node.value == "[procedure]" || type_node.type == .reference
     {
       return immediate(name)
     }

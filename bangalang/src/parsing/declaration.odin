@@ -27,7 +27,7 @@ parse_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
     operator_node := ast.to_node(operator_token)
     append(&node.children, operator_node)
 
-    rhs_node := parse_scope_or_rhs_expression(stream, &ctx) or_return
+    rhs_node := parse_scope_or_rhs_expression(&ctx, stream) or_return
     append(&node.children, rhs_node)
   }
 

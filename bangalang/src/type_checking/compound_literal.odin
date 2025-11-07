@@ -7,7 +7,7 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   type_node := node.data_type
 
@@ -32,7 +32,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
       }
 
       child_type_node := type_node.children[0]
-      type_check_rhs_expression(child_node, ctx, child_type_node)
+      type_check_rhs_expression(ctx, child_node, child_type_node)
     }
     else
     {
@@ -75,7 +75,7 @@ type_check_compound_literal :: proc(node: ^ast.node, ctx: ^type_checking_context
       }
 
       child_rhs_node := child_node.children[2]
-      type_check_rhs_expression(child_rhs_node, ctx, child_lhs_node.data_type) or_return
+      type_check_rhs_expression(ctx, child_rhs_node, child_lhs_node.data_type) or_return
     }
   }
 

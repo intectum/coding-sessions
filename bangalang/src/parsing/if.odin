@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
+parse_if :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
     type = .if_statement,
@@ -15,7 +15,7 @@ parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.n
   if_expression_node := parse_rhs_expression(stream) or_return
   append(&node.children, if_expression_node)
 
-  if_scope_node := parse_scope(stream, ctx) or_return
+  if_scope_node := parse_scope(ctx, stream) or_return
   append(&node.children, if_scope_node)
 
   for tokens.peek_token(stream).value == "else" && tokens.peek_token(stream, 1).value == "if"
@@ -26,7 +26,7 @@ parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.n
     else_if_expression_node := parse_rhs_expression(stream) or_return
     append(&node.children, else_if_expression_node)
 
-    else_if_scope_node := parse_scope(stream, ctx) or_return
+    else_if_scope_node := parse_scope(ctx, stream) or_return
     append(&node.children, else_if_scope_node)
   }
 
@@ -34,7 +34,7 @@ parse_if :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.n
   {
     tokens.next_token(stream, .keyword, "else") or_return
 
-    else_scope_node := parse_scope(stream, ctx) or_return
+    else_scope_node := parse_scope(ctx, stream) or_return
     append(&node.children, else_scope_node)
   }
 

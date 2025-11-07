@@ -3,7 +3,7 @@ package type_checking
 import "../ast"
 import "../src"
 
-type_check_continue :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_continue :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   if !ctx.within_for
   {

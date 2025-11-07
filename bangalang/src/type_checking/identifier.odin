@@ -8,25 +8,49 @@ import "../ast"
 import "../program"
 import "../src"
 
-type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   if ast.is_member(node)
   {
     child_node := node.children[0]
     if ast.is_type(child_node)
     {
-      if node.value == "name"
+      found_member := false
+
+      if child_node.value == "[enum]"
       {
-        node.data_type = ctx.program.identifiers["string"]
+        for member_node in child_node.children
+        {
+          if member_node.value == node.value
+          {
+            node.data_type = child_node
+            found_member = true
+            break
+          }
+        }
       }
-      else if node.value == "size"
+
+      if !found_member
       {
-        node.data_type = ctx.program.identifiers["i64"]
-      }
-      else
-      {
-        src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
-        return false
+        switch node.value
+        {
+        case "max", "min":
+          _, integer := slice.linear_search(numerical_types, child_node.value)
+          if !integer
+          {
+            src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
+            return false
+          }
+
+          _, integer2 := slice.linear_search(integer_types, child_node.value)
+
+          node.data_type = child_node
+        case "name": node.data_type = ctx.program.identifiers["string"]
+        case "size": node.data_type = ctx.program.identifiers["i64"]
+        case:
+          src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
+          return false
+        }
       }
     }
     else

@@ -62,7 +62,7 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
 
   _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
   _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, operand_type_node.value)
-  if signed_integer_type || unsigned_integer_type
+  if signed_integer_type || unsigned_integer_type || operand_type_node.value == "[enum]"
   {
     return generate_expression_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }

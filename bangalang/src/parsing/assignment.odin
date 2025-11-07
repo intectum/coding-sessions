@@ -5,7 +5,7 @@ import "core:slice"
 import "../ast"
 import "../tokens"
 
-parse_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
+parse_assignment :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
     type = .assignment_statement,
@@ -30,7 +30,7 @@ parse_assignment :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node
     operator_node := ast.to_node(operator_token)
     append(&node.children, operator_node)
 
-    rhs_node := parse_scope_or_rhs_expression(stream, ctx) or_return
+    rhs_node := parse_scope_or_rhs_expression(ctx, stream) or_return
     append(&node.children, rhs_node)
   }
 

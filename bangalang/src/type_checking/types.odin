@@ -26,88 +26,81 @@ coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
     return a, true
   }
 
-  if a.type != b.type
-  {
-    return nil, false
-  }
-
   compatible_value_types := false
 
   if a.value != b.value
   {
-    if a.type == .type
-    {
-      _, a_numerical_type := slice.linear_search(numerical_types, a.value)
-      if b.value == "[any_number]" && !a_numerical_type
-      {
-        return nil, false
-      }
-
-      _, b_numerical_type := slice.linear_search(numerical_types, b.value)
-      if a.value == "[any_number]" && !b_numerical_type
-      {
-        return nil, false
-      }
-
-      if a.value != "[any_number]" && b.value != "[any_number]"
-      {
-        _, a_float_type := slice.linear_search(float_types, a.value)
-        if b.value == "[any_float]" && !a_float_type
-        {
-          return nil, false
-        }
-
-        _, b_float_type := slice.linear_search(float_types, b.value)
-        if a.value == "[any_float]" && !b_float_type
-        {
-          return nil, false
-        }
-
-        _, a_integer_type := slice.linear_search(integer_types, a.value)
-        if b.value == "[any_int]" && !a_integer_type
-        {
-          return nil, false
-        }
-
-        _, b_integer_type := slice.linear_search(integer_types, b.value)
-        if a.value == "[any_int]" && !b_integer_type
-        {
-          return nil, false
-        }
-      }
-
-      a_string := a.value == "[slice]" && a.children[0].value == "u8"
-      a_cstring := a.value == "cstring"
-      if b.value == "[any_string]" && !a_string && !a_cstring
-      {
-        return nil, false
-      }
-
-      b_string := b.value == "[slice]" && b.children[0].value == "u8"
-      b_cstring := b.value == "cstring"
-      if a.value == "[any_string]" && !b_string && !b_cstring
-      {
-        return nil, false
-      }
-
-      if a.value != "[any_number]" && b.value != "[any_number]" &&
-         a.value != "[any_float]" && b.value != "[any_float]" &&
-         a.value != "[any_int]" && b.value != "[any_int]" &&
-         a.value != "[any_string]" && b.value != "[any_string]"
-      {
-        return nil, false
-      }
-
-      compatible_value_types = true
-    }
-    else
+    _, a_numerical_type := slice.linear_search(numerical_types, a.value)
+    if b.value == "[any_number]" && !a_numerical_type
     {
       return nil, false
     }
+
+    _, b_numerical_type := slice.linear_search(numerical_types, b.value)
+    if a.value == "[any_number]" && !b_numerical_type
+    {
+      return nil, false
+    }
+
+    if a.value != "[any_number]" && b.value != "[any_number]"
+    {
+      _, a_float_type := slice.linear_search(float_types, a.value)
+      if b.value == "[any_float]" && !a_float_type
+      {
+        return nil, false
+      }
+
+      _, b_float_type := slice.linear_search(float_types, b.value)
+      if a.value == "[any_float]" && !b_float_type
+      {
+        return nil, false
+      }
+
+      _, a_integer_type := slice.linear_search(integer_types, a.value)
+      if b.value == "[any_int]" && !a_integer_type
+      {
+        return nil, false
+      }
+
+      _, b_integer_type := slice.linear_search(integer_types, b.value)
+      if a.value == "[any_int]" && !b_integer_type
+      {
+        return nil, false
+      }
+    }
+
+    a_string := a.value == "[slice]" && a.children[0].value == "u8"
+    a_cstring := a.type == .reference && a.children[0].value == "u8"
+    if b.value == "[any_string]" && !a_string && !a_cstring
+    {
+      return nil, false
+    }
+
+    b_string := b.value == "[slice]" && b.children[0].value == "u8"
+    b_cstring := b.type == .reference && b.children[0].value == "u8"
+    if a.value == "[any_string]" && !b_string && !b_cstring
+    {
+      return nil, false
+    }
+
+    if a.value != "[any_number]" && b.value != "[any_number]" &&
+       a.value != "[any_float]" && b.value != "[any_float]" &&
+       a.value != "[any_int]" && b.value != "[any_int]" &&
+       a.value != "[any_string]" && b.value != "[any_string]"
+    {
+      return nil, false
+    }
+
+    compatible_value_types = true
   }
 
   if !compatible_value_types
   {
+    if a.type != b.type
+    {
+      return nil, false
+    }
+
     if len(a.children) != len(b.children)
     {
       return nil, false
@@ -160,6 +153,14 @@ type_name :: proc(type_node: ^ast.node) -> string
     length_expression_node := type_node.children[1]
     length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
     return strings.concatenate({ prefix, type_name(type_node.children[0]), "[", length, "]" })
+  case "[enum]":
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, member_node.value)
+    }
+
+    return strings.concatenate({ prefix, "enum {{ ", strings.join(member_type_names[:], ", "), " }}" })
   case "[procedure]":
     param_type_names: [dynamic]string
     params_type_node := type_node.children[0]
@@ -192,7 +193,7 @@ type_name :: proc(type_node: ^ast.node) -> string
   return strings.concatenate({ prefix, type_node.value })
 }
 
-upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_checking_context)
+upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_node: ^ast.node)
 {
   if node.data_type != nil
   {
@@ -208,11 +209,11 @@ upgrade_types :: proc(node: ^ast.node, new_type_node: ^ast.node, ctx: ^type_chec
 
   for child_node in node.children
   {
-    upgrade_types(child_node, new_type_node, ctx)
+    upgrade_types(ctx, child_node, new_type_node)
   }
 }
 
-resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bool)
+resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bool)
 {
   if node.type == .identifier || node.type == .type
   {
@@ -254,7 +255,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
 
   if node.data_type != nil
   {
-    _, data_type_ok := resolve_types(node.data_type, ctx)
+    _, data_type_ok := resolve_types(ctx, node.data_type)
     if !data_type_ok
     {
       return false, false
@@ -263,7 +264,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
 
   if node.allocator != nil
   {
-    _, allocator_ok := resolve_types(node.allocator, ctx)
+    _, allocator_ok := resolve_types(ctx, node.allocator)
     if !allocator_ok
     {
       return false, false
@@ -274,7 +275,7 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
   {
     if child_node.type == .scope_statement do continue
 
-    child_result, child_ok := resolve_types(child_node, ctx)
+    child_result, child_ok := resolve_types(ctx, child_node)
     if !child_ok
     {
       return false, false

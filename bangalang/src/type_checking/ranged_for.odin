@@ -5,7 +5,7 @@ import "core:slice"
 
 import "../ast"
 
-type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   basic_for_node := ast.make_node({ type = .basic_for_statement })
 
@@ -81,5 +81,5 @@ type_check_ranged_for :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   node^ = basic_for_node^
 
-  return type_check_basic_for(node, ctx)
+  return type_check_basic_for(ctx, node)
 }

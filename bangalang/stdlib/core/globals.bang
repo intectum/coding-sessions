@@ -1,5 +1,6 @@
 byte: = u8
 char: = byte
+cstring: = ^byte
 string: = byte[]
 vec2: = f32[2]
 vec3: = f32[3]

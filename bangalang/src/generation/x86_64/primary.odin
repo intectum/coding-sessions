@@ -12,7 +12,7 @@ import ".."
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
 {
   child_location: location
-  if node.type != .compound_literal && len(node.children) > 0
+  if node.type != .compound_literal && node.type != .type && len(node.children) > 0
   {
     child_location = generate_primary(ctx, node.children[0], register_num, contains_allocations)
   }
@@ -143,7 +143,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     {
       return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
     }
-    else if type_node.value == "cstring"
+    else if type_node.type == .reference && type_node.children[0].value == "u8"
     {
       return immediate(get_literal_name(&ctx.program.cstring_literals, "cstring_", node.value))
     }

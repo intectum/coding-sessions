@@ -3,7 +3,7 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_return :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
+parse_return :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
     type = .return_statement,

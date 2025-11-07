@@ -100,6 +100,8 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
 
     switch tokens.peek_token(stream).value
     {
+    case "enum":
+      node = parse_enum_type(stream) or_return
     case "struct":
       node = parse_struct_type(stream) or_return
     case "proc":

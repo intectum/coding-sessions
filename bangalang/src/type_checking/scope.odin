@@ -2,7 +2,7 @@ package type_checking
 
 import "../ast"
 
-type_check_scope :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+type_check_scope :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   scope_ctx := copy_context(ctx)
 

@@ -5,7 +5,7 @@ import "core:slice"
 import "../ast"
 import "../tokens"
 
-parse_ranged_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node: ^ast.node, ok: bool)
+parse_ranged_for :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
     type = .ranged_for_statement,
@@ -31,7 +31,7 @@ parse_ranged_for :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (node
     append(&node.children, end_expression_node)
   }
 
-  scope_node := parse_scope(stream, ctx) or_return
+  scope_node := parse_scope(ctx, stream) or_return
   append(&node.children, scope_node)
 
   return node, true

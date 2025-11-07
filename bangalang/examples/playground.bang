@@ -12,7 +12,15 @@ for value in foo
 
 strings.println(strings.itoa(vec4.size, buf[]))
 strings.println(vec4.name)
+strings.println(strings.itoa(i64(u8.max), buf[]))
+strings.println(strings.itoa(i64(i8.min), buf[]))
+strings.println(strings.itoa(i64(f32.max), buf[]))
+strings.println(strings.itoa(i64(f32.min), buf[]))
 
 ints: i64[10]@os.heap
 ints[3] = 42
 strings.println(strings.itoa(ints[3], buf[]))
+
+my_enum: = enum { foo, bar }
+bar: = my_enum.bar
+if bar == my_enum.bar do strings.println("equal")

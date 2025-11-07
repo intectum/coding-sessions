@@ -27,11 +27,11 @@ auto_dereference :: proc(node: ^ast.node)
   node.data_type.directive = type_node.directive
 }
 
-convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
+convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
 {
   if len(node.children) > 0 && !ast.is_type(node.children[0])
   {
-    child_result := convert_soa_index(node.children[0], ctx)
+    child_result := convert_soa_index(ctx, node.children[0])
     if child_result == 0 && node.type == .index
     {
       return 1

@@ -3,21 +3,21 @@ package parsing
 import "../ast"
 import "../tokens"
 
-parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (^ast.node, bool)
+parse_statement :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (^ast.node, bool)
 {
   if tokens.peek_token(stream).type == .keyword
   {
     if tokens.peek_token(stream).value == "if"
     {
-      return parse_if(stream, ctx)
+      return parse_if(ctx, stream)
     }
     else if tokens.peek_token(stream).value == "for"
     {
-      return parse_for(stream, ctx)
+      return parse_for(ctx, stream)
     }
     else if tokens.peek_token(stream).value == "switch"
     {
-      return parse_switch(stream, ctx)
+      return parse_switch(ctx, stream)
     }
     else if tokens.peek_token(stream).value == "continue"
     {
@@ -29,15 +29,15 @@ parse_statement :: proc(stream: ^tokens.stream, ctx: ^parsing_context) -> (^ast.
     }
     else if tokens.peek_token(stream).value == "return"
     {
-      return parse_return(stream, ctx)
+      return parse_return(ctx, stream)
     }
   }
 
   scope_stream := stream^
-  scope_node, scope_ok := parse_scope(&scope_stream, ctx)
+  scope_node, scope_ok := parse_scope(ctx, &scope_stream)
 
   assignment_stream := stream^
-  assignment_node, assignment_ok := parse_assignment(&assignment_stream, ctx)
+  assignment_node, assignment_ok := parse_assignment(ctx, &assignment_stream)
 
   rhs_expression_stream := stream^
   rhs_expression_node, rhs_expression_ok := parse_rhs_expression(&rhs_expression_stream)
