@@ -61,6 +61,38 @@ init :: proc(program: ^program)
   program.identifiers["u16"] = ast.make_node({ type = .type, value = "u16" })
   program.identifiers["u32"] = ast.make_node({ type = .type, value = "u32" })
   program.identifiers["u64"] = ast.make_node({ type = .type, value = "u64" })
+
+  allocator_type := ast.make_node({ type = .type, value = "[procedure]" })
+  append(&allocator_type.children, ast.make_node({ type = .type, value = "[parameters]" }))
+
+  string_type := ast.make_node({ type = .type, value = "[slice]" })
+  append(&string_type.children, program.identifiers["u8"])
+
+  code_allocator_type := ast.clone_node(allocator_type)
+  append(&code_allocator_type.children[0].children, ast.make_node({ type = .assignment_statement }))
+  append(&code_allocator_type.children[0].children[0].children, ast.make_node({ type = .identifier, value = "src", data_type = string_type }))
+  append(&code_allocator_type.children, string_type)
+  program.identifiers["code_allocator"] = code_allocator_type
+
+  memory_allocator_type := ast.clone_node(allocator_type)
+  append(&memory_allocator_type.children[0].children, ast.make_node({ type = .assignment_statement }))
+  append(&memory_allocator_type.children[0].children[0].children, ast.make_node({ type = .identifier, value = "size", data_type = program.identifiers["i64"] }))
+  append(&memory_allocator_type.children, ast.make_node({ type = .reference }))
+  append(&memory_allocator_type.children[1].children, program.identifiers["u8"])
+  program.identifiers["memory_allocator"] = memory_allocator_type
+
+  nil_allocator_type := ast.clone_node(allocator_type)
+  program.identifiers["nil_allocator"] = nil_allocator_type
+
+  static_allocator_type := ast.clone_node(allocator_type)
+  append(&static_allocator_type.children, program.identifiers["i64"])
+  program.identifiers["static_allocator"] = static_allocator_type
+
+  program.identifiers["code"] = ast.make_node({ type = .identifier, value = "code", data_type = code_allocator_type })
+  program.identifiers["extern"] = ast.make_node({ type = .identifier, value = "extern", data_type = nil_allocator_type })
+  program.identifiers["none"] = ast.make_node({ type = .identifier, value = "none", data_type = nil_allocator_type })
+  program.identifiers["stack"] = ast.make_node({ type = .identifier, value = "stack", data_type = static_allocator_type })
+  program.identifiers["static"] = ast.make_node({ type = .identifier, value = "static", data_type = static_allocator_type })
 }
 
 load_module :: proc(program: ^program, path: []string, code: string) -> bool

@@ -74,7 +74,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
           return false
         }
 
-        if ast.is_static_procedure(identifier_node)
+        if is_static_procedure(ctx.program, identifier_node)
         {
           reference(ctx, imported_module_path[:], node.value)
         }
@@ -112,7 +112,7 @@ type_check_identifier :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       return false
     }
 
-    if ast.is_static_procedure(identifier_node) && ast.get_allocator(identifier_node) != "none"
+    if is_static_procedure(ctx.program, identifier_node)
     {
       reference(ctx, identifier_path, node.value)
     }

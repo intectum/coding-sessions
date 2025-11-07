@@ -39,3 +39,27 @@ glNamedBufferStorage: proc(buffer: i32, size: i64, data: ^byte, flags: i32)@exte
 glShaderSource: proc(shader: i32, count: i32, src: ^^byte, length: ^i32)@extern
 glUseProgram: proc(program: i32)@extern
 glVertexAttribPointer: proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^byte)@extern
+
+// TODO proper map?!
+buffer_count: i32@static
+buffer_addresses: (^byte)[100]@static
+buffer_names: i32[100]@static
+
+// TODO allow the use of memory_allocator here
+heap: proc(size: i64) -> ^byte =
+{
+  name: i32
+  glGenBuffers(1, ^name)
+  glBindBuffer(GL_ARRAY_BUFFER, name)
+  buffer_names[buffer_count] = name
+
+  access_hints: i32 = 194
+  glNamedBufferStorage(name, size, nil, access_hints)
+  address: = glMapNamedBufferRange(name, 0, size, access_hints)
+  buffer_addresses[buffer_count] = address
+
+  buffer_count += 1
+  return address
+}
+
+compute_shader: code_allocator@none

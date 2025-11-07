@@ -261,6 +261,15 @@ resolve_types :: proc(node: ^ast.node, ctx: ^type_checking_context) -> (bool, bo
     }
   }
 
+  if node.allocator != nil
+  {
+    _, allocator_ok := resolve_types(node.allocator, ctx)
+    if !allocator_ok
+    {
+      return false, false
+    }
+  }
+
   for child_node in node.children
   {
     if child_node.type == .scope_statement do continue

@@ -2,6 +2,7 @@ package type_checking
 
 import "../ast"
 import "../src"
+import slice "core:slice"
 
 type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
 {
@@ -38,11 +39,45 @@ type_check_lhs_expression :: proc(node: ^ast.node, ctx: ^type_checking_context) 
         node.data_type = new_type_node
       }
     }
+
+    type_check_allocator(node, ctx) or_return
   }
   else
   {
     convert_soa_index(node, ctx)
     type_check_primary(node, ctx) or_return
+  }
+
+  return true
+}
+
+core_allocator_names: []string = { "code", "extern", "none", "stack", "static" }
+type_check_allocator :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bool
+{
+  if node.allocator == nil
+  {
+    node.allocator = ctx.program.identifiers[node.data_type.value == "[procedure]" ? "code" : "stack"]
+    return true
+  }
+
+  if node.allocator.type == .identifier && !ast.is_member(node.allocator)
+  {
+    _, core_allocator := slice.linear_search(core_allocator_names, node.allocator.value)
+    if core_allocator
+    {
+      node.allocator = ctx.program.identifiers[node.allocator.value]
+      return true
+    }
+  }
+
+  type_check_rhs_expression(node.allocator, ctx, nil) or_return
+
+  _, code_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["code_allocator"])
+  _, memory_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+  if !code_allocator && !memory_allocator
+  {
+    src.print_position_message(node.src_position, "Cannot apply allocator with type '%s'", type_name(node.allocator.data_type))
+    return false
   }
 
   return true

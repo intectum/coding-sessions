@@ -107,7 +107,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       module := &ctx.program.modules[qualified_module_name]
       module.imports[reference] = path
     }
-    else if ast.is_static_procedure_statement(statement)
+    else if statement.type == .assignment_statement && statement.children[0].data_type != nil && statement.children[0].data_type.value == "[procedure]"
     {
       lhs_node := statement.children[0]
       ctx.out_of_order_identifiers[lhs_node.value] = lhs_node

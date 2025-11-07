@@ -33,7 +33,7 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: b
   {
     tokens.next_token(stream, .at) or_return
 
-    node.allocator = (tokens.next_token(stream, .identifier) or_return).value
+    node.allocator = parse_rhs_expression(stream) or_return
   }
 
   return node, true

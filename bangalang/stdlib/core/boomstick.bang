@@ -1,5 +1,4 @@
 threading: = import("threading")
-memory: = import("memory")
 
 gl: = import("gl", "vendor")
 
@@ -36,11 +35,11 @@ bang: proc(kernel: kernel_t, data: vec4[]) =
     {
       gl.glUseProgram(glsl_kernel_names[kernel_index])
 
-      for buffer_index: i64, buffer_index < memory.vram_allocator_addresses.length, buffer_index += 1
+      for buffer_index: i64, buffer_index < gl.buffer_addresses.length, buffer_index += 1
       {
-        if data.raw == #danger_untyped memory.vram_allocator_addresses[buffer_index]
+        if data.raw == #danger_untyped gl.buffer_addresses[buffer_index]
         {
-          gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, memory.vram_allocator_names[buffer_index])
+          gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, gl.buffer_names[buffer_index])
         }
       }
 

@@ -1,3 +1,4 @@
+os: = import("os", "core")
 strings: = import("strings", "core")
 
 buf: byte[8]
@@ -11,3 +12,7 @@ for value in foo
 
 strings.println(strings.itoa(vec4.size, buf[]))
 strings.println(vec4.name)
+
+ints: i64[10]@os.heap
+ints[3] = 42
+strings.println(strings.itoa(ints[3], buf[]))

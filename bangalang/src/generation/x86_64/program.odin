@@ -23,14 +23,6 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  mov rdi, 0 ; arg0: exit_code")
   fmt.sbprintln(&ctx.output, "  syscall ; call kernel")
 
-  fmt.sbprintln(&ctx.output, "cmpxchg:")
-  fmt.sbprintln(&ctx.output, "  mov rbx, [rsp + 16] ; dereference")
-  fmt.sbprintln(&ctx.output, "  mov eax, [rsp + 12] ; copy")
-  fmt.sbprintln(&ctx.output, "  mov ecx, [rsp + 8] ; copy")
-  fmt.sbprintln(&ctx.output, "  lock cmpxchg [rbx], ecx ; compare and exchange")
-  fmt.sbprintln(&ctx.output, "  setz [rsp + 24] ; assign return value")
-  fmt.sbprintln(&ctx.output, "  ret ; return")
-
   fmt.sbprintln(&ctx.output, "panic_out_of_bounds:")
   fmt.sbprintln(&ctx.output, "  mov rax, 1 ; syscall: print")
   fmt.sbprintln(&ctx.output, "  mov rdi, 1 ; arg0: fd (stdout)")
@@ -51,6 +43,14 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
   fmt.sbprintln(&ctx.output, "  mov rdi, 1 ; arg0: exit_code")
   fmt.sbprintln(&ctx.output, "  syscall ; call kernel")
+  fmt.sbprintln(&ctx.output, "  ret ; return")
+
+  fmt.sbprintln(&ctx.output, "core.$lib.globals.$module.cmpxchg:")
+  fmt.sbprintln(&ctx.output, "  mov rbx, [rsp + 16] ; dereference")
+  fmt.sbprintln(&ctx.output, "  mov eax, [rsp + 12] ; copy")
+  fmt.sbprintln(&ctx.output, "  mov ecx, [rsp + 8] ; copy")
+  fmt.sbprintln(&ctx.output, "  lock cmpxchg [rbx], ecx ; compare and exchange")
+  fmt.sbprintln(&ctx.output, "  setz [rsp + 24] ; assign return value")
   fmt.sbprintln(&ctx.output, "  ret ; return")
 
   generated_procedure_names: [dynamic]string
@@ -141,31 +141,11 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
     procedure := &ctx.program.procedures[qualified_name]
     node := procedure.statements[0]
     lhs_node := node.children[0]
-    switch ast.get_allocator(lhs_node)
+
+    // TODO better
+    switch lhs_node.allocator.value
     {
-    case "extern":
-      fmt.sbprintfln(&ctx.output, "extern %s", lhs_node.value)
-    case "glsl":
-      {
-        procedure_ctx: generation.gen_context =
-        {
-          program = ctx.program,
-          path = reference[:]
-        }
-
-        strings.builder_init(&procedure_ctx.output)
-
-        glsl.generate_program(&procedure_ctx, node)
-
-        static_var_node := ast.make_node({ type = .assignment_statement })
-        append(&static_var_node.children, ast.make_node({ type = .identifier, value = qualified_name, allocator = "glsl" }))
-        append(&static_var_node.children, ast.make_node({ type = .assign, value = "=" }))
-        append(&static_var_node.children, ast.make_node({ type = .string_literal, value = strings.to_string(procedure_ctx.output) }))
-        ctx.program.static_vars[qualified_name] = static_var_node
-      }
-    case "none":
-      // Do nothing
-    case:
+    case "code":
       {
         procedure_ctx: generation.gen_context =
         {
@@ -180,6 +160,30 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
         generate_procedures(ctx, procedure.references[:], generated_procedure_names)
       }
+    case "compute_shader":
+      {
+        procedure_ctx: generation.gen_context =
+        {
+          program = ctx.program,
+          path = reference[:]
+        }
+
+        strings.builder_init(&procedure_ctx.output)
+
+        glsl.generate_program(&procedure_ctx, node)
+
+        static_var_node := ast.make_node({ type = .assignment_statement })
+        append(&static_var_node.children, ast.make_node({ type = .identifier, value = qualified_name, allocator = lhs_node.allocator }))
+        append(&static_var_node.children, ast.make_node({ type = .assign, value = "=" }))
+        append(&static_var_node.children, ast.make_node({ type = .string_literal, value = strings.to_string(procedure_ctx.output) }))
+        ctx.program.static_vars[qualified_name] = static_var_node
+      }
+    case "extern":
+      fmt.sbprintfln(&ctx.output, "extern %s", lhs_node.value)
+    case "none":
+      // Do nothing
+    case:
+      assert(false, "Failed to generate procedures")
     }
   }
 }
@@ -194,7 +198,8 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
     static_var_node := ctx.program.static_vars[static_var_name]
     lhs_node := static_var_node.children[0]
 
-    if lhs_node.allocator == "glsl"
+    // TODO better
+    if lhs_node.allocator.value == "compute_shader"
     {
       rhs_node := static_var_node.children[2]
 

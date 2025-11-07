@@ -25,13 +25,27 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   fmt.sbprintln(&ctx.output, "  ; assignment")
 
-  allocator := ast.get_allocator(lhs_node)
-
   if lhs_node.type == .identifier && !ast.is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
   {
-    switch allocator
+    switch lhs_node.allocator
     {
-    case "heap", "vram":
+    case ctx.program.identifiers["none"]:
+      // Do nothing
+    case ctx.program.identifiers["stack"]:
+      allocate_stack(ctx, to_byte_size(lhs_type_node))
+      ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
+    case ctx.program.identifiers["static"]:
+      path: [dynamic]string
+      append(&path, ..ctx.path[:])
+      append(&path, lhs_node.value)
+      defer delete(path)
+
+      qualified_name := program.get_qualified_name(path[:])
+      if !(qualified_name in ctx.program.static_vars)
+      {
+        ctx.program.static_vars[qualified_name] = node
+      }
+    case:
       allocate_stack(ctx, to_byte_size(lhs_type_node))
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
 
@@ -49,24 +63,6 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
         size := strconv.itoa(buf[:], to_byte_size(lhs_type_node.children[0]))
         rhs_node.children[1].value = size
       }
-    case "none":
-      // Do nothing
-    case "stack":
-      allocate_stack(ctx, to_byte_size(lhs_type_node))
-      ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
-    case "static":
-      path: [dynamic]string
-      append(&path, ..ctx.path[:])
-      append(&path, lhs_node.value)
-      defer delete(path)
-
-      qualified_name := program.get_qualified_name(path[:])
-      if !(qualified_name in ctx.program.static_vars)
-      {
-        ctx.program.static_vars[qualified_name] = node
-      }
-    case:
-      assert(false, "Failed to generate assignment")
     }
   }
 
@@ -75,7 +71,8 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   if len(node.children) == 1
   {
     // TODO heap etc. ?
-    if allocator == "stack" || allocator == "static"
+    _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
+    if static_allocator
     {
       nilify(ctx, lhs_location, lhs_type_node)
     }

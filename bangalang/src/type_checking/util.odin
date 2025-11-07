@@ -54,8 +54,7 @@ convert_soa_index :: proc(node: ^ast.node, ctx: ^type_checking_context) -> int
   identifier_node, _ := get_identifier_node(ctx, node.value)
   if identifier_node != nil
   {
-    identifier_type_node := identifier_node.data_type
-    if identifier_type_node.value == "[struct]" && identifier_type_node.directive == "#soa"
+    if identifier_node.data_type.value == "[struct]" && identifier_node.data_type.directive == "#soa"
     {
       return 0
     }
@@ -81,4 +80,28 @@ reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
   append(&final_path, ..path)
   append(&final_path, name)
   append(&procedure.references, final_path)
+}
+
+// TODO this is a bit messy
+is_static_procedure_statement :: proc(program: ^program.program, statement: ^ast.node) -> bool
+{
+  return statement.type == .assignment_statement && is_static_procedure(program, statement.children[0])
+}
+
+is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) -> bool
+{
+  type := identifier.data_type
+  if type == nil || type.value != "[procedure]"
+  {
+    return false
+  }
+
+  if ast.is_member(identifier) && identifier.children[0].data_type.value != "[module]"
+  {
+    return false
+  }
+
+  _, code_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
+  _, nil_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
+  return code_allocator || nil_allocator
 }

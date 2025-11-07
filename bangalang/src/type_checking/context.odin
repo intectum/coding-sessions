@@ -15,6 +15,8 @@ type_checking_context :: struct
   within_for: bool
 }
 
+core_globals_path: []string = { "core", "globals" }
+
 copy_context := proc(ctx: ^type_checking_context) -> type_checking_context
 {
   ctx_copy := ctx^
@@ -58,7 +60,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
     if identifier in procedure.identifiers
     {
       identifier_node := procedure.identifiers[identifier]
-      if path_length == len(ctx.path) || is_visible_nested(identifier_node)
+      if path_length == len(ctx.path) || is_visible_in_nested_proc(ctx, identifier_node)
       {
         return identifier_node, path
       }
@@ -69,7 +71,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
   if identifier in module.identifiers
   {
     identifier_node := module.identifiers[identifier]
-    if is_visible_nested(identifier_node)
+    if is_visible_in_nested_proc(ctx, identifier_node)
     {
       return identifier_node, ctx.path[:2]
     }
@@ -78,16 +80,25 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
   if identifier in ctx.program.identifiers
   {
     identifier_node := ctx.program.identifiers[identifier]
-    if is_visible_nested(identifier_node)
+    if is_visible_in_nested_proc(ctx, identifier_node)
     {
-      return identifier_node, {}
+      return identifier_node, core_globals_path
     }
   }
 
   return nil, {}
 }
 
-is_visible_nested :: proc(identifier_node: ^ast.node) -> bool
+is_visible_in_nested_proc :: proc(ctx: ^type_checking_context, identifier_node: ^ast.node) -> bool
 {
-  return ast.is_type(identifier_node) || identifier_node.data_type.value == "[module]" || ast.get_allocator(identifier_node) == "extern" || ast.get_allocator(identifier_node) == "glsl" || ast.get_allocator(identifier_node) == "none" || ast.get_allocator(identifier_node) == "static" // TODO glsl is temp here
+  if ast.is_type(identifier_node) || identifier_node.data_type.value == "[module]"
+  {
+    return true
+ }
+
+  // Should only be core allocators that do not have an allocator themselves...
+  if identifier_node.allocator == nil do return false
+
+  _, memory_allocator := coerce_type(identifier_node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+  return !memory_allocator && identifier_node.allocator != ctx.program.identifiers["stack"]
 }

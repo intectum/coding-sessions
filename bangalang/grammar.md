@@ -16,7 +16,7 @@ assignment\_statement\ &\to\ lhs\_expression\ (\ (\ \text{"="}\ |\ \text{"|="}\ 
 simple\_assignment\_statement\ &\to\ identifier\ \text{"="}\ (\ scope\_statement\ |\ rhs\_expression )\\
 lhs\_expression\ &\to\ lhs\_declaration\ |\ lhs\_primary\\
 declaration\_statement\ &\to\ lhs\_declaration\ (\ \text{"="}\ (\ scope\_statement\ |\ rhs\_expression )\ )?\\
-lhs\_declaration\ &\to\ directive?\ identifier\ \text{":"}\ type\_primary?\ (\ \text{"@"}\ identifier\ )?\\
+lhs\_declaration\ &\to\ directive?\ identifier\ \text{":"}\ type\_primary?\ (\ \text{"@"}\ rhs\_expression\ )?\\
 lhs\_primary\ &\to\ lhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ |\ \text{":"}\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ lhs\_primary\ )\ |\ \text{"("}\ lhs\_primary\ \text{")"}\ |\ identifier\\
 rhs\_expression\ &\to\ rhs\_primary\ (\ (\ \text{"|"}\ |\ \text{"||"}\ |\ \text{"&"}\ |\ \text{"&&"}\ |\ \text{"=="}\ |\ \text{"!="}\ |\ \text{"<"}\ |\ \text{">"}\ |\ \text{"<="}\ |\ \text{">="}\ |\ \text{"+"}\ |\ \text{"-"}\ |\ \text{"*"}\ |\ \text{"/"}\ |\ \text{"%"}\ )\ rhs\_primary\ )*\\
 rhs\_primary\ &\to\ (\ directive\ |\ \text{"^"}\ |\ \text{"-"}\ |\ \text{"!"}\ )\ rhs\_primary\ |\ rhs\_primary\ (\ \text{"^"}\ |\ \text{"["}\ (\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ |\ \text{":"}\ rhs\_expression\ |\ rhs\_expression\ \text{":"}\ rhs\_expression\ )?\ \text{"]"}\ |\ \text{"."}\ rhs\_primary\ |\ call\ )\ |\ \text{"("}\ rhs\_expression\ \text{")"}\ |\ identifier\ |\ struct\_type\ |\ procedure\_type\ |\ boolean\_literal\ |\ number\_literal\ |\ char\_literal\ |\ string\_literal\ |\ compound\_literal\ |\ nil\_literal\\

@@ -19,14 +19,14 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   }
 
   procedure_type_node := procedure_node.data_type
-  procedure_allocator := ast.get_allocator(procedure_node)
+  extern := procedure_node.allocator == ctx.program.identifiers["extern"]
 
   params_type_node := procedure_type_node.children[0]
   return_type_node := len(procedure_type_node.children) == 2 ? procedure_type_node.children[1] : nil
 
   call_stack_size := 0
   return_only_call_stack_size := 0
-  if procedure_allocator != "extern" && procedure_node.value != "syscall"
+  if !extern && procedure_node.value != "syscall"
   {
     for param_node in params_type_node.children
     {
@@ -50,7 +50,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 
   allocate_stack(ctx, call_stack_size)
 
-  if procedure_allocator == "extern" || procedure_node.value == "syscall"
+  if extern || procedure_node.value == "syscall"
   {
     for param_node_from_type, param_index in params_type_node.children
     {
@@ -139,7 +139,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     return {}
   }
 
-  if procedure_allocator == "extern" || procedure_node.value == "syscall"
+  if extern || procedure_node.value == "syscall"
   {
     return register("ax", return_type_node)
   }

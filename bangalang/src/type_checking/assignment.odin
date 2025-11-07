@@ -15,16 +15,23 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
 
   type_check_lhs_expression(lhs_node, ctx) or_return
 
-  procedure_definition := ast.is_static_procedure(lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value
 
     procedure: program.procedure
-    append(&procedure.statements, ast.make_node(node^))
 
-    if !ast.is_static_procedure(lhs_node)
+    if is_static_procedure(ctx.program, lhs_node)
     {
+      append(&procedure.statements, node)
+    }
+    else
+    {
+      clone := ast.clone_node(node)
+      clone.children[0].allocator = ctx.program.identifiers["code"]
+      append(&procedure.statements, clone)
+
       proc_index := ctx.next_index
       ctx.next_index += 1
       name = fmt.aprintf("$anon_%i", proc_index)
@@ -32,7 +39,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       new_node: ast.node = { type = .assignment_statement }
       append(&new_node.children, lhs_node)
       append(&new_node.children, ast.make_node({ type = .assign, value = "=" }))
-      append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = "static" }))
+      append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = ctx.program.identifiers["static"] }))
       node^ = new_node
 
       ctx.identifiers[name] = new_node.children[2]
@@ -127,15 +134,14 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
     return false
   }
 
-  identifier_node, _ := get_identifier_node(ctx, lhs_node.value)
-  if !ast.is_member(lhs_node) && identifier_node == nil
+  if declaration
   {
-    allocator := ast.get_allocator(lhs_node)
-    if allocator == "heap" || allocator == "vram"
+    _, memory_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+    if memory_allocator
     {
       if len(node.children) > 1
       {
-        src.print_position_message(lhs_node.src_position, "Cannot assign when using allocator '%s'", allocator)
+        src.print_position_message(lhs_node.src_position, "Cannot assign when using a memory allocator")
         return false
       }
 
@@ -158,8 +164,7 @@ type_check_assignment :: proc(node: ^ast.node, ctx: ^type_checking_context) -> b
       append(&node.children, operator_node)
 
       allocator_node := ast.make_node({ type = .call, directive = "#danger_untyped" })
-      append(&allocator_node.children, ast.make_node({ type = .identifier, value = strings.concatenate({ "allocate_", allocator }) }))
-      append(&allocator_node.children[0].children, ast.make_node({ type = .identifier, value = "memory" }))
+      append(&allocator_node.children, ast.clone_node(lhs_node.allocator))
 
       if lhs_node.data_type.value == "[slice]"
       {

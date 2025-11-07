@@ -1,5 +1,4 @@
 boomstick: = import("boomstick", "core")
-memory: = import("memory", "core") // TODO needed for allocators to work
 os: = import("os", "core")
 strings: = import("strings", "core")
 
@@ -28,7 +27,7 @@ triangle_count: = triangle_count_1d * triangle_count_1d
 triangle_size: = 2 / f32(triangle_count_1d)
 vertex_count: = triangle_count * 3
 
-triangle_data: vec4[i64(vertex_count)]@vram
+triangle_data: vec4[i64(vertex_count)]@gl.heap
 
 vertex_index: i32
 for x: i32, x < triangle_count_1d, x += 1
@@ -57,14 +56,14 @@ for x: i32, x < triangle_count_1d, x += 1
 
 gl.glUseProgram(program_name) util.check_opengl_error()
 
-gl.glBindBuffer(gl.GL_ARRAY_BUFFER, memory.vram_allocator_names[0])
+gl.glBindBuffer(gl.GL_ARRAY_BUFFER, gl.buffer_names[0])
 gl.glEnableVertexAttribArray(0) util.check_opengl_error()
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) util.check_opengl_error()
 
 fps_time: = os.time()
 frame_count: i64
 
-move_triangles: boomstick.kernel_t@glsl =
+move_triangles: boomstick.kernel_t@gl.compute_shader =
   do data[index] += { 0.0001, 0.0001, 0, 0 }
 
 for glfw.glfwWindowShouldClose(window) == 0

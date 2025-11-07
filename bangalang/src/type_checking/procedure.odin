@@ -10,11 +10,11 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
 {
   lhs_node := node.children[0]
   lhs_type_node := lhs_node.data_type
-  allocator := ast.get_allocator(lhs_node)
 
-  if len(node.children) == 1 && (allocator == "glsl" || allocator == "static")
+  _, code_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["code_allocator"])
+  if len(node.children) == 1 && code_allocator
   {
-    src.print_position_message(lhs_node.src_position, "Must provide a procedure body when using allocator '%s'", allocator)
+    src.print_position_message(lhs_node.src_position, "Must provide a procedure body when using a code allocator")
     return false
   }
 
@@ -34,7 +34,7 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     }
 
     param_lhs_node := param_node.children[0]
-    param_lhs_node.allocator = "stack"
+    param_lhs_node.allocator = ctx.program.identifiers["stack"]
 
     type_check_assignment(param_node, ctx) or_return
   }
@@ -44,9 +44,10 @@ type_check_procedure :: proc(node: ^ast.node, ctx: ^type_checking_context) -> bo
     operator_node := node.children[1]
     rhs_node := node.children[2]
 
-    if allocator == "extern" || allocator == "none"
+    _, nil_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["nil_allocator"])
+    if nil_allocator
     {
-      src.print_position_message(lhs_node.src_position, "Cannot provide a procedure body when using allocator '%s'", allocator)
+      src.print_position_message(lhs_node.src_position, "Cannot provide a procedure body when using a nil allocator")
       return false
     }
 

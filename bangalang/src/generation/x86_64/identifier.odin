@@ -107,12 +107,13 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     }
   }
 
-  allocator := ast.get_allocator(node)
-  if allocator == "extern" || allocator == "glsl" || allocator == "none" || allocator == "static" // TODO glsl is temp here
+  _, memory_allocator := type_checking.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+  if !memory_allocator && node.allocator != ctx.program.identifiers["stack"]
   {
     name := node.value
 
-    if (allocator != "extern" && allocator != "none") || node.value == "glsl_kernels" // TODO hmmm
+    // TODO add #namespaced=false
+    if node.allocator != ctx.program.identifiers["extern"]
     {
       if ast.is_member(node) && node.children[0].data_type.value == "[module]"
       {
