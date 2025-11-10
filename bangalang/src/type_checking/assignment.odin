@@ -52,7 +52,6 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
     qualified_name := program.get_qualified_name(procedure_path[:])
     ctx.program.procedures[qualified_name] = procedure
-    append(&ctx.program.queue, procedure_path)
   }
 
   if len(node.children) > 1

@@ -8,7 +8,7 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
 {
   if node.data_type != nil
   {
-    identifier_node, _ := get_identifier_node(ctx, node.value, true)
+    identifier_node, _ := get_identifier_node(ctx, node, true)
     if identifier_node != nil
     {
       src.print_position_message(node.src_position, "'%s' has already been declared", node.value)

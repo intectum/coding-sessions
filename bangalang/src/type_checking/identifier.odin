@@ -76,31 +76,16 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
           type_check_swizzle_member(node) or_return
         }
       case "[module]":
-        module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
-        if !(child_node.value in module.imports)
+        identifier_node, identifier_path := get_identifier_node(ctx, node)
+        if identifier_node == nil
         {
-          src.print_position_message(node.src_position, "Module '%s' has not been imported", child_node.value)
+          src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
           return false
         }
 
-        imported_module_path := module.imports[child_node.value]
-        imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
-        if !(node.value in imported_module.identifiers)
+        if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
         {
-          src.print_position_message(node.src_position, "'%s' is not a member of module '%s'", node.value, child_node.value)
-          return false
-        }
-
-        identifier_node := imported_module.identifiers[node.value]
-        if identifier_node.directive == "#private"
-        {
-          src.print_position_message(node.src_position, "'%s' is a private member of module '%s'", node.value, child_node.value)
-          return false
-        }
-
-        if is_static_procedure(ctx.program, identifier_node)
-        {
-          reference(ctx, imported_module_path[:], node.value)
+          reference(ctx, identifier_path, node.value)
         }
 
         node.data_type = identifier_node.data_type
@@ -129,14 +114,14 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   }
   else
   {
-    identifier_node, identifier_path := get_identifier_node(ctx, node.value)
+    identifier_node, identifier_path := get_identifier_node(ctx, node)
     if identifier_node == nil
     {
       src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
       return false
     }
 
-    if is_static_procedure(ctx.program, identifier_node)
+    if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
     {
       reference(ctx, identifier_path, node.value)
     }

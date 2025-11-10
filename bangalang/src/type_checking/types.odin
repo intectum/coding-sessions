@@ -16,12 +16,12 @@ unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
 
 coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 {
-  if a == nil || a.value == "[none]"
+  if a == nil || a.value == "[none]" || is_placeholder(a)
   {
     return b, true
   }
 
-  if b == nil || b.value == "[none]"
+  if b == nil || b.value == "[none]" || is_placeholder(b)
   {
     return a, true
   }
@@ -238,7 +238,7 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
     }
     else
     {
-      identifier_node, _ := get_identifier_node(ctx, node.value)
+      identifier_node, _ := get_identifier_node(ctx, node)
       if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^
@@ -247,7 +247,7 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
     }
   }
 
-  if node.type == .type && node.value[0] != '['
+  if node.type == .type && node.value[0] != '[' && node.value[0] != '$'
   {
     src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
     return false, false

@@ -37,7 +37,7 @@ convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, 
       {
         src_non_immediate := copy_to_non_immediate(ctx, src, register_num + 1, src_type_node)
 
-        if dest_unsigned_integer_type
+        if src_unsigned_integer_type || dest_unsigned_integer_type
         {
           fmt.sbprintfln(&ctx.output, "  movzx %s, %s %s ; convert", to_operand(dest), to_operation_size(src_size), to_operand(src_non_immediate))
         }

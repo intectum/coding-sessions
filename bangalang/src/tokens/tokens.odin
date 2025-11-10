@@ -57,6 +57,7 @@ token_type :: enum
   pipe,
   pipe_equals,
   pipe_pipe,
+  placeholder,
   plus,
   plus_equals,
   string_

@@ -36,18 +36,44 @@ copy_context := proc(ctx: ^type_checking_context) -> type_checking_context
   return ctx_copy
 }
 
-get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, skip_out_of_order_identifiers: bool = false) -> (^ast.node, []string)
+get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, skip_out_of_order_identifiers: bool = false) -> (^ast.node, []string)
 {
-  if identifier in ctx.identifiers
+  if ast.is_member(identifier) && identifier.children[0].data_type != nil && identifier.children[0].data_type.value == "[module]"
   {
-    return ctx.identifiers[identifier], ctx.path
+    child_node := identifier.children[0]
+
+    module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
+    if !(child_node.value in module.imports)
+    {
+      return nil, {}
+    }
+
+    imported_module_path := &module.imports[child_node.value]
+    imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
+    if !(identifier.value in imported_module.identifiers)
+    {
+      return nil, {}
+    }
+
+    identifier_node := imported_module.identifiers[identifier.value]
+    if identifier_node.directive == "#private"
+    {
+      return nil, {}
+    }
+
+    return identifier_node, imported_module_path[:]
+  }
+
+  if identifier.value in ctx.identifiers
+  {
+    return ctx.identifiers[identifier.value], ctx.path
   }
 
   if !skip_out_of_order_identifiers
   {
-    if identifier in ctx.out_of_order_identifiers
+    if identifier.value in ctx.out_of_order_identifiers
     {
-      return ctx.identifiers[identifier], ctx.path
+      return ctx.out_of_order_identifiers[identifier.value], ctx.path
     }
   }
 
@@ -57,9 +83,9 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
     qualified_name := program.get_qualified_name(path)
     procedure := &ctx.program.procedures[qualified_name]
 
-    if identifier in procedure.identifiers
+    if identifier.value in procedure.identifiers
     {
-      identifier_node := procedure.identifiers[identifier]
+      identifier_node := procedure.identifiers[identifier.value]
       if path_length == len(ctx.path) || is_visible_in_nested_proc(ctx, identifier_node)
       {
         return identifier_node, path
@@ -68,18 +94,18 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: string, ski
   }
 
   module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
-  if identifier in module.identifiers
+  if identifier.value in module.identifiers
   {
-    identifier_node := module.identifiers[identifier]
+    identifier_node := module.identifiers[identifier.value]
     if is_visible_in_nested_proc(ctx, identifier_node)
     {
       return identifier_node, ctx.path[:2]
     }
   }
 
-  if identifier in ctx.program.identifiers
+  if identifier.value in ctx.program.identifiers
   {
-    identifier_node := ctx.program.identifiers[identifier]
+    identifier_node := ctx.program.identifiers[identifier.value]
     if is_visible_in_nested_proc(ctx, identifier_node)
     {
       return identifier_node, core_globals_path

@@ -15,6 +15,11 @@ clone_node :: proc(root: ^node) -> ^node
 {
   clone := make_node(root^)
 
+  if root.data_type != nil
+  {
+    clone.data_type = clone_node(root.data_type)
+  }
+
   clone.children = {}
   for child in root.children
   {
@@ -133,6 +138,8 @@ to_node_type :: proc(token_type: tokens.token_type) -> node_type
     return .bitwise_or_assign
   case .pipe_pipe:
     return .or
+  case .placeholder:
+    return .identifier
   case .plus:
     return .add
   case .plus_equals:

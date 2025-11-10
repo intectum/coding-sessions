@@ -175,6 +175,19 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
       token := tokens.token { .directive, code[initial_stream.next_index:stream.next_index], initial_stream.position }
       append(&result, token)
     }
+    else if src.peek_rune(&stream) == '$'
+    {
+      initial_stream := stream
+      src.next_rune(&stream)
+
+      for (src.peek_rune(&stream) >= 'a' && src.peek_rune(&stream) <= 'z') || (src.peek_rune(&stream) >= 'A' && src.peek_rune(&stream) <= 'Z') || src.peek_rune(&stream) == '_' || (src.peek_rune(&stream) >= '0' && src.peek_rune(&stream) <= '9')
+      {
+        src.next_rune(&stream)
+      }
+
+      token := tokens.token { .placeholder, code[initial_stream.next_index:stream.next_index], initial_stream.position }
+      append(&result, token)
+    }
     else if (src.peek_rune(&stream) >= 'a' && src.peek_rune(&stream) <= 'z') || (src.peek_rune(&stream) >= 'A' && src.peek_rune(&stream) <= 'Z') || src.peek_rune(&stream) == '_'
     {
       initial_stream := stream

@@ -51,7 +51,7 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
     }
   }
 
-  identifier_node, _ := get_identifier_node(ctx, node.value)
+  identifier_node, _ := get_identifier_node(ctx, node)
   if identifier_node != nil
   {
     if identifier_node.data_type.value == "[struct]" && identifier_node.data_type.directive == "#soa"
@@ -79,7 +79,9 @@ reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
   final_path: [dynamic]string
   append(&final_path, ..path)
   append(&final_path, name)
+
   append(&procedure.references, final_path)
+  append(&ctx.program.queue, final_path)
 }
 
 // TODO this is a bit messy
