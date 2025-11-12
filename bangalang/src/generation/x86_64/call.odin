@@ -40,12 +40,15 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     }
   }
 
-  misalignment := (ctx.stack_size + call_stack_size) % 16
-  if misalignment != 0
+  if procedure_node.value != "syscall"
   {
-    misalignment = 16 - misalignment
-    call_stack_size += misalignment
-    return_only_call_stack_size += misalignment
+    misalignment := (ctx.stack_size + call_stack_size) % 16
+    if misalignment != 0
+    {
+      misalignment = 16 - misalignment
+      call_stack_size += misalignment
+      return_only_call_stack_size += misalignment
+    }
   }
 
   allocate_stack(ctx, call_stack_size)

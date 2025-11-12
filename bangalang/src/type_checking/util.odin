@@ -93,7 +93,7 @@ is_static_procedure_statement :: proc(program: ^program.program, statement: ^ast
 is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) -> bool
 {
   type := identifier.data_type
-  if type == nil || type.value != "[procedure]"
+  if identifier.type != .identifier || type == nil || type.value != "[procedure]"
   {
     return false
   }

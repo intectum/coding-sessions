@@ -26,27 +26,28 @@ atoi: proc(value: string) -> i64 =
   return result
 }
 
-itoa: proc(value: i64, buffer: byte[]) -> string =
+itoa: proc(value: $any_int, buffer: byte[]) -> string =
 {
+  i64_value: = i64(value)
   length: u64 = 0
 
-  negative: = value < 0
+  negative: = i64_value < 0
   if negative
   {
-    value = -value
+    i64_value = -i64_value
   }
-  else if value == 0
+  else if i64_value == 0
   {
     buffer[length] = '0'
 
     length += 1
   }
 
-  for value > 0
+  for i64_value > 0
   {
-    buffer[length] = byte(value % 10) + '0'
+    buffer[length] = byte(i64_value % 10) + '0'
 
-    value /= 10
+    i64_value /= 10
     length += 1
   }
 

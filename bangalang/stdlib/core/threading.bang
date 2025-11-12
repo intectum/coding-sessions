@@ -4,11 +4,11 @@ strings: = import("strings")
 
 mutex_lock: proc(mutex: ^i32) =
   do for !cmpxchg(mutex, 0, 1)
-    do linux.futex(mutex, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
+    do linux.futex_wait(mutex, 1, 0)
 
 mutex_unlock: proc(mutex: ^i32) =
   do if cmpxchg(mutex, 1, 0)
-    do linux.futex(mutex, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+    do linux.futex_wake(mutex, 1)
 
 semaphore_t: = struct
 {
@@ -22,33 +22,41 @@ semaphore_wait: proc(semaphore: ^semaphore_t) =
     semaphore.value -= 1
     if semaphore.value >= 0 do return
     semaphore.value += 1
-    linux.futex(^semaphore.waiter, 0 /* FUTEX_WAIT */, 0 /* expected */, 0 /* timeout */)
+    linux.futex_wait(^semaphore.waiter, 0, 0)
   }
 
 semaphore_signal: proc(semaphore: ^semaphore_t) =
 {
   semaphore.value += 1
-  linux.futex(^semaphore.waiter, 1 /* FUTEX_WAKE */, 1 /* count */, 0)
+  linux.futex_wake(^semaphore.waiter, 1)
 }
 
-start_thread: proc(func: proc(arg: i64), arg: i64) -> i64 =
+start_thread: proc(func: proc(param: $T), param: $T) -> i64 =
 {
   stack: byte[4096]@os.heap
+  stack_ptr := stack.length
 
-  stack_i64: i64 = #danger_untyped stack.raw
-  stack_i64 += stack.length
-  stack_i64 -= 2 * u64.size // account for params
-  stack_params: ^i64[2] = #danger_untyped stack_i64
-  stack_params[1] = #danger_untyped func
-  stack_params[0] = arg
-  stack_i64 -= u64.size // account for instruction pointer
-  stack_i64 -= 5 * u64.size // account for local vars declared before clone
+  stack_ptr -= (^byte).size
+  stack_func: ^proc(param: $T) = #danger_untyped ^stack[stack_ptr]
+  stack_func^ = func
 
-  pid: = linux.syscall(56, linux.CLONE_VM | linux.CLONE_FILES | linux.CLONE_SIGHAND | linux.CLONE_THREAD, stack_i64, 0, 0, 0, 0)
+  stack_ptr -= $T.size
+  stack_param: ^$T = #danger_untyped ^stack[stack_ptr]
+  stack_param^ = param
+
+  stack_ptr -=
+    (^byte).size + // instruction pointer
+    byte[].size + // stack
+    i64.size + // stack_ptr
+    (^byte).size + // stack_func
+    (^byte).size + // stack_param
+    i64.size // stack_param
+
+  pid: = linux.syscall(56, linux.CLONE_VM | linux.CLONE_FILES | linux.CLONE_SIGHAND | linux.CLONE_THREAD, #danger_untyped ^stack[stack_ptr], 0, 0, 0, 0)
 
   if pid == 0
   {
-    func(arg)
+    func(param)
     linux.exit(0)
   }
 
@@ -74,46 +82,44 @@ thread_pool_t: = #align4 struct
   working: i32
 }
 
-thread_pool_worker: proc(arg: i64) =
+thread_pool_worker: proc(param: ^thread_pool_t) =
 {
-  pool: ^thread_pool_t = #danger_untyped arg
-
   alive: = true
   for alive
   {
-    semaphore_wait(^pool.semaphore)
-    mutex_lock(^pool.mutex)
+    semaphore_wait(^param.semaphore)
+    mutex_lock(^param.mutex)
 
-    if pool.task_count == 0
+    if param.task_count == 0
     {
       alive = false
-      mutex_unlock(^pool.mutex)
+      mutex_unlock(^param.mutex)
     }
     else
     {
-      pool.current_worker_count += 1
-      pool.task_count -= 1
-      task: = pool.tasks[pool.task_count]
-      mutex_unlock(^pool.mutex)
+      param.current_worker_count += 1
+      param.task_count -= 1
+      task: = param.tasks[param.task_count]
+      mutex_unlock(^param.mutex)
 
       for index: = task.start, index < task.end, index += 1
         do task.func(index, task.data)
 
-      mutex_lock(^pool.mutex)
-      pool.current_worker_count -= 1
-      if pool.task_count == 0 && pool.current_worker_count == 0
+      mutex_lock(^param.mutex)
+      param.current_worker_count -= 1
+      if param.task_count == 0 && param.current_worker_count == 0
       {
-        pool.working = 0
-        linux.futex(^pool.working, 1 /* FUTEX_WAKE */, 999 /* count TODO i64.max */, 0)
+        param.working = 0
+        linux.futex_wake(^param.working, 999 /* TODO i64.max */)
       }
-      mutex_unlock(^pool.mutex)
+      mutex_unlock(^param.mutex)
     }
   }
 }
 
 thread_pool_start: proc(pool: ^thread_pool_t) =
   do for index: i32, index < pool.worker_count, index += 1
-    do start_thread(thread_pool_worker, #danger_untyped pool)
+    do start_thread(thread_pool_worker, pool)
 
 thread_pool_enqueue: proc(pool: ^thread_pool_t, task: ^thread_pool_task_t) =
 {
@@ -127,7 +133,7 @@ thread_pool_enqueue: proc(pool: ^thread_pool_t, task: ^thread_pool_task_t) =
 }
 
 thread_pool_wait: proc(pool: ^thread_pool_t) =
-  do linux.futex(^pool.working, 0 /* FUTEX_WAIT */, 1 /* expected */, 0 /* timeout */)
+  do linux.futex_wait(^pool.working, 1, 0)
 
 thread_pool_stop: proc(pool: ^thread_pool_t) =
   do for index: i32, index < pool.worker_count, index += 1

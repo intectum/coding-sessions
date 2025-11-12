@@ -166,7 +166,7 @@ type_name :: proc(type_node: ^ast.node) -> string
     params_type_node := type_node.children[0]
     for param_node in params_type_node.children
     {
-      param_lhs_node := type_node.children[0]
+      param_lhs_node := param_node.children[0]
       append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(param_lhs_node.data_type) }))
     }
 
@@ -188,6 +188,63 @@ type_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
+  }
+
+  return strings.concatenate({ prefix, type_node.value })
+}
+
+type_var_name :: proc(type_node: ^ast.node) -> string
+{
+  assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
+
+  prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, "." }) : ""
+
+  if type_node.type == .reference
+  {
+    return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
+  }
+
+  switch type_node.value
+  {
+  case "[array]":
+    length_expression_node := type_node.children[1]
+    length := length_expression_node.value
+    return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
+  case "[enum]":
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, member_node.value)
+    }
+
+    return strings.concatenate({ prefix, "$enum.", strings.join(member_type_names[:], ".") })
+  case "[procedure]":
+    param_type_names: [dynamic]string
+    params_type_node := type_node.children[0]
+    for param_node in params_type_node.children
+    {
+      param_lhs_node := param_node.children[0]
+      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ".", type_var_name(param_lhs_node.data_type) }))
+    }
+
+    return_type_name: string
+    if len(type_node.children) == 2
+    {
+      return_type_node := type_node.children[1]
+      return_type_name = strings.concatenate({ ".$return.", type_var_name(return_type_node) })
+    }
+
+    return strings.concatenate({ prefix, "$proc.", strings.join(param_type_names[:], "."), return_type_name })
+  case "[slice]":
+    return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
+  case "[struct]":
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, strings.concatenate({ member_node.value, ".", type_var_name(member_node.data_type) }))
+    }
+
+    return strings.concatenate({ prefix, "$struct.", strings.join(member_type_names[:], ".") })
   }
 
   return strings.concatenate({ prefix, type_node.value })

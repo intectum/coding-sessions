@@ -44,6 +44,11 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   placeholder_identifiers: map[string]^ast.node
   concrete_procedure: program.procedure
 
+  _, identifier_path := get_identifier_node(&call_ctx, procedure_node)
+  procedure_path: [dynamic]string
+  append(&procedure_path, ..identifier_path)
+  append(&procedure_path, procedure_node.value)
+
   param_expression_nodes := node.children[1:]
   for param_expression_node, index in param_expression_nodes
   {
@@ -56,18 +61,12 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     {
       if len(concrete_procedure.statements) == 0
       {
-        _, identifier_path := get_identifier_node(&call_ctx, procedure_node)
-        procedure_path: [dynamic]string
-        append(&procedure_path, ..identifier_path)
-        append(&procedure_path, procedure_node.value)
-
         qualified_name := program.get_qualified_name(procedure_path[:])
         procedure := &call_ctx.program.procedures[qualified_name]
 
         append(&concrete_procedure.statements, ast.clone_node(procedure.statements[0]))
-        node.children[0] = concrete_procedure.statements[0].children[0]
-        procedure_node = node.children[0]
-        procedure_type_node = procedure_node.data_type
+        node.children[0].data_type = concrete_procedure.statements[0].children[0].data_type
+        procedure_type_node = node.children[0].data_type
         params_type_node = procedure_type_node.children[0]
       }
 
@@ -90,24 +89,32 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     fmt.sbprintf(&name, "%s.$variant", procedure_node.value)
     for _, value in placeholder_identifiers
     {
-      fmt.sbprintf(&name, ".%s", type_name(value))
+      fmt.sbprintf(&name, ".%s", type_var_name(value))
     }
 
-    _, identifier_path := get_identifier_node(&call_ctx, procedure_node)
     procedure_node.value = strings.clone(strings.to_string(name))
+    procedure_path[len(procedure_path) - 1] = procedure_node.value
+    concrete_qualified_name := program.get_qualified_name(procedure_path[:])
 
-    parent_qualified_name := program.get_qualified_name(identifier_path[:])
-    parent_procedure := &call_ctx.program.procedures[parent_qualified_name]
-    parent_procedure.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
+    if !(concrete_qualified_name in call_ctx.program.procedures)
+    {
+      for key, value in placeholder_identifiers do concrete_procedure.identifiers[key] = value
 
-    procedure_path: [dynamic]string
-    append(&procedure_path, ..identifier_path)
-    append(&procedure_path, procedure_node.value)
+      parent_qualified_name := program.get_qualified_name(identifier_path[:])
+      if len(identifier_path) == 2
+      {
+        parent_module := &call_ctx.program.modules[parent_qualified_name]
+        parent_module.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
+      }
+      else
+      {
+        parent_procedure := &call_ctx.program.procedures[parent_qualified_name]
+        parent_procedure.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
+      }
 
-    reference(ctx, identifier_path, procedure_node.value)
-
-    qualified_name := program.get_qualified_name(procedure_path[:])
-    call_ctx.program.procedures[qualified_name] = concrete_procedure
+      call_ctx.program.procedures[concrete_qualified_name] = concrete_procedure
+      reference(ctx, identifier_path, procedure_node.value)
+    }
   }
 
   return true

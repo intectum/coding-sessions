@@ -11,6 +11,8 @@ import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
 {
+  if ast.is_type(node) do return {}
+
   child_location: location
   if node.type != .compound_literal && node.type != .type && len(node.children) > 0
   {
@@ -168,6 +170,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .nil_literal:
     return immediate(0)
   case .type:
+    assert(false, "Failed to generate primary")
     return {}
   case:
     return generate_expression_1(ctx, node, register_num, contains_allocations)

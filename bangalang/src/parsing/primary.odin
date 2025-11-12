@@ -92,9 +92,9 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
       node.type = .type
     }
   case .placeholder:
-    if type != .type
+    if type == .lhs
     {
-      stream.error = src.to_position_message(node.src_position, "Only a type primary can contain a placeholder")
+      stream.error = src.to_position_message(node.src_position, "A left-hand-side primary cannot contain a placeholder")
       return {}, false
     }
 

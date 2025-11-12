@@ -8,12 +8,12 @@ for value in i64(0)..10
 
 foo: vec4 = { 2, 4, 6, 8 }
 for value in foo
-  do strings.println(strings.itoa(i64(value), buf[]))
+  do strings.println(strings.itoa(value, buf[]))
 
 strings.println(strings.itoa(vec4.size, buf[]))
 strings.println(vec4.name)
-strings.println(strings.itoa(i64(u8.max), buf[]))
-strings.println(strings.itoa(i64(i8.min), buf[]))
+strings.println(strings.itoa(u8.max, buf[]))
+strings.println(strings.itoa(i8.min, buf[]))
 
 ints: i64[10]@os.heap
 ints[3] = 42
@@ -23,7 +23,11 @@ my_enum: = enum { foo, bar }
 bar: = my_enum.bar
 if bar == my_enum.bar do strings.println("equal")
 
-return_me: proc(me: $T) -> $T do return me
+return_me: proc(me: $T) -> $T =
+{
+  test: $T = 43
+  return me
+}
 
-strings.println(strings.itoa(i64(return_me(u8(42))), buf[]))
-strings.println(strings.itoa(i64(return_me(u64(42))), buf[]))
+strings.println(strings.itoa(return_me(u8(42)), buf[]))
+strings.println(strings.itoa(return_me(u64(42)), buf[]))

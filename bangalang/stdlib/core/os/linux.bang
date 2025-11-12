@@ -32,5 +32,8 @@ exit: proc(exit_code: i64) = do syscall(60, exit_code)
 timeval_t = struct { seconds: i64, micro_seconds: i64 }
 gettimeofday: proc(timeval: ^timeval_t) = do syscall(96, #danger_untyped timeval)
 
-futex: proc(futex_word: ^i32, operation: i64, operation_arg0: i64, operation_arg1: i64) =
-  do syscall(202, #danger_untyped futex_word, operation, operation_arg0, operation_arg1)
+futex_wait: proc(futex_word: ^i32, expected: i64, timeout: i64) =
+  do syscall(202, #danger_untyped futex_word, 0, expected, timeout)
+
+futex_wake: proc(futex_word: ^i32, count: i64) =
+  do syscall(202, #danger_untyped futex_word, 1, count)
