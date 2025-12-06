@@ -7,7 +7,7 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
+import "../loading"
 import "../src"
 
 lib_locations: []string =
@@ -34,14 +34,9 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
     else if ast.is_link_statement(statement)
     {
       link := statement.children[1].value
+      if link in ctx.root.children do continue
 
-      _, found_link := slice.linear_search(ctx.program.links[:], link)
-      if found_link
-      {
-        continue
-      }
-
-      append(&ctx.program.links, link)
+      ctx.root.children[link] = {}
     }
     else if ast.is_import_statement(statement)
     {
@@ -54,58 +49,53 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       lib_name := len(rhs_node.children) == 3 ? rhs_node.children[2].value : strings.concatenate({ "\"", ctx.path[0], "\"" })
       lib_name = lib_name[1:len(lib_name) - 1]
 
-      lib_path := "."
+      lib_file_path := "."
       if lib_name != "[main]"
       {
         for lib_location in lib_locations
         {
-          the_lib_path := strings.concatenate({ lib_location, "/", lib_name })
-          if os.is_dir(the_lib_path)
+          the_lib_file_path := strings.concatenate({ lib_location, "/", lib_name })
+          if os.is_dir(the_lib_file_path)
           {
-            lib_path = the_lib_path
+            lib_file_path = the_lib_file_path
             break
           }
         }
 
-        if lib_path == "."
+        if lib_file_path == "."
         {
           src.print_position_message(lhs_node.src_position, "Library '%s' not found", lib_name)
           return false
         }
       }
 
-      path: [2]string = { lib_name, module_name }
-      qualified_module_name := program.get_qualified_module_name(ctx.path)
-      qualified_imported_module_name := program.get_qualified_module_name(path[:])
+      if !(lib_name in ctx.root.children) do ctx.root.children[lib_name] = {}
 
+      module_path: [dynamic]string
+      append(&module_path, lib_name, module_name)
 
-      if qualified_imported_module_name in ctx.program.modules
+      if !(module_name in ctx.root.children[lib_name].children)
       {
-        module := &ctx.program.modules[qualified_module_name]
-        module.imports[reference] = path
+        file_path := strings.concatenate({ lib_file_path, "/", module_name, ".bang" })
+        module_data, read_ok := os.read_entire_file(file_path)
+        if !read_ok
+        {
+          src.print_position_message(lhs_node.src_position, "Failed to read module file '%s'", module_name)
+          return false
+        }
 
-        continue
+        loading.load_module(ctx.root, module_path[:], string(module_data)) or_return
+
+        module_ctx: type_checking_context =
+        {
+          root = ctx.root,
+          current = ast.get_module(ctx.root, module_path[:]),
+          path = module_path[:]
+        }
+        type_check_module(&module_ctx) or_return
       }
 
-      file_path := strings.concatenate({ lib_path, "/", module_name, ".bang" })
-      module_data, read_ok := os.read_entire_file(file_path)
-      if !read_ok
-      {
-        src.print_position_message(lhs_node.src_position, "Failed to read module file '%s'", module_name)
-        return false
-      }
-
-      program.load_module(ctx.program, path[:], string(module_data)) or_return
-
-      imported_module_ctx: type_checking_context =
-      {
-        program = ctx.program,
-        path = path[:]
-      }
-      type_check_module(&imported_module_ctx) or_return
-
-      module := &ctx.program.modules[qualified_module_name]
-      module.imports[reference] = path
+      ctx.current.references[reference] = module_path
     }
     else if statement.type == .assignment_statement && statement.children[0].data_type != nil && statement.children[0].data_type.value == "[procedure]"
     {

@@ -50,7 +50,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
           child_lhs_node.data_type = raw_type_node
           found_member = true
         case "length":
-          child_lhs_node.data_type = ctx.program.identifiers["i64"]
+          child_lhs_node.data_type = ctx.root.identifiers["i64"]
           found_member = true
         }
       case "[struct]":

@@ -1,24 +1,15 @@
 package type_checking
 
-import "../program"
-import fmt "core:fmt"
+import "../ast"
 
-type_check_program :: proc(the_program: ^program.program, path: []string, code: string) -> bool
+type_check_program :: proc(ctx: ^type_checking_context) -> bool
 {
-  program.load_module(the_program, path, code) or_return
-
-  type_checking_ctx: type_checking_context =
-  {
-    program = the_program,
-    path = path
-  }
-  type_check_module(&type_checking_ctx) or_return
+  type_check_module(ctx) or_return
 
   for len(the_program.queue) > 0
   {
     proc_path := pop(&the_program.queue)
-    qualified_name := program.get_qualified_name(proc_path[:])
-    procedure := &the_program.procedures[qualified_name]
+    procedure := ast.get_scope(ctx.root, proc_path[:])
     if procedure.type_checked
     {
       continue
@@ -26,7 +17,8 @@ type_check_program :: proc(the_program: ^program.program, path: []string, code: 
 
     procedure_ctx: type_checking_context =
     {
-      program = the_program,
+      root = ctx.root,
+      current = procedure,
       path = proc_path[:]
     }
 
@@ -39,7 +31,7 @@ type_check_program :: proc(the_program: ^program.program, path: []string, code: 
   import_path: [dynamic]string
   defer delete(import_path)
 
-  type_check_cyclic_imports(the_program, path, &import_path) or_return
+  type_check_cyclic_imports(ctx, &import_path) or_return
 
   return true
 }

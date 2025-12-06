@@ -19,7 +19,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   }
 
   procedure_type_node := procedure_node.data_type
-  extern := procedure_node.allocator == ctx.program.identifiers["extern"]
+  extern := procedure_node.allocator == ctx.root.identifiers["extern"]
 
   params_type_node := procedure_type_node.children[0]
   return_type_node := len(procedure_type_node.children) == 2 ? procedure_type_node.children[1] : nil

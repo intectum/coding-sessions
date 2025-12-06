@@ -143,11 +143,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .string_literal:
     if type_node.value == "[slice]" && type_node.children[0].value == "u8"
     {
-      return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.string_literals, "string_", node.value), 0)
     }
     else if type_node.type == .reference && type_node.children[0].value == "u8"
     {
-      return immediate(get_literal_name(&ctx.program.cstring_literals, "cstring_", node.value))
+      return immediate(get_literal_name(&ctx.root.cstring_literals, "cstring_", node.value))
     }
 
     assert(false, "Failed to generate primary")
@@ -155,11 +155,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .number_literal:
     if type_node.value == "f32"
     {
-      return memory(get_literal_name(&ctx.program.f32_literals, "f32_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.f32_literals, "f32_", node.value), 0)
     }
     else if type_node.value == "f64"
     {
-      return memory(get_literal_name(&ctx.program.f64_literals, "f64_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.f64_literals, "f64_", node.value), 0)
     }
 
     return immediate(node.value)

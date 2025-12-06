@@ -4,7 +4,6 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
 import "../src"
 
 numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
@@ -256,7 +255,7 @@ upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_nod
   {
     if new_type_node.value == "[any_string]" && node.data_type.value == "[any_string]"
     {
-      node.data_type = ctx.program.identifiers["string"]
+      node.data_type = ctx.root.identifiers["string"]
     }
     else if node.data_type.value == "[none]" || node.data_type.value == "[any_float]" || node.data_type.value == "[any_int]" || node.data_type.value == "[any_number]" || node.data_type.value == "[any_string]"
     {
@@ -277,11 +276,11 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
     if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
     {
       child_node := node.children[0]
-      module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
+      module := &ctx.root.modules[program.get_module_path_name(ctx.path)]
       if child_node.value in module.imports
       {
         imported_module_path := module.imports[child_node.value]
-        imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
+        imported_module := &ctx.root.modules[program.get_module_path_name(imported_module_path[:])]
         if node.value in imported_module.identifiers
         {
           identifier_node := imported_module.identifiers[node.value]
@@ -295,7 +294,7 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
     }
     else
     {
-      identifier_node, _ := get_identifier_node(ctx, node)
+      identifier_node, _ := resolve_identifier(ctx, node)
       if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^

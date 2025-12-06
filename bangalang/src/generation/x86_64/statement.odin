@@ -5,28 +5,28 @@ import "core:fmt"
 import "../../ast"
 import ".."
 
-generate_statement :: proc(ctx: ^generation.gen_context, node: ^ast.node)
+generate_statement :: proc(ctx: ^generation.gen_context, output: ^output, node: ^ast.node)
 {
   #partial switch node.type
   {
   case .if_statement:
-    generate_if(ctx, node)
+    generate_if(ctx, output, node)
   case .basic_for_statement:
-    generate_basic_for(ctx, node)
+    generate_basic_for(ctx, output, node)
   case .switch_:
-    generate_switch(ctx, node)
+    generate_switch(ctx, output, node)
   case .continue_statement:
-    generate_continue(ctx, node)
+    generate_continue(ctx, output, node)
   case .break_statement:
-    generate_break(ctx, node)
+    generate_break(ctx, output, node)
   case .return_statement:
-    generate_return(ctx, node)
+    generate_return(ctx, output, node)
   case .scope_statement:
-    generate_scope(ctx, node)
+    generate_scope(ctx, output, node)
   case .assignment_statement:
-    generate_assignment(ctx, node)
+    generate_assignment(ctx, output, node)
   case:
     fmt.sbprintln(&ctx.output, "  ; expression")
-    generate_expression(ctx, node)
+    generate_expression(ctx, output, node)
   }
 }

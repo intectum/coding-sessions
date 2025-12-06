@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
@@ -42,12 +41,13 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
   call_ctx := copy_context(ctx)
   placeholder_identifiers: map[string]^ast.node
-  concrete_procedure: program.procedure
+  concrete_procedure := new(ast.scope)
 
-  _, identifier_path := get_identifier_node(&call_ctx, procedure_node)
+  _, identifier_path := resolve_identifier(&call_ctx, procedure_node)
   procedure_path: [dynamic]string
   append(&procedure_path, ..identifier_path)
   append(&procedure_path, procedure_node.value)
+  defer delete(procedure_path)
 
   param_expression_nodes := node.children[1:]
   for param_expression_node, index in param_expression_nodes
@@ -61,8 +61,7 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     {
       if len(concrete_procedure.statements) == 0
       {
-        qualified_name := program.get_qualified_name(procedure_path[:])
-        procedure := &call_ctx.program.procedures[qualified_name]
+        procedure := ast.get_scope(ctx.root, procedure_path[:])
 
         append(&concrete_procedure.statements, ast.clone_node(procedure.statements[0]))
         node.children[0].data_type = concrete_procedure.statements[0].children[0].data_type
@@ -94,25 +93,14 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     procedure_node.value = strings.clone(strings.to_string(name))
     procedure_path[len(procedure_path) - 1] = procedure_node.value
-    concrete_qualified_name := program.get_qualified_name(procedure_path[:])
 
-    if !(concrete_qualified_name in call_ctx.program.procedures)
+    if ast.get_scope(ctx.root, procedure_path[:]) != nil
     {
       for key, value in placeholder_identifiers do concrete_procedure.identifiers[key] = value
 
-      parent_qualified_name := program.get_qualified_name(identifier_path[:])
-      if len(identifier_path) == 2
-      {
-        parent_module := &call_ctx.program.modules[parent_qualified_name]
-        parent_module.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
-      }
-      else
-      {
-        parent_procedure := &call_ctx.program.procedures[parent_qualified_name]
-        parent_procedure.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
-      }
-
-      call_ctx.program.procedures[concrete_qualified_name] = concrete_procedure
+      parent_scope := ast.get_scope(call_ctx.root, identifier_path[:])
+      parent_scope.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
+      parent_scope.children[procedure_node.value] = concrete_procedure
       reference(ctx, identifier_path, procedure_node.value)
     }
   }
@@ -142,7 +130,7 @@ type_check_conversion_call :: proc(ctx: ^type_checking_context, node: ^ast.node)
     return false
   }
 
-  upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"])
+  upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.root.identifiers["f64"] : ctx.root.identifiers["i64"])
 
   node.data_type = ast.clone_node(procedure_node)
 

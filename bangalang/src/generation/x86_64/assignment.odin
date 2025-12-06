@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
-import "../../program"
 import "../../type_checking"
 import ".."
 
@@ -29,21 +28,21 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
     switch lhs_node.allocator
     {
-    case ctx.program.identifiers["none"]:
+    case ctx.root.identifiers["none"]:
       // Do nothing
-    case ctx.program.identifiers["stack"]:
+    case ctx.root.identifiers["stack"]:
       allocate_stack(ctx, to_byte_size(lhs_type_node))
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
-    case ctx.program.identifiers["static"]:
+    case ctx.root.identifiers["static"]:
       path: [dynamic]string
       append(&path, ..ctx.path[:])
       append(&path, lhs_node.value)
       defer delete(path)
 
-      qualified_name := program.get_qualified_name(path[:])
-      if !(qualified_name in ctx.program.static_vars)
+      path_name := program.get_path_name(path[:])
+      if !(path_name in ctx.root.static_vars)
       {
-        ctx.program.static_vars[qualified_name] = node
+        ctx.root.static_vars[path_name] = node
       }
     case:
       allocate_stack(ctx, to_byte_size(lhs_type_node))
@@ -71,7 +70,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   if len(node.children) == 1
   {
     // TODO heap etc. ?
-    _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
+    _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.root.identifiers["static_allocator"])
     if static_allocator
     {
       nilify(ctx, lhs_location, lhs_type_node)

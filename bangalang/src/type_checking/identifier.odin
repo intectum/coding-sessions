@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
@@ -45,8 +44,8 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
           _, integer2 := slice.linear_search(integer_types, child_node.value)
 
           node.data_type = child_node
-        case "name": node.data_type = ctx.program.identifiers["string"]
-        case "size": node.data_type = ctx.program.identifiers["i64"]
+        case "name": node.data_type = ctx.root.identifiers["string"]
+        case "size": node.data_type = ctx.root.identifiers["i64"]
         case:
           src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
           return false
@@ -69,21 +68,21 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
         }
         else if node.value == "length"
         {
-          node.data_type = ctx.program.identifiers["i64"]
+          node.data_type = ctx.root.identifiers["i64"]
         }
         else
         {
           type_check_swizzle_member(node) or_return
         }
       case "[module]":
-        identifier_node, identifier_path := get_identifier_node(ctx, node)
+        identifier_node, identifier_path := resolve_identifier(ctx, node)
         if identifier_node == nil
         {
           src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
           return false
         }
 
-        if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+        if is_static_procedure(ctx.root, identifier_node) && !has_placeholders(identifier_node)
         {
           reference(ctx, identifier_path, node.value)
         }
@@ -114,14 +113,14 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   }
   else
   {
-    identifier_node, identifier_path := get_identifier_node(ctx, node)
+    identifier_node, identifier_path := resolve_identifier(ctx, node)
     if identifier_node == nil
     {
       src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
       return false
     }
 
-    if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+    if is_static_procedure(ctx.root, identifier_node) && !has_placeholders(identifier_node)
     {
       reference(ctx, identifier_path, node.value)
     }

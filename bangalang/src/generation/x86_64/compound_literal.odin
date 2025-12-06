@@ -6,7 +6,6 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../program"
 import "../../type_checking"
 import ".."
 
@@ -34,10 +33,10 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       element_type_node := type_node.children[0]
       element_size := to_byte_size(element_type_node)
 
-      qualified_name := program.get_qualified_name(ctx.path)
+      path_name := program.get_path_name(ctx.path)
       slice_array_index := ctx.next_index
       ctx.next_index += 1
-      static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, slice_array_index)
+      static_var_name := fmt.aprintf("%s.$array_%i", path_name, slice_array_index)
 
       static_var_type_node := ast.make_node({ type = .type, value = "[array]" })
       append(&static_var_type_node.children, element_type_node)
@@ -45,7 +44,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
       static_var_node := ast.make_node({ type = .assignment_statement })
       append(&static_var_node.children, ast.make_node({ type = .identifier, value = static_var_name, data_type = static_var_type_node }))
-      ctx.program.static_vars[static_var_name] = static_var_node
+      ctx.root.static_vars[static_var_name] = static_var_node
 
       element_location := memory(static_var_name, 0)
       for child_node in node.children

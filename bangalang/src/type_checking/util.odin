@@ -3,7 +3,6 @@ package type_checking
 import "core:slice"
 
 import "../ast"
-import "../program"
 
 auto_dereference :: proc(node: ^ast.node)
 {
@@ -51,7 +50,7 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
     }
   }
 
-  identifier_node, _ := get_identifier_node(ctx, node)
+  identifier_node, _ := resolve_identifier(ctx, node)
   if identifier_node != nil
   {
     if identifier_node.data_type.value == "[struct]" && identifier_node.data_type.directive == "#soa"
@@ -73,24 +72,22 @@ get_swizzle_index :: proc(char: rune) -> int
 
 reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
 {
-  qualified_name := program.get_qualified_name(ctx.path)
-  procedure := &ctx.program.procedures[qualified_name]
+  procedure := ast.get_scope(ctx.root, ctx.path)
 
-  final_path: [dynamic]string
-  append(&final_path, ..path)
-  append(&final_path, name)
+  reference_path: [dynamic]string
+  append(&reference_path, ..path)
+  append(&reference_path, name)
 
-  append(&procedure.references, final_path)
-  append(&ctx.program.queue, final_path)
+  procedure.references[name] = reference_path
+  append(&ctx.root.queue, reference_path)
 }
 
-// TODO this is a bit messy
-is_static_procedure_statement :: proc(program: ^program.program, statement: ^ast.node) -> bool
+is_static_procedure_statement :: proc(root: ^ast.scope, statement: ^ast.node) -> bool
 {
-  return statement.type == .assignment_statement && is_static_procedure(program, statement.children[0])
+  return statement.type == .assignment_statement && is_static_procedure(root, statement.children[0])
 }
 
-is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) -> bool
+is_static_procedure :: proc(root: ^ast.scope, identifier: ^ast.node) -> bool
 {
   type := identifier.data_type
   if identifier.type != .identifier || type == nil || type.value != "[procedure]"
@@ -103,7 +100,7 @@ is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) ->
     return false
   }
 
-  _, code_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
-  _, nil_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
+  _, code_allocator := coerce_type(identifier.allocator.data_type, root.identifiers["code_allocator"])
+  _, nil_allocator := coerce_type(identifier.allocator.data_type, root.identifiers["nil_allocator"])
   return code_allocator || nil_allocator
 }

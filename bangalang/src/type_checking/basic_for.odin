@@ -21,7 +21,7 @@ type_check_basic_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
     child_index += 1
   }
 
-  type_check_rhs_expression(&for_ctx, child_node, for_ctx.program.identifiers["bool"]) or_return
+  type_check_rhs_expression(&for_ctx, child_node, for_ctx.root.identifiers["bool"]) or_return
 
   child_node = node.children[child_index]
   child_index += 1

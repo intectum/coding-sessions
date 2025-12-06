@@ -11,7 +11,7 @@ type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
   lhs_node := node.children[0]
   lhs_type_node := lhs_node.data_type
 
-  _, code_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["code_allocator"])
+  _, code_allocator := coerce_type(lhs_node.allocator.data_type, ctx.root.identifiers["code_allocator"])
   if len(node.children) == 1 && code_allocator
   {
     src.print_position_message(lhs_node.src_position, "Must provide a procedure body when using a code allocator")
@@ -34,7 +34,7 @@ type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
     }
 
     param_lhs_node := param_node.children[0]
-    param_lhs_node.allocator = ctx.program.identifiers["stack"]
+    param_lhs_node.allocator = ctx.root.identifiers["stack"]
 
     type_check_assignment(ctx, param_node) or_return
   }
@@ -44,7 +44,7 @@ type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
     operator_node := node.children[1]
     rhs_node := node.children[2]
 
-    _, nil_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["nil_allocator"])
+    _, nil_allocator := coerce_type(lhs_node.allocator.data_type, ctx.root.identifiers["nil_allocator"])
     if nil_allocator
     {
       src.print_position_message(lhs_node.src_position, "Cannot provide a procedure body when using a nil allocator")

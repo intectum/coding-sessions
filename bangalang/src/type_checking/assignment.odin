@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
@@ -15,21 +14,21 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   type_check_lhs_expression(ctx, lhs_node) or_return
 
-  procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := is_static_procedure(ctx.root, lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value
 
-    procedure: program.procedure
+    procedure := new(ast.scope)
 
-    if is_static_procedure(ctx.program, lhs_node)
+    if is_static_procedure(ctx.root, lhs_node)
     {
       append(&procedure.statements, node)
     }
     else
     {
       clone := ast.clone_node(node)
-      clone.children[0].allocator = ctx.program.identifiers["code"]
+      clone.children[0].allocator = ctx.root.identifiers["code"]
       append(&procedure.statements, clone)
 
       proc_index := ctx.next_index
@@ -39,19 +38,14 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       new_node: ast.node = { type = .assignment_statement }
       append(&new_node.children, lhs_node)
       append(&new_node.children, ast.make_node({ type = .assign, value = "=" }))
-      append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = ctx.program.identifiers["static"] }))
+      append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = ctx.root.identifiers["static"] }))
       node^ = new_node
 
       ctx.identifiers[name] = new_node.children[2]
       reference(ctx, ctx.path, name)
     }
 
-    procedure_path: [dynamic]string
-    append(&procedure_path, ..ctx.path)
-    append(&procedure_path, name)
-
-    qualified_name := program.get_qualified_name(procedure_path[:])
-    ctx.program.procedures[qualified_name] = procedure
+    ctx.current.children[name] = procedure
   }
 
   if len(node.children) > 1
@@ -135,7 +129,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   if declaration
   {
-    _, memory_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+    _, memory_allocator := coerce_type(lhs_node.allocator.data_type, ctx.root.identifiers["memory_allocator"])
     if memory_allocator
     {
       if len(node.children) > 1

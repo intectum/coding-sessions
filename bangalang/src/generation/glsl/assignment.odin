@@ -23,7 +23,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   if lhs_node.type == .identifier && !ast.is_member(lhs_node) && !(lhs_node.value in ctx.stack_variable_offsets)
   {
-    if lhs_node.allocator != ctx.program.identifiers["stack"]
+    if lhs_node.allocator != ctx.root.identifiers["stack"]
     {
       assert(false, "Failed to generate assignment")
     }

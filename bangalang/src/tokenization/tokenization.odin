@@ -215,6 +215,13 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
           token.type = .keyword
         }
       }
+
+      if strings.contains(token.value, "__")
+      {
+        src.print_position_message(initial_stream.position, "Identifiers cannot contain double-underscores (__)")
+        return {}, false
+      }
+
       append(&result, token)
     }
     else if src.peek_string(&stream, 2) in fixed_token_types

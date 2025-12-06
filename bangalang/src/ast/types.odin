@@ -2,6 +2,22 @@ package ast
 
 import "../src"
 
+ast_context :: struct
+{
+  root: ^scope,
+  current: ^scope,
+  path: []string
+}
+
+scope :: struct
+{
+  statements: [dynamic]^node,
+  identifiers: map[string]^node,
+  references: map[string][dynamic]string,
+  children: map[string]^scope,
+  output: map[string]string
+}
+
 node :: struct
 {
   type: node_type,

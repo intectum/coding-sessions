@@ -9,7 +9,7 @@ import "core:sys/linux"
 import "./ast"
 import "./generation"
 import "./generation/x86_64"
-import "./program"
+import "./loading"
 import "./type_checking"
 
 main :: proc()
@@ -54,7 +54,7 @@ build :: proc(name: string, code: string, out_path: string)
   asm_path := strings.concatenate({ out_path, ".asm" })
   object_path := strings.concatenate({ out_path, ".o" })
 
-  the_program := compile(name, code, asm_path)
+  root := compile(name, code, asm_path)
 
   nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
   nasm_code := exec(nasm_command)
@@ -65,9 +65,12 @@ build :: proc(name: string, code: string, out_path: string)
   }
 
   links: string
-  for link in the_program.links
+  for name, lib in root.children
   {
-    links = strings.concatenate({ links, " -l", link })
+    if len(lib.statements) == 0
+    {
+      links = strings.concatenate({ links, " -l", name })
+    }
   }
 
   ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", out_path, links })
@@ -79,10 +82,10 @@ build :: proc(name: string, code: string, out_path: string)
   }
 }
 
-compile :: proc(name: string, code: string, asm_path: string) -> program.program
+compile :: proc(name: string, code: string, asm_path: string) -> ast.scope
 {
-  the_program: program.program
-  program.init(&the_program)
+  root: ast.scope
+  ast.init_root(&root)
 
   globals_data, globals_ok := os.read_entire_file("stdlib/core/globals.bang")
   if !globals_ok
@@ -92,12 +95,22 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
   }
 
   globals_path: []string = { "core", "globals" }
-  if !type_checking.type_check_program(&the_program, globals_path, string(globals_data))
+  if !loading.load_module(&root, globals_path, string(globals_data))
+  {
+    os.exit(1)
+  }
+  globals_module := ast.get_module(&root, globals_path)
+  globals_ctx: type_checking.type_checking_context =
+  {
+    root = &root,
+    current = globals_module,
+    path = globals_path
+  }
+  if !type_checking.type_check_program(&globals_ctx)
   {
     os.exit(1)
   }
 
-  globals_module := &the_program.modules[program.get_qualified_module_name(globals_path)]
   for identifier in globals_module.identifiers
   {
     if identifier == "import"
@@ -106,18 +119,30 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
       append(&identifier_node.data_type.children, ast.make_node({ type = .type, value = "[module]" }))
     }
 
-    the_program.identifiers[identifier] = globals_module.identifiers[identifier]
+    root.identifiers[identifier] = globals_module.identifiers[identifier]
   }
 
   path: []string = { "[main]", name }
-  if !type_checking.type_check_program(&the_program, path, code)
+  if !loading.load_module(&root, path, code)
+  {
+    os.exit(1)
+  }
+  main_module := ast.get_module(&root, path)
+  main_ctx: type_checking.type_checking_context =
+  {
+    root = &root,
+    current = main_module,
+    path = globals_path
+  }
+  if !type_checking.type_check_program(&main_ctx)
   {
     os.exit(1)
   }
 
   gen_ctx: generation.gen_context =
   {
-    program = &the_program,
+    root = &root,
+    current = main_module,
     path = path
   }
 
@@ -134,7 +159,7 @@ compile :: proc(name: string, code: string, asm_path: string) -> program.program
 
   fmt.fprint(file, strings.to_string(gen_ctx.output))
 
-  return the_program
+  return root
 }
 
 exec :: proc(command: string) -> u32

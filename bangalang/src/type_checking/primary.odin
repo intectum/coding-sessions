@@ -69,7 +69,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     any_int_type_node := ast.make_node({ type = .type, value = "[any_int]" })
 
     type_check_rhs_expression(ctx, node.children[1], any_int_type_node) or_return
-    upgrade_types(ctx, node.children[1], ctx.program.identifiers["i64"])
+    upgrade_types(ctx, node.children[1], ctx.root.identifiers["i64"])
 
     if len(node.children) == 2
     {
@@ -78,7 +78,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     else
     {
       type_check_rhs_expression(ctx, node.children[2], any_int_type_node) or_return
-      upgrade_types(ctx, node.children[2], ctx.program.identifiers["i64"])
+      upgrade_types(ctx, node.children[2], ctx.root.identifiers["i64"])
 
       type_node := ast.make_node({ type = .type, value = "[slice]" })
       append(&type_node.children, child_type_node.children[0])
@@ -100,14 +100,14 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   case .identifier:
     type_check_identifier(ctx, node) or_return
   case .char_literal:
-    node.data_type = ctx.program.identifiers["char"]
+    node.data_type = ctx.root.identifiers["char"]
   case .string_literal:
     node.data_type = ast.make_node({ type = .type, value = "[any_string]" })
   case .number_literal:
     type := strings.contains(node.value, ".") ? "[any_float]" : "[any_number]"
     node.data_type = ast.make_node({ type = .type, value = type })
   case .boolean_literal:
-    node.data_type = ctx.program.identifiers["bool"]
+    node.data_type = ctx.root.identifiers["bool"]
   case .compound_literal:
     type_check_compound_literal(ctx, node) or_return
   case .nil_literal:
