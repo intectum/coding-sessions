@@ -1,0 +1,98 @@
+TEST EVERYTHING! including glsl
+
+bugs
+
+- compile-time bounds checking should check for negative numbers, or use unsigned index?
+- glsl nilify
+- glsl static vars
+- glsl verify no return
+- glsl prevent calling in non-boomstick context
+- enforce return in all code paths for procs with return type
+- stack variable import uses wrong address
+- assign empty compound literal, properly restricted compound literal
+
+features
+
+- generic structs
+- variadics
+- procs with capture
+- map type
+- ternary ? :
+- string format procs (include console/file read/write) - strings.format, os.print, os.println
+- compile-time execution
+- OpenCL
+- OpenGL rendering with bang kernels
+- multi-assign
+- multi-return
+- windows
+- mac
+
+- cli
+- debug
+- docs
+
+- const? by default for params? mutable?
+- spread operator?
+- default heap arena?
+- byte pointers can be coerced to any other pointer type?
+- default struct members? violates nil as default?
+- nil coalesce? e.g. foo?.bar or foo ?? bar
+
+stretch goals
+
+- arm
+- web
+- android
+- iOS
+
+cleanup
+
+- compiler performance
+- print and check AST structure
+- directives as nodes
+- backend-specific errors instead of asserts, or "kernel" instead of "proc"?
+- bounds checking in glsl? or disable in kernels? disable refs/pointers also
+- negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
+- check all TODOs
+- verify/print glsl
+- use unsigned ints where it makes more sense
+- better type-checking for type-alias/link/import
+- more descriptive parsing errors (contextual)
+- better parsing/type-checking/more restrictive for compound literals
+- disallow type redeclaration and require ":" for type aliases
+- nilify for empty compound literals (single nilify per group of uninitialized members)
+- switch only generate expression_node once
+- switch require all enum values unless #partial
+- align for stack vars (and other allocators?)
+- test project in diff folder
+- auto-convert dynamic array sizes
+- dynamically sized soa
+- check syscall as member proc...
+- pointer to ranged-for element
+- do not require casts for ranged fors e.g. 0..10
+- make index available in ranged for
+- prevent recursive struct
+- restrict generic param types
+- check if param names must match...
+- set affinity of threads in thread pool (sched_setaffinity?)
+
+- asm/glsl indenting etc.
+- remove default return when not needed
+- unify expression/assignment code, more efficient locations
+- x86 asm review
+
+- _ var not saved
+- delete dynamic arrays/maps etc. in compiler after use
+- removed _node from vars in compiler
+
+- custom allocator for nodes in compiler?
+- is coerce_type just upgrade and compare?
+- switch slice range operator from : to ..?
+- swap src/dest in copy?
+- ref/deref procs?
+- are atomic types necessary?
+- lhs_expression/rhs_expression node types?
+- switch to system-v calling convention?
+- cint and cstring need to be explicitly imported? c.int and c.string?
+- do not gen unreferenced vars? including static
+
