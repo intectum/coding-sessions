@@ -1,6 +1,7 @@
 package parsing
 
 import "../ast"
+import "../src"
 import "../tokens"
 
 parse_break :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
@@ -10,7 +11,12 @@ parse_break :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
     src_position = tokens.peek_token(stream).src_position
   })
 
-  tokens.next_token(stream, .keyword, "break") or_return
+  break_token, break_ok := tokens.next_token(stream, .keyword, "break")
+  if !break_ok
+  {
+    stream.error = src.to_position_message(break_token.src_position, "break statement must begin with 'break'")
+    return {}, false
+  }
 
   return node, true
 }

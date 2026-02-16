@@ -13,8 +13,6 @@ bugs
 
 features
 
-- generic structs
-- variadics
 - procs with capture
 - map type
 - ternary ? :
@@ -26,11 +24,15 @@ features
 - multi-return
 - windows
 - mac
+- tests
 
-- cli
 - debug
 - docs
+- lsp
+- tree sitter
 
+- generic structs?
+- variadics?
 - const? by default for params? mutable?
 - spread operator?
 - default heap arena?
@@ -57,7 +59,6 @@ cleanup
 - verify/print glsl
 - use unsigned ints where it makes more sense
 - better type-checking for type-alias/link/import
-- more descriptive parsing errors (contextual)
 - better parsing/type-checking/more restrictive for compound literals
 - disallow type redeclaration and require ":" for type aliases
 - nilify for empty compound literals (single nilify per group of uninitialized members)
@@ -75,6 +76,7 @@ cleanup
 - restrict generic param types
 - check if param names must match...
 - set affinity of threads in thread pool (sched_setaffinity?)
+- think through parsing messages
 
 - asm/glsl indenting etc.
 - remove default return when not needed
@@ -95,4 +97,3 @@ cleanup
 - switch to system-v calling convention?
 - cint and cstring need to be explicitly imported? c.int and c.string?
 - do not gen unreferenced vars? including static
-

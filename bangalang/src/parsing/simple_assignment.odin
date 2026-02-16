@@ -3,6 +3,7 @@ package parsing
 import "core:slice"
 
 import "../ast"
+import "../src"
 import "../tokens"
 
 parse_simple_assignment :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
@@ -12,7 +13,13 @@ parse_simple_assignment :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -
     src_position = tokens.peek_token(stream).src_position
   })
 
-  lhs_token := tokens.next_token(stream, .identifier) or_return
+  lhs_token, lhs_ok := tokens.next_token(stream, .identifier)
+  if !lhs_ok
+  {
+    stream.error = src.to_position_message(lhs_token.src_position, "the left-hand-side of a simple assignment must be an identifer")
+    return {}, false
+  }
+
   lhs_node := ast.to_node(lhs_token)
   append(&node.children, lhs_node)
 
@@ -22,7 +29,13 @@ parse_simple_assignment :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -
     ctx.return_value_required = len(lhs_type_node.children) == 2
   }
 
-  operator_token := tokens.next_token(stream, .equals) or_return
+  operator_token, operator_ok := tokens.next_token(stream, .equals)
+  if !operator_ok
+  {
+    stream.error = src.to_position_message(operator_token.src_position, "the identifier in the left-hand-side of a simple assignment must be followed by an '='")
+    return {}, false
+  }
+
   operator_node := ast.to_node(operator_token)
   append(&node.children, operator_node)
 

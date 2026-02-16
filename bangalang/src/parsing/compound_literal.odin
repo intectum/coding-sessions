@@ -1,6 +1,7 @@
 package parsing
 
 import "../ast"
+import "../src"
 import "../tokens"
 
 parse_compound_literal :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
@@ -12,7 +13,12 @@ parse_compound_literal :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: 
     src_position = tokens.peek_token(stream).src_position
   })
 
-  tokens.next_token(stream, .opening_curly_bracket) or_return
+  opening_bracket_token, opening_bracket_ok := tokens.next_token(stream, .opening_curly_bracket)
+  if !opening_bracket_ok
+  {
+    stream.error = src.to_position_message(opening_bracket_token.src_position, "compound literal must begin with '{{'")
+    return {}, false
+  }
 
   assignment_members := false
   expression_members := false
@@ -20,7 +26,12 @@ parse_compound_literal :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: 
   {
     if len(node.children) > 0
     {
-      tokens.next_token(stream, .comma) or_return
+      comma_token, comma_ok := tokens.next_token(stream, .comma)
+      if !comma_ok
+      {
+        stream.error = src.to_position_message(comma_token.src_position, "members in a compound literal must be separated by ','")
+        return {}, false
+      }
     }
 
     member_assignment_stream := stream^
@@ -61,7 +72,12 @@ parse_compound_literal :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: 
     }
   }
 
-  tokens.next_token(stream, .closing_curly_bracket) or_return
+  closing_bracket_token, closing_bracket_ok := tokens.next_token(stream, .closing_curly_bracket)
+  if !closing_bracket_ok
+  {
+    stream.error = src.to_position_message(closing_bracket_token.src_position, "compound literal must end with '}'")
+    return {}, false
+  }
 
   return node, true
 }

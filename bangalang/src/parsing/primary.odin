@@ -82,7 +82,19 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
       node = parse_primary(stream, type) or_return
     }
 
-    tokens.next_token(stream, .closing_bracket) or_return
+    closing_bracket_token, closing_bracket_ok := tokens.next_token(stream, .closing_bracket)
+    if !closing_bracket_ok
+    {
+      if type == .rhs
+      {
+        stream.error = src.to_position_message(closing_bracket_token.src_position, "missing ')' in right-hand-side expression")
+      }
+      else
+      {
+        stream.error = src.to_position_message(closing_bracket_token.src_position, "missing ')' in primary")
+      }
+      return {}, false
+    }
   case .identifier:
     token := tokens.next_token(stream, .identifier) or_return
     node = ast.to_node(token)
@@ -260,7 +272,12 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
         }
       }
 
-      tokens.next_token(stream, .closing_square_bracket) or_return
+      closing_bracket_token, closing_bracket_ok := tokens.next_token(stream, .closing_square_bracket)
+      if !closing_bracket_ok
+      {
+        stream.error = src.to_position_message(closing_bracket_token.src_position, "missing ']' in primary")
+        return {}, false
+      }
     case .period:
       tokens.next_token(stream, .period) or_return
 

@@ -1,6 +1,7 @@
 package parsing
 
 import "../ast"
+import "../src"
 import "../tokens"
 
 parse_if :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
@@ -10,7 +11,12 @@ parse_if :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node: ^ast.n
     src_position = tokens.peek_token(stream).src_position
   })
 
-  tokens.next_token(stream, .keyword, "if") or_return
+  if_token, if_ok := tokens.next_token(stream, .keyword, "if")
+  if !if_ok
+  {
+    stream.error = src.to_position_message(if_token.src_position, "if statement must begin with 'if'")
+    return {}, false
+  }
 
   if_expression_node := parse_rhs_expression(stream) or_return
   append(&node.children, if_expression_node)

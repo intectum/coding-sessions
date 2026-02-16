@@ -3,6 +3,7 @@ package main
 import "core:c/libc"
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strings"
 import "core:sys/linux"
 
@@ -12,12 +13,63 @@ import "./generation/x86_64"
 import "./program"
 import "./type_checking"
 
+help_flags: []string = { "-h", "--help" }
+commands: []string = { "build", "health-check", "run" }
+
 main :: proc()
 {
-  name := os.args[1]
-
-  if name == "--tests"
+  command := len(os.args) > 1 ? os.args[1] : ""
+  _, is_valid_command := slice.linear_search(commands, command)
+  if !is_valid_command
   {
+    _, is_help_flag := slice.linear_search(help_flags, command)
+    if !is_help_flag
+    {
+      fmt.printfln("[bangc] <command> is required to be one of %s.", commands)
+      fmt.println("")
+    }
+
+    fmt.println("Usage: bangc <command>")
+    fmt.println("")
+    fmt.println("  The compiler for Bangalang")
+    fmt.println("")
+    fmt.printfln("    <command>  Possible values include: %s. See 'bangc <command> --help' for more details about the commands.", commands)
+
+    os.exit(is_help_flag ? 0 : 1)
+  }
+
+  switch command
+  {
+  case "build":
+    input := len(os.args) > 2 ? os.args[2] : ""
+    _, is_help_flag := slice.linear_search(help_flags, input)
+    if input == "" || is_help_flag
+    {
+      if !is_help_flag
+      {
+        fmt.println("[bangc:build] <input> is required.")
+        fmt.println("")
+      }
+
+      fmt.println("Usage: bangc build <input>")
+      fmt.println("")
+      fmt.println("  Build the program with the given entry module.")
+      fmt.println("")
+      fmt.println("    <input>  The entry module. This is the relative path to the module file excluding the '.bang' extension.")
+
+      os.exit(is_help_flag ? 0 : 1)
+    }
+
+    path := fmt.aprintf("%s.bang", input)
+    code_data, code_ok := os.read_entire_file(path)
+    if !code_ok
+    {
+      fmt.printfln("Failed to read entry module file '%s'", path)
+      os.exit(1)
+    }
+
+    build(input, string(code_data), fmt.aprintf("bin/%s", input))
+  case "health-check":
     failed_tests := run_test_suite()
     if len(failed_tests) > 0
     {
@@ -29,17 +81,38 @@ main :: proc()
     }
 
     os.exit(len(failed_tests) > 0 ? 1 : 0)
-  }
+  case "run":
+    input := len(os.args) > 2 ? os.args[2] : ""
+    _, is_help_flag := slice.linear_search(help_flags, input)
+    if input == "" || is_help_flag
+    {
+      if !is_help_flag
+      {
+        fmt.println("[bangc:run] <input> is required.")
+        fmt.println("")
+      }
 
-  path := fmt.aprintf("%s.bang", name)
-  code_data, code_ok := os.read_entire_file(path)
-  if !code_ok
-  {
-    fmt.printfln("Failed to read entry module file '%s'", name)
-    os.exit(1)
-  }
+      fmt.println("Usage: bangc run <input>")
+      fmt.println("")
+      fmt.println("  Build and run the program with the given entry module.")
+      fmt.println("")
+      fmt.println("    <input>  The entry module. This is the relative path to the module file excluding the '.bang' extension.")
 
-  run(name, string(code_data), fmt.aprintf("bin/%s", name))
+      os.exit(is_help_flag ? 0 : 1)
+    }
+
+    path := fmt.aprintf("%s.bang", input)
+    code_data, code_ok := os.read_entire_file(path)
+    if !code_ok
+    {
+      fmt.printfln("Failed to read entry module file '%s'", path)
+      os.exit(1)
+    }
+
+    run(input, string(code_data), fmt.aprintf("bin/%s", input))
+  case:
+    assert(false, "Unsupported command")
+  }
 }
 
 run :: proc(name: string, code: string, out_path: string)

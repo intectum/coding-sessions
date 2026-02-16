@@ -91,14 +91,12 @@ next_token :: proc(stream: ^stream, type: token_type, value: string = "") -> (to
 
   if next_token.type != type
   {
-    stream.error = src.to_position_message(next_token.src_position, "Invalid token (expected type: %s, found type: %s)", type, next_token.type)
-    return {}, false
+    return next_token, false
   }
 
   if value != "" && next_token.value != value
   {
-    stream.error = src.to_position_message(next_token.src_position, "Invalid token (expected: '%s', found: '%s')", value, next_token.value)
-    return {}, false
+    return next_token, false
   }
 
   stream.next_index += 1

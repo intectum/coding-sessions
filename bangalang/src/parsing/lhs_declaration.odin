@@ -1,6 +1,7 @@
 package parsing
 
 import "../ast"
+import "../src"
 import "../tokens"
 
 parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
@@ -11,11 +12,22 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: b
     directive = (tokens.next_token(stream, .directive) or_return).value
   }
 
-  token := tokens.next_token(stream, .identifier) or_return
-  node = ast.to_node(token)
+  identifier_token, identifier_ok := tokens.next_token(stream, .identifier)
+  if !identifier_ok
+  {
+    stream.error = src.to_position_message(identifier_token.src_position, "the left-hand-side of a declaration must be an identifer")
+    return {}, false
+  }
+
+  node = ast.to_node(identifier_token)
   node.directive = directive
 
-  tokens.next_token(stream, .colon) or_return
+  colon_token, colon_ok := tokens.next_token(stream, .colon)
+  if !colon_ok
+  {
+    stream.error = src.to_position_message(colon_token.src_position, "the identifier in the left-hand-side of a declaration must be followed by a ':'")
+    return {}, false
+  }
 
   type_stream := stream^
   type_node, type_ok := parse_primary(&type_stream, .type)
