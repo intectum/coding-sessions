@@ -1,8 +1,10 @@
 package x86_64
 
 import "core:fmt"
+import "core:slice"
 
 import "../../ast"
+import "../../type_checking"
 import ".."
 
 extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
@@ -16,6 +18,22 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   if ast.is_type(procedure_node)
   {
     return generate_conversion_call(ctx, node, register_num)
+  }
+
+  // TODO hacky
+  tc_ctx: type_checking.type_checking_context = { program = ctx.program, path = ctx.path }
+  identifier_node, _ := type_checking.get_identifier_node(&tc_ctx, procedure_node)
+  if identifier_node != nil && procedure_node.value == "link"
+  {
+      link := node.children[1].value
+
+      _, found_link := slice.linear_search(ctx.program.links[:], link)
+      if !found_link
+      {
+          append(&ctx.program.links, link)
+      }
+
+      return {}
   }
 
   procedure_type_node := procedure_node.data_type

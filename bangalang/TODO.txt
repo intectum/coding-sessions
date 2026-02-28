@@ -9,7 +9,6 @@ bugs
 - glsl prevent calling in non-boomstick context
 - enforce return in all code paths for procs with return type
 - stack variable import uses wrong address
-- assign empty compound literal, properly restricted compound literal
 
 features
 
@@ -59,9 +58,7 @@ cleanup
 - verify/print glsl
 - use unsigned ints where it makes more sense
 - better type-checking for type-alias/link/import
-- better parsing/type-checking/more restrictive for compound literals
 - disallow type redeclaration and require ":" for type aliases
-- nilify for empty compound literals (single nilify per group of uninitialized members)
 - switch only generate expression_node once
 - switch require all enum values unless #partial
 - align for stack vars (and other allocators?)
@@ -72,7 +69,7 @@ cleanup
 - pointer to ranged-for element
 - do not require casts for ranged fors e.g. 0..10
 - make index available in ranged for
-- prevent recursive struct
+- allow struct member to be pointer to struct but prevent recursive struct
 - restrict generic param types
 - check if param names must match...
 - set affinity of threads in thread pool (sched_setaffinity?)

@@ -96,11 +96,14 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
         if !found_assignment
         {
-          nilify(ctx, member_location, member_type_node)
+          nilify(ctx, member_location, to_byte_size(member_type_node))
         }
       }
     case "[struct]":
       member_location := memory("rsp", 0)
+      nilify_location: location
+      nilify_count := 0
+
       for member_node in type_node.children
       {
         member_type_node := member_node.data_type
@@ -113,6 +116,13 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
           if child_lhs_node.value == member_node.value
           {
+            if nilify_count > 0
+            {
+              nilify(ctx, nilify_location, nilify_count)
+              nilify_location = {}
+              nilify_count = 0
+            }
+
             expression_location := generate_expression(ctx, child_rhs_node, register_num)
             copy(ctx, expression_location, member_location, member_type_node)
             found_assignment = true
@@ -122,10 +132,19 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
         if !found_assignment
         {
-          nilify(ctx, member_location, member_type_node)
+          if nilify_location.type == .none
+          {
+            nilify_location = member_location
+          }
+          nilify_count += to_byte_size(member_type_node)
         }
 
         member_location.offset += to_byte_size(member_node.data_type)
+      }
+
+      if nilify_count > 0
+      {
+        nilify(ctx, nilify_location, nilify_count)
       }
     case:
       assert(false, "Failed to generate compound literal")

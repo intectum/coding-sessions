@@ -199,7 +199,7 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
     lhs_node := static_var_node.children[0]
 
     // TODO better
-    if lhs_node.allocator.value == "compute_shader"
+    if lhs_node.allocator != nil && lhs_node.allocator.value == "compute_shader"
     {
       rhs_node := static_var_node.children[2]
 

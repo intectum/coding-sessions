@@ -98,12 +98,12 @@ get_literal_name :: proc(literal_values: ^[dynamic]string, prefix: string, value
   return strings.concatenate({ prefix, strconv.itoa(buf[:], index) })
 }
 
-nilify :: proc(ctx: ^generation.gen_context, location: location, type_node: ^ast.node)
+nilify :: proc(ctx: ^generation.gen_context, location: location, count: int)
 {
   assert(location.type == .memory, "Cannot nilify a non-memory location")
 
   fmt.sbprintfln(&ctx.output, "  lea rdi, %s ; nil: dest", to_operand(location))
-  fmt.sbprintfln(&ctx.output, "  mov rcx, %i ; nil: count", to_byte_size(type_node))
+  fmt.sbprintfln(&ctx.output, "  mov rcx, %i ; nil: count", count)
   fmt.sbprintln(&ctx.output, "  mov rax, 0 ; nil: value")
   fmt.sbprintln(&ctx.output, "  rep stosb ; nil")
 }

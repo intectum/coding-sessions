@@ -31,18 +31,6 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       lhs_node^ = rhs_node^
       ctx.identifiers[name] = lhs_node
     }
-    else if ast.is_link_statement(statement)
-    {
-      link := statement.children[1].value
-
-      _, found_link := slice.linear_search(ctx.program.links[:], link)
-      if found_link
-      {
-        continue
-      }
-
-      append(&ctx.program.links, link)
-    }
     else if ast.is_import_statement(statement)
     {
       lhs_node := statement.children[0]
@@ -77,7 +65,6 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       path: [2]string = { lib_name, module_name }
       qualified_module_name := program.get_qualified_module_name(ctx.path)
       qualified_imported_module_name := program.get_qualified_module_name(path[:])
-
 
       if qualified_imported_module_name in ctx.program.modules
       {

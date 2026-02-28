@@ -74,7 +74,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
     if static_allocator
     {
-      nilify(ctx, lhs_location, lhs_type_node)
+      nilify(ctx, lhs_location, to_byte_size(lhs_type_node))
     }
   }
   else
