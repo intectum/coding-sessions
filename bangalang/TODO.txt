@@ -49,15 +49,13 @@ stretch goals
 cleanup
 
 - compiler performance
-- print and check AST structure
 - directives as nodes
 - backend-specific errors instead of asserts, or "kernel" instead of "proc"?
 - bounds checking in glsl? or disable in kernels? disable refs/pointers also
 - negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
 - check all TODOs
-- verify/print glsl
 - use unsigned ints where it makes more sense
-- better type-checking for type-alias/link/import
+- better type-checking for type-alias/import
 - disallow type redeclaration and require ":" for type aliases
 - switch only generate expression_node once
 - switch require all enum values unless #partial
@@ -65,7 +63,6 @@ cleanup
 - test project in diff folder
 - auto-convert dynamic array sizes
 - dynamically sized soa
-- check syscall as member proc...
 - pointer to ranged-for element
 - do not require casts for ranged fors e.g. 0..10
 - make index available in ranged for

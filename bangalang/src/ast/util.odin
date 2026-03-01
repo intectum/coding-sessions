@@ -1,8 +1,10 @@
 package ast
 
 import "core:slice"
+import "core:strings"
 
 import "../tokens"
+import fmt "core:fmt"
 
 make_node :: proc(init: node = {}) -> ^node
 {
@@ -29,9 +31,75 @@ clone_node :: proc(root: ^node) -> ^node
   return clone
 }
 
-is_link_statement :: proc(statement: ^node) -> bool
+print_node :: proc(output: ^strings.Builder, root: ^node, indentations: int)
 {
-  return statement.type == .call && statement.children[0].value == "link"
+  print_indentations(output, indentations)
+  fmt.sbprintln(output, "{")
+  print_indentations(output, indentations)
+  fmt.sbprintf(output, "  \"type\": \"%s\"", root.type)
+  if root.value != ""
+  {
+    fmt.sbprintln(output, ",")
+    print_indentations(output, indentations)
+    if root.type == .string_literal
+    {
+      fmt.sbprintf(output, "  \"value\": %s", root.value)
+    }
+    else
+    {
+      fmt.sbprintf(output, "  \"value\": \"%s\"", root.value)
+    }
+  }
+  if root.data_type != nil
+  {
+    fmt.sbprintln(output, ",")
+    print_indentations(output, indentations)
+    fmt.sbprintln(output, "  \"data_type\":")
+    print_node(output, root.data_type, indentations + 1)
+  }
+  if root.allocator != nil
+  {
+    fmt.sbprintln(output, ",")
+    print_indentations(output, indentations)
+    fmt.sbprintln(output, "  \"allocator\":")
+    print_node(output, root.allocator, indentations + 1)
+  }
+  if root.directive != ""
+  {
+    fmt.sbprintln(output, ",")
+    print_indentations(output, indentations)
+    fmt.sbprintf(output, "  \"valdirectiveue\": \"%s\"", root.directive)
+  }
+  if len(root.children) > 0
+  {
+    fmt.sbprintln(output, ",")
+    print_indentations(output, indentations)
+    fmt.sbprintln(output, "  \"children\":")
+    print_indentations(output, indentations)
+    fmt.sbprintln(output, "  [")
+    for child, index in root.children
+    {
+      if index > 0
+      {
+        fmt.sbprintln(output, ",")
+      }
+      print_node(output, child, indentations + 2)
+    }
+    fmt.sbprintln(output, "")
+    print_indentations(output, indentations)
+    fmt.sbprint(output, "  ]")
+  }
+  fmt.sbprintln(output, "")
+  print_indentations(output, indentations)
+  fmt.sbprint(output, "}")
+}
+
+print_indentations :: proc(output: ^strings.Builder, indentations: int)
+{
+  for index in 0..<indentations
+  {
+    fmt.sbprint(output, "  ")
+  }
 }
 
 is_import_statement :: proc(statement: ^node) -> bool

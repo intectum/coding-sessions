@@ -146,38 +146,35 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
     switch lhs_node.allocator.value
     {
     case "code":
+      procedure_ctx: generation.gen_context =
       {
-        procedure_ctx: generation.gen_context =
-        {
-          program = ctx.program,
-          path = reference[:],
-          output = ctx.output
-        }
-
-        generate_procedure(&procedure_ctx, node)
-
-        ctx.output = procedure_ctx.output
-
-        generate_procedures(ctx, procedure.references[:], generated_procedure_names)
+        program = ctx.program,
+        path = reference[:],
+        output = ctx.output
       }
+
+      generate_procedure(&procedure_ctx, node)
+
+      ctx.output = procedure_ctx.output
+
+      generate_procedures(ctx, procedure.references[:], generated_procedure_names)
     case "compute_shader":
+      procedure_ctx: generation.gen_context =
       {
-        procedure_ctx: generation.gen_context =
-        {
-          program = ctx.program,
-          path = reference[:]
-        }
-
-        strings.builder_init(&procedure_ctx.output)
-
-        glsl.generate_program(&procedure_ctx, node)
-
-        static_var_node := ast.make_node({ type = .assignment_statement })
-        append(&static_var_node.children, ast.make_node({ type = .identifier, value = qualified_name, allocator = lhs_node.allocator }))
-        append(&static_var_node.children, ast.make_node({ type = .assign, value = "=" }))
-        append(&static_var_node.children, ast.make_node({ type = .string_literal, value = strings.to_string(procedure_ctx.output) }))
-        ctx.program.static_vars[qualified_name] = static_var_node
+        program = ctx.program,
+        path = reference[:]
       }
+
+      strings.builder_init(&procedure_ctx.output)
+      defer strings.builder_destroy(&procedure_ctx.output)
+
+      glsl.generate_program(&procedure_ctx, node)
+
+      static_var_node := ast.make_node({ type = .assignment_statement })
+      append(&static_var_node.children, ast.make_node({ type = .identifier, value = qualified_name, allocator = lhs_node.allocator }))
+      append(&static_var_node.children, ast.make_node({ type = .assign, value = "=" }))
+      append(&static_var_node.children, ast.make_node({ type = .string_literal, value = strings.to_string(procedure_ctx.output) }))
+      ctx.program.static_vars[qualified_name] = static_var_node
     case "extern":
       fmt.sbprintfln(&ctx.output, "extern %s", lhs_node.value)
     case "none":

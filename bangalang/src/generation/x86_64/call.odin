@@ -4,7 +4,6 @@ import "core:fmt"
 import "core:slice"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 extern_param_registers_named: []string = { "di", "si", "dx", "cx" }
@@ -20,10 +19,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     return generate_conversion_call(ctx, node, register_num)
   }
 
-  // TODO hacky
-  tc_ctx: type_checking.type_checking_context = { program = ctx.program, path = ctx.path }
-  identifier_node, _ := type_checking.get_identifier_node(&tc_ctx, procedure_node)
-  if identifier_node != nil && procedure_node.value == "link"
+  if !ast.is_member(procedure_node) && procedure_node.value == "link"
   {
       link := node.children[1].value
 
@@ -38,13 +34,15 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 
   procedure_type_node := procedure_node.data_type
   extern := procedure_node.allocator == ctx.program.identifiers["extern"]
+  none := procedure_node.allocator == ctx.program.identifiers["none"]
+  is_syscall := procedure_node.value == "syscall" && none
 
   params_type_node := procedure_type_node.children[0]
   return_type_node := len(procedure_type_node.children) == 2 ? procedure_type_node.children[1] : nil
 
   call_stack_size := 0
   return_only_call_stack_size := 0
-  if !extern && procedure_node.value != "syscall"
+  if !extern && !is_syscall
   {
     for param_node in params_type_node.children
     {
@@ -58,7 +56,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     }
   }
 
-  if procedure_node.value != "syscall"
+  if !is_syscall
   {
     misalignment := (ctx.stack_size + call_stack_size) % 16
     if misalignment != 0
@@ -71,15 +69,15 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
 
   allocate_stack(ctx, call_stack_size)
 
-  if extern || procedure_node.value == "syscall"
+  if extern || is_syscall
   {
     for param_node_from_type, param_index in params_type_node.children
     {
       param_lhs_node_from_type := param_node_from_type.children[0]
       param_lhs_type_node := param_lhs_node_from_type.data_type
 
-      param_registers_named := procedure_node.value == "syscall" ? syscall_param_registers_named : extern_param_registers_named
-      param_registers_numbered := procedure_node.value == "syscall" ? syscall_param_registers_numbered : extern_param_registers_numbered
+      param_registers_named := is_syscall ? syscall_param_registers_named : extern_param_registers_named
+      param_registers_numbered := is_syscall ? syscall_param_registers_numbered : extern_param_registers_numbered
 
       expression_node: ^ast.node
       if param_index + 1 < len(node.children)
@@ -140,7 +138,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     }
   }
 
-  if procedure_node.value == "syscall"
+  if is_syscall
   {
     fmt.sbprintln(&ctx.output, "  syscall ; call kernal")
   }
@@ -160,7 +158,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
     return {}
   }
 
-  if extern || procedure_node.value == "syscall"
+  if extern || is_syscall
   {
     return register("ax", return_type_node)
   }
