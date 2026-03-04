@@ -46,7 +46,7 @@ buffer_addresses: (^byte)[100]@static
 buffer_names: i32[100]@static
 
 // TODO allow the use of memory_allocator here
-heap: proc(size: i64) -> ^byte =
+heap: proc(size: u64) -> ^byte =
 {
   name: i32
   glGenBuffers(1, ^name)
@@ -54,8 +54,8 @@ heap: proc(size: i64) -> ^byte =
   buffer_names[buffer_count] = name
 
   access_hints: i32 = 194
-  glNamedBufferStorage(name, size, nil, access_hints)
-  address: = glMapNamedBufferRange(name, 0, size, access_hints)
+  glNamedBufferStorage(name, i64(size), nil, access_hints)
+  address: = glMapNamedBufferRange(name, 0, i64(size), access_hints)
   buffer_addresses[buffer_count] = address
 
   buffer_count += 1

@@ -21,7 +21,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
   case "atomic_i32", "f32", "i32", "u32": return 4
   case "[enum]", "atomic_i64", "f64", "i64", "u64": return 8
   case "[procedure]": return address_size
-  case "[slice]": return address_size + 8 /* i64 */
+  case "[slice]": return address_size + 8 /* u64 */
   case "[array]":
     element_size := to_byte_size(type_node.children[0])
     length := strconv.atoi(type_node.children[1].value)

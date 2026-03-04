@@ -46,7 +46,7 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
           node.data_type = child_node
         case "name": node.data_type = ctx.program.identifiers["string"]
-        case "size": node.data_type = ctx.program.identifiers["i64"]
+        case "size": node.data_type = ctx.program.identifiers["u64"]
         case:
           src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
           return false
@@ -69,7 +69,7 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
         }
         else if node.value == "length"
         {
-          node.data_type = ctx.program.identifiers["i64"]
+          node.data_type = ctx.program.identifiers["u64"]
         }
         else
         {

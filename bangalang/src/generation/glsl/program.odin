@@ -20,7 +20,7 @@ generate_program :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   param0_node := params_type_node.children[0]
   param0_lhs_node := param0_node.children[0]
   param0_lhs_type_node := param0_lhs_node.data_type
-  assert(param0_lhs_node.value == "index" && param0_lhs_type_node.value == "i32", "First param must be 'index: i32'");
+  assert(param0_lhs_node.value == "index" && param0_lhs_type_node.value == "u32", "First param must be 'index: u32'");
 
   fmt.sbprintln(&ctx.output, "#version 460 core")
   fmt.sbprintln(&ctx.output, "")

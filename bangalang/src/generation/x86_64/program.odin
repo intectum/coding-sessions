@@ -166,7 +166,6 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
       }
 
       strings.builder_init(&procedure_ctx.output)
-      defer strings.builder_destroy(&procedure_ctx.output)
 
       glsl.generate_program(&procedure_ctx, node)
 

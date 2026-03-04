@@ -2,7 +2,7 @@ threading: = import("threading")
 
 gl: = import("gl", "vendor")
 
-kernel_t: = proc(index: i32, data: vec4[])
+kernel_t: = proc(index: u32, data: vec4[])
 
 #private pool: threading.thread_pool_t@static
 
@@ -12,10 +12,10 @@ kernel_t: = proc(index: i32, data: vec4[])
 
 init: proc() =
 {
-  pool.worker_count = i32(threading.get_cpu_core_count())
+  pool.worker_count = u32(threading.get_cpu_core_count())
   threading.thread_pool_start(^pool)
 
-  for index: i64, index < glsl_kernels.length, index += 1
+  for index: u64, index < glsl_kernels.length, index += 1
   {
     name: = gl.glCreateProgram()
     shader_name: = gl.glCreateShader(gl.GL_COMPUTE_SHADER)
@@ -29,13 +29,13 @@ init: proc() =
 
 bang: proc(kernel: kernel_t, data: vec4[]) =
 {
-  for kernel_index: i64, kernel_index < glsl_kernels.length, kernel_index += 1
+  for kernel_index: u64, kernel_index < glsl_kernels.length, kernel_index += 1
   {
     if kernel == #danger_untyped glsl_kernels[kernel_index]
     {
       gl.glUseProgram(glsl_kernel_names[kernel_index])
 
-      for buffer_index: i64, buffer_index < gl.buffer_addresses.length, buffer_index += 1
+      for buffer_index: u64, buffer_index < gl.buffer_addresses.length, buffer_index += 1
       {
         if data.raw == #danger_untyped gl.buffer_addresses[buffer_index]
         {
@@ -49,9 +49,9 @@ bang: proc(kernel: kernel_t, data: vec4[]) =
     }
   }
 
-  worker_data_length: = i32(data.length) / pool.worker_count
+  worker_data_length: = u32(data.length) / pool.worker_count
 
-  for index: i32, index < pool.worker_count, index += 1
+  for index: u32, index < pool.worker_count, index += 1
   {
     start: = index * worker_data_length
     end: = start + worker_data_length

@@ -22,17 +22,17 @@ fragment_shader_name: = util.compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shad
 
 program_name: = util.link_shaders(vertex_shader_name, fragment_shader_name)
 
-triangle_count_1d: i32 = 64
+triangle_count_1d: u32 = 64
 triangle_count: = triangle_count_1d * triangle_count_1d
 triangle_size: = 2 / f32(triangle_count_1d)
 vertex_count: = triangle_count * 3
 
-triangle_data: vec4[i64(vertex_count)]@gl.heap
+triangle_data: vec4[u64(vertex_count)]@gl.heap
 
-vertex_index: i32
-for x: i32, x < triangle_count_1d, x += 1
+vertex_index: u32
+for x: u32, x < triangle_count_1d, x += 1
 {
-  for y: i32, y < triangle_count_1d, y += 1
+  for y: u32, y < triangle_count_1d, y += 1
   {
     left: = -1 + triangle_size * f32(x)
     bottom: = -1 + triangle_size * f32(y)
@@ -61,7 +61,7 @@ gl.glEnableVertexAttribArray(0) util.check_opengl_error()
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) util.check_opengl_error()
 
 fps_time: = os.time()
-frame_count: i64
+frame_count: u64
 
 move_triangles: boomstick.kernel_t@gl.compute_shader =
   do data[index] += { 0.0001, 0.0001, 0, 0 }

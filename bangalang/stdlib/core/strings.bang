@@ -13,7 +13,7 @@ atoi: proc(value: string) -> i64 =
   result: i64
 
   factor: i64 = 1
-  for index: i64 = value.length - 1, index >= 0, index -= 1
+  for index: u64 = value.length - 1, index < value.length, index -= 1
   {
     if index == 0 && value[0] == '-' do break
 
@@ -68,11 +68,11 @@ itoa: proc(value: $any_int, buffer: byte[]) -> string =
   return buffer[:length]
 }
 
-get_cstring_length: proc(value: ^byte) -> i64 =
+get_cstring_length: proc(value: ^byte) -> u64 =
 {
   value_slice: byte[] = { raw = value, length = 999 /* TODO i64.max */ }
 
-  length: i64
+  length: u64
   for value_slice[length] != 0, length += 1 {}
 
   return length

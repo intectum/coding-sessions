@@ -69,7 +69,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     any_int_type_node := ast.make_node({ type = .type, value = "[any_int]" })
 
     type_check_rhs_expression(ctx, node.children[1], any_int_type_node) or_return
-    upgrade_types(ctx, node.children[1], ctx.program.identifiers["i64"])
+    upgrade_types(ctx, node.children[1], ctx.program.identifiers["u64"])
 
     if len(node.children) == 2
     {
@@ -78,7 +78,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     else
     {
       type_check_rhs_expression(ctx, node.children[2], any_int_type_node) or_return
-      upgrade_types(ctx, node.children[2], ctx.program.identifiers["i64"])
+      upgrade_types(ctx, node.children[2], ctx.program.identifiers["u64"])
 
       type_node := ast.make_node({ type = .type, value = "[slice]" })
       append(&type_node.children, child_type_node.children[0])

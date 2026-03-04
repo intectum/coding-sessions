@@ -69,9 +69,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     if start_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
     {
       fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(start_expression_location), to_operand(child_length_location))
-      fmt.sbprintln(&ctx.output, "  jge panic_out_of_bounds ; panic!")
-      fmt.sbprintfln(&ctx.output, "  cmp %s, 0 ; compare", to_operand(start_expression_location))
-      fmt.sbprintln(&ctx.output, "  jl panic_out_of_bounds ; panic!")
+      fmt.sbprintln(&ctx.output, "  jae panic_out_of_bounds ; panic!")
     }
 
     if type_node.value != "[slice]" && node.children[1].type == .number_literal
@@ -115,18 +113,18 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       end_expression_location = copy_to_register(ctx, end_expression_location, register_num + 2, end_expression_type_node)
       end_expression_location = convert(ctx, end_expression_location, register_num + 2, end_expression_type_node, index_type_node)
 
+      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; copy", to_operand(slice_length_location), to_operand(end_expression_location))
+      fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract", to_operand(slice_length_location), to_operand(start_expression_location))
+
       if end_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
       {
         fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(end_expression_location), to_operand(child_length_location))
-        fmt.sbprintln(&ctx.output, "  jg panic_out_of_bounds ; panic!")
-        fmt.sbprintfln(&ctx.output, "  cmp %s, 0 ; compare", to_operand(end_expression_location))
-        fmt.sbprintln(&ctx.output, "  jl panic_out_of_bounds ; panic!")
-      }
+        fmt.sbprintln(&ctx.output, "  ja panic_out_of_bounds ; panic!")
 
-      fmt.sbprintfln(&ctx.output, "  mov %s, %s ; copy", to_operand(slice_length_location), to_operand(end_expression_location))
-      fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract", to_operand(slice_length_location), to_operand(start_expression_location))
-      fmt.sbprintfln(&ctx.output, "  cmp qword %s, 0 ; compare", to_operand(slice_length_location))
-      fmt.sbprintln(&ctx.output, "  jl panic_negative_slice_length ; panic!")
+        // TODO review
+        fmt.sbprintfln(&ctx.output, "  cmp qword %s, 0 ; compare", to_operand(slice_length_location))
+        fmt.sbprintln(&ctx.output, "  jl panic_negative_slice_length ; panic!")
+      }
 
       return copy_stack_address(ctx, 0, register_num)
     }

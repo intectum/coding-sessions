@@ -75,7 +75,7 @@ init :: proc(program: ^program)
 
   memory_allocator_type := ast.clone_node(allocator_type)
   append(&memory_allocator_type.children[0].children, ast.make_node({ type = .assignment_statement }))
-  append(&memory_allocator_type.children[0].children[0].children, ast.make_node({ type = .identifier, value = "size", data_type = program.identifiers["i64"] }))
+  append(&memory_allocator_type.children[0].children[0].children, ast.make_node({ type = .identifier, value = "size", data_type = program.identifiers["u64"] }))
   append(&memory_allocator_type.children, ast.make_node({ type = .reference }))
   append(&memory_allocator_type.children[1].children, program.identifiers["u8"])
   program.identifiers["memory_allocator"] = memory_allocator_type
@@ -84,7 +84,7 @@ init :: proc(program: ^program)
   program.identifiers["nil_allocator"] = nil_allocator_type
 
   static_allocator_type := ast.clone_node(allocator_type)
-  append(&static_allocator_type.children, program.identifiers["i64"])
+  append(&static_allocator_type.children, program.identifiers["u64"])
   program.identifiers["static_allocator"] = static_allocator_type
 
   program.identifiers["code"] = ast.make_node({ type = .identifier, value = "code", data_type = code_allocator_type })

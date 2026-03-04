@@ -19,7 +19,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     ctx.next_index += 1
     index_node := ast.make_node({ type = .identifier, value = fmt.aprintf("[index_%i]", for_index) })
 
-    length_type_node := ast.make_node({ type = .type, value = "i64" })
+    length_type_node := ast.make_node({ type = .type, value = "u64" })
 
     pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&pre_declaration_node.children, ast.clone_node(index_node))

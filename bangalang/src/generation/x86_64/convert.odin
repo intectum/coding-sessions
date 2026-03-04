@@ -33,23 +33,29 @@ convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, 
   {
     if dest_atomic_integer_type || dest_signed_integer_type || dest_unsigned_integer_type
     {
-      if dest_size > src_size
-      {
-        src_non_immediate := copy_to_non_immediate(ctx, src, register_num + 1, src_type_node)
-
-        if src_unsigned_integer_type || dest_unsigned_integer_type
+        zero_extension := src_unsigned_integer_type || dest_unsigned_integer_type
+        if dest_size > src_size && zero_extension && src_size < 4 && dest_size < 8
         {
+          src_non_immediate := copy_to_non_immediate(ctx, src, register_num + 1, src_type_node)
           fmt.sbprintfln(&ctx.output, "  movzx %s, %s %s ; convert", to_operand(dest), to_operation_size(src_size), to_operand(src_non_immediate))
+        }
+        else if dest_size > src_size && !zero_extension && src_size < 4
+        {
+          src_non_immediate := copy_to_non_immediate(ctx, src, register_num + 1, src_type_node)
+          fmt.sbprintfln(&ctx.output, "  movsx %s, %s %s ; convert", to_operand(dest), to_operation_size(src_size), to_operand(src_non_immediate))
+        }
+        else if dest_size > src_size && src.type == .memory
+        {
+          copy(ctx, src, register(register_num, src_type_node), src_type_node, "convert")
+        }
+        else if src.type == .register
+        {
+          dest = register(src.register_number, dest_type_node)
         }
         else
         {
-          fmt.sbprintfln(&ctx.output, "  movsx %s, %s %s ; convert", to_operand(dest), to_operation_size(src_size), to_operand(src_non_immediate))
+          dest = src
         }
-      }
-      else if src.type != .register
-      {
-        dest = src
-      }
     }
     else if dest_float_type
     {
