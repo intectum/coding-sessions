@@ -30,7 +30,18 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
 
   if coerced_type_node != nil
   {
-    upgrade_types(ctx, node, coerced_type_node)
+    if coerced_type_node.value == "[any_float]"
+    {
+      upgrade_types(ctx, node, ctx.program.identifiers["f64"]) or_return
+    }
+    else if coerced_type_node.value == "[any_number]"
+    {
+      upgrade_types(ctx, node, ctx.program.identifiers["i64"]) or_return
+    }
+    else
+    {
+      upgrade_types(ctx, node, coerced_type_node) or_return
+    }
   }
 
   return true
@@ -75,25 +86,25 @@ type_check_rhs_expression_1 :: proc(ctx: ^type_checking_context, node: ^ast.node
     node.data_type = ctx.program.identifiers["bool"]
     if coerced_type_node.value == "[any_float]"
     {
-      upgrade_types(ctx, lhs_node, ctx.program.identifiers["f64"])
-      upgrade_types(ctx, rhs_node, ctx.program.identifiers["f64"])
+      upgrade_types(ctx, lhs_node, ctx.program.identifiers["f64"]) or_return
+      upgrade_types(ctx, rhs_node, ctx.program.identifiers["f64"]) or_return
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      upgrade_types(ctx, lhs_node, ctx.program.identifiers["i64"])
-      upgrade_types(ctx, rhs_node, ctx.program.identifiers["i64"])
+      upgrade_types(ctx, lhs_node, ctx.program.identifiers["i64"]) or_return
+      upgrade_types(ctx, rhs_node, ctx.program.identifiers["i64"]) or_return
     }
     else
     {
-      upgrade_types(ctx, lhs_node, coerced_type_node)
-      upgrade_types(ctx, rhs_node, coerced_type_node)
+      upgrade_types(ctx, lhs_node, coerced_type_node) or_return
+      upgrade_types(ctx, rhs_node, coerced_type_node) or_return
     }
   }
   else
   {
     node.data_type = coerced_type_node
-    upgrade_types(ctx, lhs_node, coerced_type_node)
-    upgrade_types(ctx, rhs_node, coerced_type_node)
+    upgrade_types(ctx, lhs_node, coerced_type_node) or_return
+    upgrade_types(ctx, rhs_node, coerced_type_node) or_return
   }
 
   if node.type != .equal && node.type != .not_equal

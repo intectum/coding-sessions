@@ -142,7 +142,7 @@ type_check_conversion_call :: proc(ctx: ^type_checking_context, node: ^ast.node)
     return false
   }
 
-  upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"])
+  upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"]) or_return
 
   node.data_type = ast.clone_node(procedure_node)
 

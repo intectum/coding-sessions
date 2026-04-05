@@ -20,13 +20,18 @@ parse_basic_for :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node:
     return {}, false
   }
 
+  flow_node := ast.make_node({ type = .group, value = "[flow]" })
+
   pre_declaration_stream := stream^
   pre_declaration_node, pre_declaration_ok := parse_declaration(&pre_declaration_stream)
 
   if pre_declaration_ok
   {
     stream^ = pre_declaration_stream
-    append(&node.children, pre_declaration_node)
+
+    pre_node := ast.make_node({ type = .group, value = "[pre]" })
+    append(&pre_node.children, pre_declaration_node)
+    append(&flow_node.children, pre_node)
 
     comma_token, comma_ok := tokens.next_token(stream, .comma)
     if !comma_ok
@@ -37,15 +42,20 @@ parse_basic_for :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node:
   }
 
   expression_node := parse_rhs_expression(stream) or_return
-  append(&node.children, expression_node)
+  append(&flow_node.children, expression_node)
 
   if tokens.peek_token(stream).type == .comma
   {
     tokens.next_token(stream, .comma) or_return
 
     post_assignment_node := parse_assignment(ctx, stream) or_return
-    append(&node.children, post_assignment_node)
+
+    post_node := ast.make_node({ type = .group, value = "[post]" })
+    append(&post_node.children, post_assignment_node)
+    append(&flow_node.children, post_node)
   }
+
+  append(&node.children, flow_node)
 
   scope_node := parse_scope(ctx, stream) or_return
   append(&node.children, scope_node)

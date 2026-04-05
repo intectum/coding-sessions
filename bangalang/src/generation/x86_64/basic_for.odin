@@ -13,40 +13,31 @@ generate_basic_for :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   for_ctx.for_index = for_ctx.next_index
   for_ctx.next_index += 1
 
-  child_index := 0
-  child_node := node.children[child_index]
-  child_index += 1
+  flow_node := node.children[0]
+  scope_node := node.children[1]
 
-  if child_node.type == .assignment_statement
-  {
-    generate_assignment(&for_ctx, child_node)
+  pre_node := flow_node.children[0].type == .group ? flow_node.children[0] : nil
+  expression_node_index := pre_node == nil ? 0 : 1
+  expression_node := flow_node.children[expression_node_index]
+  post_node := len(flow_node.children) > expression_node_index + 1 ? flow_node.children[expression_node_index + 1] : nil
 
-    child_node = node.children[child_index]
-    child_index += 1
-  }
+  if pre_node != nil do generate_statements(&for_ctx, pre_node.children[:])
 
   fmt.sbprintfln(&for_ctx.output, ".for_%i:", for_ctx.for_index)
 
-  expression_type_node := child_node.data_type
+  expression_type_node := expression_node.data_type
   expression_operation_size := to_operation_size(to_byte_size(expression_type_node))
 
-  expression_location := generate_expression(&for_ctx, child_node)
+  expression_location := generate_expression(&for_ctx, expression_node)
   expression_location = copy_to_non_immediate(&for_ctx, expression_location, 0, expression_type_node)
   fmt.sbprintfln(&for_ctx.output, "  cmp %s %s, 0 ; test expression", expression_operation_size, to_operand(expression_location))
   fmt.sbprintfln(&for_ctx.output, "  je .for_%i_end ; skip for scope when false/zero", for_ctx.for_index)
 
-  child_node = node.children[child_index]
-  child_index += 1
-
-  statement_node := node.children[len(node.children) - 1]
-  generate_scope(&for_ctx, statement_node)
+  generate_scope(&for_ctx, scope_node)
 
   fmt.sbprintfln(&for_ctx.output, ".for_%i_continue:", for_ctx.for_index)
 
-  if len(node.children) > child_index
-  {
-    generate_assignment(&for_ctx, child_node)
-  }
+  if post_node != nil do generate_statements(&for_ctx, post_node.children[:])
 
   fmt.sbprintfln(&for_ctx.output, "  jmp .for_%i ; back to top", for_ctx.for_index)
   fmt.sbprintfln(&for_ctx.output, ".for_%i_end:", for_ctx.for_index)

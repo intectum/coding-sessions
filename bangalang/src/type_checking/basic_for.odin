@@ -9,32 +9,21 @@ type_check_basic_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
   for_ctx := copy_context(ctx)
   for_ctx.within_for = true
 
-  child_index := 0
-  child_node := node.children[child_index]
-  child_index += 1
+  flow_node := node.children[0]
+  scope_node := node.children[1]
 
-  if child_node.type == .assignment_statement
-  {
-    type_check_assignment(&for_ctx, child_node) or_return
+  pre_node := flow_node.children[0].type == .group ? flow_node.children[0] : nil
+  expression_node_index := pre_node == nil ? 0 : 1
+  expression_node := flow_node.children[expression_node_index]
+  post_node := len(flow_node.children) > expression_node_index + 1 ? flow_node.children[expression_node_index + 1] : nil
 
-    child_node = node.children[child_index]
-    child_index += 1
-  }
+  if pre_node != nil do type_check_statements(&for_ctx, pre_node.children[:]) or_return
 
-  type_check_rhs_expression(&for_ctx, child_node, for_ctx.program.identifiers["bool"]) or_return
+  type_check_rhs_expression(&for_ctx, expression_node, for_ctx.program.identifiers["bool"]) or_return
 
-  child_node = node.children[child_index]
-  child_index += 1
+  if post_node != nil do type_check_statements(&for_ctx, post_node.children[:]) or_return
 
-  if len(node.children) > child_index
-  {
-    type_check_assignment(&for_ctx, child_node) or_return
-
-    child_node = node.children[child_index]
-    child_index += 1
-  }
-
-  type_check_scope(&for_ctx, child_node) or_return
+  type_check_scope(&for_ctx, scope_node) or_return
 
   ctx.next_index = for_ctx.next_index
 

@@ -250,7 +250,7 @@ type_var_name :: proc(type_node: ^ast.node) -> string
   return strings.concatenate({ prefix, type_node.value })
 }
 
-upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_node: ^ast.node)
+upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_node: ^ast.node) -> bool
 {
   if node.data_type != nil
   {
@@ -258,7 +258,21 @@ upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_nod
     {
       node.data_type = ctx.program.identifiers["string"]
     }
-    else if node.data_type.value == "[none]" || node.data_type.value == "[any_float]" || node.data_type.value == "[any_int]" || node.data_type.value == "[any_number]" || node.data_type.value == "[any_string]"
+    else if node.data_type.value == "[any_int]" || node.data_type.value == "[any_number]"
+    {
+      if node.type == .number_literal && strings.has_prefix(node.value, "-")
+      {
+        _, unsigned_integer_type := slice.linear_search(unsigned_integer_types, new_type_node.value)
+        if unsigned_integer_type
+        {
+          src.print_position_message(node.src_position, "cannot upgrade negative integer literal '%s' to type '%s'", node.value, type_name(new_type_node))
+          return false
+        }
+      }
+
+      node.data_type = new_type_node
+    }
+    else if node.data_type.value == "[none]" || node.data_type.value == "[any_float]" || node.data_type.value == "[any_string]"
     {
       node.data_type = new_type_node
     }
@@ -266,8 +280,10 @@ upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_nod
 
   for child_node in node.children
   {
-    upgrade_types(ctx, child_node, new_type_node)
+    upgrade_types(ctx, child_node, new_type_node) or_return
   }
+
+  return true
 }
 
 resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bool)

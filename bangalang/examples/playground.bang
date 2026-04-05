@@ -3,12 +3,12 @@ strings: = import("strings", "core")
 
 buf: byte[8]
 
-for value in i64(0)..10
-  do strings.println(strings.itoa(value, buf[]))
+for value, index in 0..10
+  do strings.println(strings.itoa(value + i64(index), buf[]))
 
 foo: vec4 = { 2, 4, 6, 8 }
-for value in foo
-  do strings.println(strings.itoa(value, buf[]))
+for value, index in foo
+  do strings.println(strings.itoa(value + f32(index), buf[]))
 
 strings.println(strings.itoa(vec4.size, buf[]))
 strings.println(vec4.name)
@@ -38,8 +38,12 @@ my_slice2: u8[] = { 1 + 1, 4, 3 }
 
 // TODO recursive_struct: struct { a: u64, memba: ^recursive_struct }
 
-f: = my_slice2[1:7]
-os.exit(f[0])
+//f: = my_slice2[1:7]
+//os.exit(f[0])
 
 // TODO sometimes does not trigger panic (above works fine)!
 // os.exit(my_slice2[1:7][0])
+
+my_array: u8[10]
+blah: = my_array[5]
+my_uint: u8 = 1

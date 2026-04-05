@@ -2,7 +2,6 @@ TEST EVERYTHING! including glsl
 
 bugs
 
-- compile-time bounds checking should check for negative numbers, or use unsigned index?
 - glsl nilify
 - glsl static vars
 - glsl verify no return
@@ -12,6 +11,7 @@ bugs
 
 features
 
+- composable structs
 - procs with capture
 - map type
 - ternary ? :
@@ -54,7 +54,6 @@ cleanup
 - bounds checking in glsl? or disable in kernels? disable refs/pointers also
 - negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
 - check all TODOs
-- use unsigned ints where it makes more sense
 - better type-checking for type-alias/import
 - disallow type redeclaration and require ":" for type aliases
 - switch only generate expression_node once
@@ -64,8 +63,6 @@ cleanup
 - auto-convert dynamic array sizes
 - dynamically sized soa
 - pointer to ranged-for element
-- do not require casts for ranged fors e.g. 0..10
-- make index available in ranged for
 - allow struct member to be pointer to struct but prevent recursive struct
 - restrict generic param types
 - check if param names must match...
