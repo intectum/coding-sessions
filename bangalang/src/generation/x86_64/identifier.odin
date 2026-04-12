@@ -78,9 +78,8 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     }
 
     child_type_node := child_node.data_type
-    switch child_type_node.value
+    if child_type_node.type == .subscript
     {
-    case "[array]", "[slice]":
       if node.value == "raw"
       {
         return get_raw_location(ctx, child_type_node, child_location, register_num)
@@ -105,7 +104,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
           if index > max_index do max_index = index
         }
 
-        if child_type_node.value == "[slice]"
+        if ast.is_slice(child_type_node)
         {
           length_location := get_length_location(child_type_node, child_location)
           fmt.sbprintfln(&ctx.output, "  cmp qword %s, %s ; compare", to_operand(length_location), to_operand(immediate(max_index)))
@@ -132,24 +131,30 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
         return copy_stack_address(ctx, 0, register_num)
       }
-    case "[module]":
-      // Do nothing
-    case "[struct]":
-      location := child_location
-
-      for member_node in child_type_node.children
+    }
+    else
+    {
+      switch child_type_node.value
       {
-        if member_node.value == node.value
+      case "[module]":
+      // Do nothing
+      case "[struct]":
+        location := child_location
+
+        for member_node in child_type_node.children
         {
-          break
+          if member_node.value == node.value
+          {
+            break
+          }
+
+          location.offset += to_byte_size(member_node.data_type)
         }
 
-        location.offset += to_byte_size(member_node.data_type)
+        return location
+      case:
+        assert(false, "Failed to generate identifier")
       }
-
-      return location
-    case:
-      assert(false, "Failed to generate identifier")
     }
   }
 

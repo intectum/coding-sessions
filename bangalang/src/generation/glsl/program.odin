@@ -33,7 +33,7 @@ generate_program :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
     fmt.sbprintfln(&ctx.output, "layout(std430, binding = %i) buffer param%i_layout", index, index)
     fmt.sbprintln(&ctx.output, "{")
-    fmt.sbprintfln(&ctx.output, "  %s %s%s;", type_name(param_lhs_type_node), param_lhs_node.value, param_lhs_type_node.value == "[slice]" ? "[]" : "")
+    fmt.sbprintfln(&ctx.output, "  %s %s%s;", type_name(param_lhs_type_node), param_lhs_node.value, ast.is_slice(param_lhs_type_node) ? "[]" : "")
     fmt.sbprintln(&ctx.output, "};")
     fmt.sbprintln(&ctx.output, "")
   }

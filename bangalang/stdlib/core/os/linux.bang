@@ -18,8 +18,11 @@ read: proc(file_descriptor: i64, buffer: ^byte, count: u64) -> u64 =
 write: proc(file_descriptor: i64, buffer: ^byte, count: u64) -> u64 =
   do return syscall(1, #danger_untyped file_descriptor, #danger_untyped buffer, count)
 
-open: proc(file_name: cstring, flags: u64, mode: u64 = 0) -> u64 =
-  do return syscall(2, #danger_untyped file_name, flags, mode)
+open: proc(file_name: cstring, flags: u64, mode: u64 = 0) -> i64 =
+{
+  file_descriptor: = syscall(2, #danger_untyped file_name, flags, mode)
+  return #danger_untyped file_descriptor
+}
 
 mmap: proc(address: ^byte, length: u64, prot: u64, flags: u64, file_descriptor: i64, offset: u64) -> ^byte =
 {

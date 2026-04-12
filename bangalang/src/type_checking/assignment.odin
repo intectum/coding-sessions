@@ -95,7 +95,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
       rhs_type_node := rhs_node.data_type
       _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
-      if rhs_type_node.value == "[array]" || rhs_type_node.value == "[slice]"
+      if rhs_type_node.type == .subscript
       {
         element_type_node := rhs_type_node.children[0]
         _, float_type := slice.linear_search(float_types, element_type_node.value)
@@ -145,12 +145,14 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       }
 
       length_expression_node: ^ast.node
-      if lhs_node.data_type.value == "[array]"
+      if ast.is_array(lhs_node.data_type)
       {
         length_expression_node = lhs_node.data_type.children[1]
 
-        lhs_node.data_type.value = "[slice]"
-        resize(&lhs_node.data_type.children, 1)
+        range_node := ast.make_node({ type = .range })
+        append(&range_node.children, ast.make_node({ type = .nil_literal }))
+        append(&range_node.children, ast.make_node({ type = .nil_literal }))
+        lhs_node.data_type.children[1] = range_node
       }
       else
       {
@@ -165,7 +167,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       allocator_node := ast.make_node({ type = .call, directive = "#danger_untyped" })
       append(&allocator_node.children, ast.clone_node(lhs_node.allocator))
 
-      if lhs_node.data_type.value == "[slice]"
+      if ast.is_slice(lhs_node.data_type)
       {
         append(&allocator_node.children, ast.make_node({ type = .multiply, value = "*" }))
         append(&allocator_node.children[1].children, ast.make_node({ type = .number_literal }))
@@ -205,7 +207,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
 contains_non_fixed_array_sizes :: proc(type_node: ^ast.node) -> bool
 {
-  if type_node.value == "[array]" && type_node.children[1].type != .number_literal
+  if ast.is_array(type_node) && type_node.children[1].type != .number_literal
   {
     return true
   }

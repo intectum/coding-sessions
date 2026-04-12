@@ -62,7 +62,6 @@ cleanup
 - test project in diff folder
 - auto-convert dynamic array sizes
 - dynamically sized soa
-- pointer to ranged-for element
 - allow struct member to be pointer to struct but prevent recursive struct
 - restrict generic param types
 - check if param names must match...

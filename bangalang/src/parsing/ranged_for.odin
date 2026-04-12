@@ -22,6 +22,13 @@ parse_ranged_for :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node
 
   values_node := ast.make_node({ type = .group, value = "[values]" })
 
+  reference := false
+  if tokens.peek_token(stream).type == .hat
+  {
+    tokens.next_token(stream, .hat) or_return
+    reference = true
+  }
+
   element_token, element_ok := tokens.next_token(stream, .identifier)
   if !element_ok
   {
@@ -30,6 +37,13 @@ parse_ranged_for :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node
   }
 
   element_node := ast.to_node(element_token)
+  if reference
+  {
+    reference_node := ast.make_node({ type = .reference })
+    append(&reference_node.children, element_node)
+    element_node = reference_node
+  }
+
   append(&values_node.children, element_node)
 
   if tokens.peek_token(stream).type == .comma

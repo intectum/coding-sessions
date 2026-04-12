@@ -216,59 +216,56 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
       child_node := ast.clone_node(node)
 
       node^ = {
-        type = type == .type ? .type : .index,
-        value = type == .type ? "[slice]" : "",
+        type = .subscript,
         src_position = child_node.src_position
       }
 
       append(&node.children, child_node)
 
-      if type == .type
+      if tokens.peek_token(stream).type == .closing_square_bracket
       {
-        if tokens.peek_token(stream).type != .closing_square_bracket
-        {
-          node.value = "[array]"
+        range_node := ast.make_node({ type = .range })
+        append(&range_node.children, ast.make_node({ type = .nil_literal }))
+        append(&range_node.children, ast.make_node({ type = .nil_literal }))
+        append(&node.children, range_node)
+      }
+      else if tokens.peek_token(stream).type == .colon
+      {
+        range_node := ast.make_node({ type = .range })
+        append(&range_node.children, ast.make_node({ type = .nil_literal }))
 
-          expression_node := parse_rhs_expression(stream) or_return
-          append(&node.children, expression_node)
-        }
+        tokens.next_token(stream, .colon) or_return
+
+        end_expression_node := parse_rhs_expression(stream) or_return
+        append(&range_node.children, end_expression_node)
+        append(&node.children, range_node)
       }
       else
       {
-        if tokens.peek_token(stream).type == .closing_square_bracket
-        {
-          append(&node.children, ast.make_node({ type = .nil_literal }))
+        start_expression_node := parse_rhs_expression(stream) or_return
 
-          append(&node.children, ast.make_node({ type = .nil_literal }))
-        }
-        else if tokens.peek_token(stream).type == .colon
+        if tokens.peek_token(stream).type == .colon
         {
-          append(&node.children, ast.make_node({ type = .nil_literal }))
-
           tokens.next_token(stream, .colon) or_return
 
-          end_expression_node := parse_rhs_expression(stream) or_return
-          append(&node.children, end_expression_node)
+          range_node := ast.make_node({ type = .range })
+          append(&range_node.children, start_expression_node)
+
+          if tokens.peek_token(stream).type == .closing_square_bracket
+          {
+            append(&range_node.children, ast.make_node({ type = .nil_literal }))
+          }
+          else
+          {
+            end_expression_node := parse_rhs_expression(stream) or_return
+            append(&range_node.children, end_expression_node)
+          }
+
+          append(&node.children, range_node)
         }
         else
         {
-          start_expression_node := parse_rhs_expression(stream) or_return
           append(&node.children, start_expression_node)
-
-          if tokens.peek_token(stream).type == .colon
-          {
-            tokens.next_token(stream, .colon) or_return
-
-            if tokens.peek_token(stream).type == .closing_square_bracket
-            {
-              append(&node.children, ast.make_node({ type = .nil_literal }))
-            }
-            else
-            {
-              end_expression_node := parse_rhs_expression(stream) or_return
-              append(&node.children, end_expression_node)
-            }
-          }
         }
       }
 

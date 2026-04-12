@@ -26,11 +26,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     fmt.sbprint(&ctx.output, "!")
   case .dereference:
     assert(false, "Failed to generate primary")
-  case .index:
+  case .subscript:
     // TODO add bounds checking?
 
     type_node := node.data_type
-    assert(type_node.value != "[slice]", "Failed to generate primary")
+    assert(!ast.is_slice(type_node), "Failed to generate primary")
 
     fmt.sbprintf(&ctx.output, "[")
     start_expression_node := node.children[1]

@@ -58,9 +58,8 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       auto_dereference(child_node)
 
       child_type_node := child_node.data_type
-      switch child_type_node.value
+      if child_type_node.type == .subscript
       {
-      case "[array]", "[slice]":
         if node.value == "raw"
         {
           raw_type_node := ast.make_node({ type = .reference })
@@ -75,40 +74,46 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
         {
           type_check_swizzle_member(node) or_return
         }
-      case "[module]":
-        identifier_node, identifier_path := get_identifier_node(ctx, node)
-        if identifier_node == nil
+      }
+      else
+      {
+        switch child_type_node.value
         {
-          src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-          return false
-        }
-
-        if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
-        {
-          reference(ctx, identifier_path, node.value)
-        }
-
-        node.data_type = identifier_node.data_type
-        node.allocator = identifier_node.allocator
-      case "[struct]":
-        found_member := false
-        for member_node in child_type_node.children
-        {
-          if member_node.value == node.value
+        case "[module]":
+          identifier_node, identifier_path := get_identifier_node(ctx, node)
+          if identifier_node == nil
           {
-            node.data_type = member_node.data_type
-            found_member = true
-            break
+            src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
+            return false
           }
-        }
 
-        if !found_member
-        {
-          src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
-          return false
+          if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+          {
+            reference(ctx, identifier_path, node.value)
+          }
+
+          node.data_type = identifier_node.data_type
+          node.allocator = identifier_node.allocator
+        case "[struct]":
+          found_member := false
+          for member_node in child_type_node.children
+          {
+            if member_node.value == node.value
+            {
+              node.data_type = member_node.data_type
+              found_member = true
+              break
+            }
+          }
+
+          if !found_member
+          {
+            src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
+            return false
+          }
+        case:
+          assert(false, "Failed to type check identifier")
         }
-      case:
-        assert(false, "Failed to type check identifier")
       }
     }
   }
@@ -146,7 +151,7 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
   }
 
   length := -1
-  if child_type_node.value == "[array]"
+  if ast.is_array(child_type_node)
   {
     length = strconv.atoi(child_type_node.children[1].value)
   }
@@ -179,7 +184,7 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
   }
   else
   {
-    type_node := ast.make_node({ type = .type, value = "[array]" })
+    type_node := ast.make_node({ type = .subscript })
     append(&type_node.children, element_type_node)
     append(&type_node.children, ast.make_node({ type = .number_literal, value = fmt.aprintf("%i", len(node.value)) }))
     node.data_type = type_node

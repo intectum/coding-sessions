@@ -69,14 +69,14 @@ coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
       }
     }
 
-    a_string := a.value == "[slice]" && a.children[0].value == "u8"
+    a_string := ast.is_slice(a) && a.children[0].value == "u8"
     a_cstring := a.type == .reference && a.children[0].value == "u8"
     if b.value == "[any_string]" && !a_string && !a_cstring
     {
       return nil, false
     }
 
-    b_string := b.value == "[slice]" && b.children[0].value == "u8"
+    b_string := ast.is_slice(b) && b.children[0].value == "u8"
     b_cstring := b.type == .reference && b.children[0].value == "u8"
     if a.value == "[any_string]" && !b_string && !b_cstring
     {
@@ -130,13 +130,27 @@ coerce_type :: proc(a: ^ast.node, b: ^ast.node) -> (^ast.node, bool)
 
 type_name :: proc(type_node: ^ast.node) -> string
 {
-  assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
+  assert(ast.is_type(type_node), "Invalid type")
 
   prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
 
   if type_node.type == .reference
   {
     return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
+  }
+
+  if type_node.type == .subscript
+  {
+    if ast.is_array(type_node)
+    {
+      length_expression_node := type_node.children[1]
+      length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
+      return strings.concatenate({ prefix, type_name(type_node.children[0]), "[", length, "]" })
+    }
+    else
+    {
+      return strings.concatenate({ prefix, type_name(type_node.children[0]), "[]" })
+    }
   }
 
   switch type_node.value
@@ -149,10 +163,6 @@ type_name :: proc(type_node: ^ast.node) -> string
     return strings.concatenate({ prefix, "<any number>" })
   case "[any_string]":
     return strings.concatenate({ prefix, "<any string>" })
-  case "[array]":
-    length_expression_node := type_node.children[1]
-    length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
-    return strings.concatenate({ prefix, type_name(type_node.children[0]), "[", length, "]" })
   case "[enum]":
     member_type_names: [dynamic]string
     for member_node in type_node.children
@@ -178,8 +188,6 @@ type_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
-  case "[slice]":
-    return strings.concatenate({ prefix, type_name(type_node.children[0]), "[]" })
   case "[struct]":
     member_type_names: [dynamic]string
     for member_node in type_node.children
@@ -195,7 +203,7 @@ type_name :: proc(type_node: ^ast.node) -> string
 
 type_var_name :: proc(type_node: ^ast.node) -> string
 {
-  assert(type_node.type == .reference || type_node.type == .type, "Invalid type")
+  assert(ast.is_type(type_node), "Invalid type")
 
   prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, "." }) : ""
 
@@ -204,12 +212,22 @@ type_var_name :: proc(type_node: ^ast.node) -> string
     return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
   }
 
+  if type_node.type == .subscript
+  {
+    if ast.is_array(type_node)
+    {
+      length_expression_node := type_node.children[1]
+      length := length_expression_node.value
+      return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
+    }
+    else
+    {
+      return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
+    }
+  }
+
   switch type_node.value
   {
-  case "[array]":
-    length_expression_node := type_node.children[1]
-    length := length_expression_node.value
-    return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
   case "[enum]":
     member_type_names: [dynamic]string
     for member_node in type_node.children
@@ -235,8 +253,6 @@ type_var_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "$proc.", strings.join(param_type_names[:], "."), return_type_name })
-  case "[slice]":
-    return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
   case "[struct]":
     member_type_names: [dynamic]string
     for member_node in type_node.children
@@ -286,7 +302,7 @@ upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_nod
   return true
 }
 
-resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bool)
+resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   if node.type == .identifier || node.type == .type
   {
@@ -304,7 +320,7 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
           if ast.is_type(identifier_node)
           {
             node^ = identifier_node^
-            return true, true
+            return true
           }
         }
       }
@@ -315,7 +331,7 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
       if identifier_node != nil && ast.is_type(identifier_node)
       {
         node^ = identifier_node^
-        return true, true
+        return true
       }
     }
   }
@@ -323,50 +339,25 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> (bool, bo
   if node.type == .type && node.value[0] != '[' && node.value[0] != '$'
   {
     src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-    return false, false
+    return false
   }
 
   if node.data_type != nil
   {
-    _, data_type_ok := resolve_types(ctx, node.data_type)
-    if !data_type_ok
-    {
-      return false, false
-    }
+    resolve_types(ctx, node.data_type) or_return
   }
 
   if node.allocator != nil
   {
-    _, allocator_ok := resolve_types(ctx, node.allocator)
-    if !allocator_ok
-    {
-      return false, false
-    }
+    resolve_types(ctx, node.allocator) or_return
   }
 
   for child_node in node.children
   {
     if child_node.type == .scope_statement do continue
 
-    child_result, child_ok := resolve_types(ctx, child_node)
-    if !child_ok
-    {
-      return false, false
-    }
-
-    if child_result
-    {
-      if node.type == .index
-      {
-        node.type = .type
-        node.value = len(node.children) == 2 ? "[array]" : "[slice]"
-        if node.value == "[slice]"
-        {
-          resize(&node.children, 1)
-        }
-      }
-    }
+    resolve_types(ctx, child_node) or_return
   }
 
-  return false, true
+  return true
 }

@@ -2,7 +2,6 @@ package type_checking
 
 import "core:slice"
 import "core:strconv"
-import "core:strings"
 
 import "../ast"
 import "../src"
@@ -11,8 +10,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
 {
   type_node := node.data_type
 
-  _, valid_type := slice.linear_search([]string { "[array]", "[slice]", "[struct]" }, type_node.value)
-  if !valid_type
+  if type_node.type != .subscript && type_node.value != "[struct]"
   {
     src.print_position_message(node.src_position, "Cannot use compound literal for type '%s'", type_name(type_node))
     return false
@@ -25,20 +23,20 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
 
   if node.children[0].type != .assignment_statement
   {
-    switch type_node.value
+    if type_node.type != .subscript
     {
-    case "[array]":
+      src.print_position_message(node.src_position, "Cannot use compound literal with values for type '%s'", type_name(type_node))
+      return false
+    }
+
+    if ast.is_array(type_node)
+    {
       length := strconv.atoi(type_node.children[1].value)
       if len(node.children) != length
       {
         src.print_position_message(node.src_position, "Compound literal for type '%s' must contain %i elements", type_name(type_node), length)
         return false
       }
-    case "[slice]":
-      // Do nothing
-    case:
-      src.print_position_message(node.src_position, "Cannot use compound literal with values for type '%s'", type_name(type_node))
-      return false
     }
 
     for &child_node in node.children
@@ -49,19 +47,24 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
   }
   else
   {
-    switch type_node.value
+    if ast.is_slice(type_node)
     {
-    case "[slice]":
       if len(node.children) != 2
       {
         src.print_position_message(node.src_position, "Compound literal for type '%s' must contain 2 elements", type_name(type_node))
         return false
       }
-    case "[struct]":
+    }
+    else
+    {
+      switch type_node.value
+      {
+      case "[struct]":
       // Do nothing
-    case:
-      src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
-      return false
+      case:
+        src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
+        return false
+      }
     }
 
     found_member_names: [dynamic]string
@@ -79,9 +82,8 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
       append(&found_member_names, child_lhs_node.value)
 
       found_member := false
-      switch type_node.value
+      if ast.is_slice(type_node)
       {
-      case "[slice]":
         switch child_lhs_node.value
         {
         case "raw":
@@ -93,18 +95,24 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
           child_lhs_node.data_type = ctx.program.identifiers["u64"]
           found_member = true
         }
-      case "[struct]":
-        for member_node in type_node.children
+      }
+      else
+      {
+        switch type_node.value
         {
-          if member_node.value == child_lhs_node.value
+        case "[struct]":
+          for member_node in type_node.children
           {
-            child_lhs_node.data_type = member_node.data_type
-            found_member = true
-            break
+            if member_node.value == child_lhs_node.value
+            {
+              child_lhs_node.data_type = member_node.data_type
+              found_member = true
+              break
+            }
           }
+        case:
+          assert(false, "Unsupported compound-literal")
         }
-      case:
-        assert(false, "Unsupported compound-literal")
       }
 
       if !found_member

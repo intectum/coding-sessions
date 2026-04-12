@@ -14,6 +14,20 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
     return address_size
   }
 
+  if type_node.type == .subscript
+  {
+    if ast.is_array(type_node)
+    {
+      element_size := to_byte_size(type_node.children[0])
+      length := strconv.atoi(type_node.children[1].value)
+      return element_size * length
+    }
+    else
+    {
+      return address_size + 8 /* u64 */
+    }
+  }
+
   switch type_node.value
   {
   case "atomic_i8", "bool", "i8", "u8": return 1
@@ -21,11 +35,6 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
   case "atomic_i32", "f32", "i32", "u32": return 4
   case "[enum]", "atomic_i64", "f64", "i64", "u64": return 8
   case "[procedure]": return address_size
-  case "[slice]": return address_size + 8 /* u64 */
-  case "[array]":
-    element_size := to_byte_size(type_node.children[0])
-    length := strconv.atoi(type_node.children[1].value)
-    return element_size * length
   case "[struct]":
     size := 0
     for member_node in type_node.children

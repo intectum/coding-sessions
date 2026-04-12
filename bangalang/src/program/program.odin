@@ -64,8 +64,12 @@ init :: proc(program: ^program)
   allocator_type := ast.make_node({ type = .type, value = "[procedure]" })
   append(&allocator_type.children, ast.make_node({ type = .type, value = "[parameters]" }))
 
-  string_type := ast.make_node({ type = .type, value = "[slice]" })
+  string_type := ast.make_node({ type = .subscript })
   append(&string_type.children, program.identifiers["u8"])
+  range_node := ast.make_node({ type = .range })
+  append(&range_node.children, ast.make_node({ type = .nil_literal }))
+  append(&range_node.children, ast.make_node({ type = .nil_literal }))
+  append(&string_type.children, range_node)
 
   code_allocator_type := ast.clone_node(allocator_type)
   append(&code_allocator_type.children[0].children, ast.make_node({ type = .assignment_statement }))

@@ -9,7 +9,9 @@ import "../src"
 
 type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  if node.type != .compound_literal && node.type != .type && len(node.children) > 0
+  if ast.is_type(node) do return type_check_type(ctx, node)
+
+  if node.type != .compound_literal && len(node.children) > 0
   {
     type_check_primary(ctx, node.children[0]) or_return
   }
@@ -56,11 +58,11 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     }
 
     node.data_type = child_type_node.children[0]
-  case .index:
+  case .subscript:
     auto_dereference(node.children[0])
 
     child_type_node := node.children[0].data_type
-    if child_type_node.value != "[array]" && child_type_node.value != "[slice]"
+    if child_type_node.type != .subscript
     {
       src.print_position_message(node.src_position, "Cannot index type '%s'", type_name(child_type_node))
       return false
@@ -68,30 +70,42 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     any_int_type_node := ast.make_node({ type = .type, value = "[any_int]" })
 
-    type_check_rhs_expression(ctx, node.children[1], any_int_type_node) or_return
-    upgrade_types(ctx, node.children[1], ctx.program.identifiers["u64"]) or_return
+    start_expression_node := node.children[1]
+    end_expression_node: ^ast.node = nil
+    if node.children[1].type == .range
+    {
+      start_expression_node = node.children[1].children[0]
+      end_expression_node = node.children[1].children[1]
+    }
 
-    if len(node.children) == 2
+    type_check_rhs_expression(ctx, start_expression_node, any_int_type_node) or_return
+    upgrade_types(ctx, start_expression_node, ctx.program.identifiers["u64"]) or_return
+
+    if node.children[1].type != .range
     {
       node.data_type = child_type_node.children[0]
     }
     else
     {
-      type_check_rhs_expression(ctx, node.children[2], any_int_type_node) or_return
-      upgrade_types(ctx, node.children[2], ctx.program.identifiers["u64"]) or_return
+      type_check_rhs_expression(ctx, end_expression_node, any_int_type_node) or_return
+      upgrade_types(ctx, end_expression_node, ctx.program.identifiers["u64"]) or_return
 
-      type_node := ast.make_node({ type = .type, value = "[slice]" })
+      type_node := ast.make_node({ type = .subscript })
       append(&type_node.children, child_type_node.children[0])
+      range_node := ast.make_node({ type = .range })
+      append(&range_node.children, ast.make_node({ type = .nil_literal }))
+      append(&range_node.children, ast.make_node({ type = .nil_literal }))
+      append(&type_node.children, range_node)
       node.data_type = type_node
     }
 
-    if child_type_node.value == "[array]"
+    if ast.is_array(child_type_node)
     {
       length := strconv.atoi(child_type_node.children[1].value)
 
-      if child_type_node.directive != "#danger_boundless" && node.children[1].type == .number_literal && strconv.atoi(node.children[1].value) >= length
+      if child_type_node.directive != "#danger_boundless" && start_expression_node.type == .number_literal && strconv.atoi(start_expression_node.value) >= length
       {
-        src.print_position_message(node.src_position, "Index %i out of bounds", strconv.atoi(node.children[1].value))
+        src.print_position_message(node.src_position, "Index %i out of bounds", strconv.atoi(start_expression_node.value))
         return false
       }
     }

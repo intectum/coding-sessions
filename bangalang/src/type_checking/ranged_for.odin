@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:slice"
 
 import "../ast"
+import "../src"
 
 type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
@@ -14,10 +15,20 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   scope_node := node.children[2]
 
   element_node := values_node.children[0]
+  if element_node.type == .reference
+  {
+    element_node = element_node.children[0]
+  }
   index_node := len(values_node.children) > 1 ? values_node.children[1] : nil
 
   if expression_node.type == .range
   {
+    if values_node.children[0].type == .reference
+    {
+      src.print_position_message(node.src_position, "Cannot reference value from range in for loop")
+      return false
+    }
+
     start_expression_node := expression_node.children[0]
     end_expression_node := expression_node.children[1]
 
@@ -114,9 +125,15 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     append(&basic_element_assignment_node.children, element_node)
     basic_element_assignment_node.children[0].data_type = ast.make_node({ type = .type, value = "[none]" })
     append(&basic_element_assignment_node.children, ast.make_node({ type = .assign, value = "=" }))
-    append(&basic_element_assignment_node.children, ast.make_node({ type = .index }))
+    append(&basic_element_assignment_node.children, ast.make_node({ type = .subscript }))
     append(&basic_element_assignment_node.children[2].children, expression_node)
     append(&basic_element_assignment_node.children[2].children, ast.clone_node(basic_index_node))
+    if values_node.children[0].type == .reference
+    {
+      reference_node := ast.make_node({ type = .reference })
+      append(&reference_node.children, basic_element_assignment_node.children[2])
+      basic_element_assignment_node.children[2] = reference_node
+    }
     inject_at(&scope_node.children, 0, basic_element_assignment_node)
 
     append(&basic_for_node.children, scope_node)

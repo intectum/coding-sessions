@@ -7,8 +7,8 @@ for value, index in 0..10
   do strings.println(strings.itoa(value + i64(index), buf[]))
 
 foo: vec4 = { 2, 4, 6, 8 }
-for value, index in foo
-  do strings.println(strings.itoa(value + f32(index), buf[]))
+for ^value, index in foo
+  do strings.println(strings.itoa(value^ + f32(index), buf[]))
 
 strings.println(strings.itoa(vec4.size, buf[]))
 strings.println(vec4.name)
@@ -36,7 +36,7 @@ big_struct: struct { a: u8, b: u8, c: u8, d: u8, e: u8 } = { c = 42 }
 my_slice: u8[] = { raw = ^big_struct.a, length = 5 }
 my_slice2: u8[] = { 1 + 1, 4, 3 }
 
-// TODO recursive_struct: struct { a: u64, memba: ^recursive_struct }
+// TODO recursive_struct: = struct { a: u64, memba: ^recursive_struct }
 
 //f: = my_slice2[1:7]
 //os.exit(f[0])

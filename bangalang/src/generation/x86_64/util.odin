@@ -14,12 +14,14 @@ reference_type_node := ast.make_node({ type = .reference })
 
 contains_allocations :: proc(node: ^ast.node) -> bool
 {
+  if ast.is_type(node) do return false
+
   if node.type == .compound_literal
   {
     return true
   }
 
-  if node.type == .index && node.data_type.value != "[slice]"
+  if node.type == .subscript && !ast.is_slice(node.data_type)
   {
     return true
   }
@@ -29,7 +31,7 @@ contains_allocations :: proc(node: ^ast.node) -> bool
     return true
   }
 
-  if node.type == .identifier && len(node.children) > 0 && !ast.is_type(node.children[0]) && node.children[0].data_type.value == "[array]" && node.value != "raw" && node.value != "length" && len(node.value) > 1
+  if node.type == .identifier && len(node.children) > 0 && !ast.is_type(node.children[0]) && ast.is_array(node.children[0].data_type) && node.value != "raw" && node.value != "length" && len(node.value) > 1
   {
     return true
   }
@@ -47,34 +49,46 @@ contains_allocations :: proc(node: ^ast.node) -> bool
 
 get_raw_location :: proc(ctx: ^generation.gen_context, container_type_node: ^ast.node, container_location: location, register_num: int) -> location
 {
-  switch container_type_node.value
+  if container_type_node.type == .subscript
   {
-  case "[array]":
-    location := register(register_num, reference_type_node)
-    fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
-    return location
-  case "[slice]":
-    return container_location
+    if ast.is_array(container_type_node)
+    {
+      location := register(register_num, reference_type_node)
+      fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(location), to_operand(container_location))
+      return location
+    }
+    else
+    {
+      return container_location
+    }
   }
-
-  assert(false, "Unsupported raw location")
-  return {}
+  else
+  {
+    assert(false, "Unsupported raw location")
+    return {}
+  }
 }
 
 get_length_location :: proc(container_type_node: ^ast.node, container_location: location) -> location
 {
-  switch container_type_node.value
+  if container_type_node.type == .subscript
   {
-  case "[array]":
-    return immediate(container_type_node.children[1].value)
-  case "[slice]":
-    length_location := container_location
-    length_location.offset += address_size
-    return length_location
+    if ast.is_array(container_type_node)
+    {
+      return immediate(container_type_node.children[1].value)
+    }
+    else
+    {
+      length_location := container_location
+      length_location.offset += address_size
+      return length_location
+    }
   }
-
-  assert(false, "Unsupported length location")
-  return immediate(1)
+  else
+  {
+    assert(false, "Unsupported length location")
+    return immediate(1)
+  }
 }
 
 get_literal_name :: proc(literal_values: ^[dynamic]string, prefix: string, value: string) -> string

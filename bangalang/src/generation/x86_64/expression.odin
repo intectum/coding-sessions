@@ -38,7 +38,7 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   lhs_location := generate_expression_1(ctx, lhs_node, lhs_register_num, contains_allocations)
   rhs_location := generate_expression_1(ctx, rhs_node, rhs_register_num, contains_allocations)
 
-  if operand_type_node.value == "[slice]"
+  if ast.is_slice(operand_type_node)
   {
     return generate_expression_slice(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }

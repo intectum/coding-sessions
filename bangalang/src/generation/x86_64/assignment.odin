@@ -53,7 +53,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
       // TODO a bit hacky, adds the size info to the allocator call
       buf: [8]byte
-      if lhs_type_node.value == "[slice]"
+      if ast.is_slice(lhs_type_node)
       {
         element_size := strconv.itoa(buf[:], to_byte_size(lhs_type_node.children[0]))
         rhs_node.children[0].children[2].children[1].children[0].value = element_size
@@ -99,7 +99,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       {
         generate_assignment_float(ctx, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
       }
-      else if lhs_type_node.value == "[array]" || lhs_type_node.value == "[slice]"
+      else if lhs_type_node.type == .subscript
       {
         generate_assignment_float_array(ctx, operator_node, lhs_location, rhs_location, lhs_type_node, 2)
       }
@@ -186,7 +186,7 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
   ctx.next_index += 1
 
   lhs_address_location := register(register_num, reference_type_node)
-  if type_node.value == "[array]"
+  if ast.is_array(type_node)
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(lhs_address_location), to_operand(lhs_location))
   }
@@ -197,7 +197,7 @@ generate_assignment_float_array :: proc(ctx: ^generation.gen_context, node: ^ast
   lhs_location = memory(to_operand(lhs_address_location), 0)
 
   rhs_address_location := register(register_num + 1, reference_type_node)
-  if type_node.value == "[array]"
+  if ast.is_array(type_node)
   {
     fmt.sbprintfln(&ctx.output, "  lea %s, %s ; reference", to_operand(rhs_address_location), to_operand(rhs_location))
   }

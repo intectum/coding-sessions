@@ -126,7 +126,7 @@ is_member :: proc(identifier: ^node) -> bool
   }
 
   final_identifier := identifier
-  for final_identifier.children[0].type == .dereference || final_identifier.children[0].type == .index || final_identifier.children[0].type == .reference
+  for final_identifier.children[0].type == .dereference || final_identifier.children[0].type == .reference || final_identifier.children[0].type == .subscript
   {
     final_identifier = final_identifier.children[0]
   }
@@ -141,12 +141,22 @@ is_type :: proc(type: ^node) -> bool
     return true
   }
 
-  if type.type == .reference
+  if type.type == .reference || type.type == .subscript
   {
     return is_type(type.children[0])
   }
 
   return false
+}
+
+is_array :: proc(type: ^node) -> bool
+{
+  return type.type == .subscript && type.children[1].type != .range && is_type(type)
+}
+
+is_slice :: proc(type: ^node) -> bool
+{
+  return type.type == .subscript && type.children[1].type == .range && is_type(type)
 }
 
 to_node :: proc(token: tokens.token) -> ^node

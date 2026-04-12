@@ -30,6 +30,8 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
 
   if coerced_type_node != nil
   {
+    // TODO this essentially proivides default types for integer literals in expressions
+    // TODO is that something we want?
     if coerced_type_node.value == "[any_float]"
     {
       upgrade_types(ctx, node, ctx.program.identifiers["f64"]) or_return

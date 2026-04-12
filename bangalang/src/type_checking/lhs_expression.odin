@@ -15,7 +15,7 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
       return false
     }
 
-    if node.data_type.value == "[array]" && node.data_type.directive == "#soa"
+    if ast.is_array(node.data_type) && node.data_type.directive == "#soa"
     {
       child_type_node := node.data_type.children[0]
       if child_type_node.value == "[struct]"
@@ -28,7 +28,7 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
         {
           new_member_node := ast.make_node({ type = .identifier, value = member_node.value })
 
-          new_member_type_node := ast.make_node({ type = .type, value = "[array]" })
+          new_member_type_node := ast.make_node({ type = .subscript })
           append(&new_member_type_node.children, ast.make_node({ type = .type, value = member_node.data_type.value }))
           append(&new_member_type_node.children, length_expression_node)
           new_member_node.data_type = new_member_type_node

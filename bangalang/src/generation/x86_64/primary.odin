@@ -50,12 +50,16 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .dereference:
     location := copy_to_register(ctx, child_location, register_num, reference_type_node, "dereference")
     return memory(to_operand(location), 0)
-  case .index:
+  case .subscript:
     child_type_node := node.children[0].data_type
 
     child_length_location := get_length_location(child_type_node, child_location)
 
     start_expression_node := node.children[1]
+    if node.children[1].type == .range
+    {
+      start_expression_node = start_expression_node.children[0]
+    }
     start_expression_location := immediate(0)
     if start_expression_node.type != .nil_literal
     {
@@ -72,10 +76,10 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       fmt.sbprintln(&ctx.output, "  jae panic_out_of_bounds ; panic!")
     }
 
-    if type_node.value != "[slice]" && node.children[1].type == .number_literal
+    if !ast.is_slice(type_node) && node.children[1].type == .number_literal
     {
       data_location := child_location
-      if child_type_node.value == "[slice]"
+      if ast.is_slice(child_type_node)
       {
         data_location = copy_to_register(ctx, data_location, register_num, reference_type_node, "dereference")
         data_location = memory(to_operand(data_location), 0)
@@ -88,13 +92,13 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     address_location := get_raw_location(ctx, child_type_node, child_location, register_num)
     address_location = copy_to_register(ctx, address_location, register_num, reference_type_node)
     offset_location := register(register_num + 2, reference_type_node)
-    element_type_node := child_type_node.value == "[array]" || child_type_node.value == "[slice]" ? child_type_node.children[0] : child_type_node
+    element_type_node := child_type_node.type == .subscript ? child_type_node.children[0] : child_type_node
 
     fmt.sbprintfln(&ctx.output, "  mov %s, %s ; copy", to_operand(offset_location), to_operand(start_expression_location))
     fmt.sbprintfln(&ctx.output, "  imul %s, %s ; multiply by element size", to_operand(offset_location), to_operand(immediate(to_byte_size(element_type_node))))
     fmt.sbprintfln(&ctx.output, "  add %s, %s ; offset", to_operand(address_location), to_operand(offset_location))
 
-    if type_node.value == "[slice]"
+    if ast.is_slice(type_node)
     {
       allocate_stack(ctx, to_byte_size(type_node))
       slice_address_location := memory("rsp", 0)
@@ -102,7 +106,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
 
       copy(ctx, address_location, slice_address_location, reference_type_node)
 
-      end_expression_node := node.children[2]
+      end_expression_node := node.children[1].children[1]
       end_expression_location := child_length_location
       if end_expression_node.type != .nil_literal
       {
@@ -139,7 +143,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .char_literal:
     return immediate(node.value)
   case .string_literal:
-    if type_node.value == "[slice]" && type_node.children[0].value == "u8"
+    if ast.is_slice(type_node) && type_node.children[0].value == "u8"
     {
       return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
     }
