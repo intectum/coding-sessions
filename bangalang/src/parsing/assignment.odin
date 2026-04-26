@@ -16,7 +16,7 @@ parse_assignment :: proc(ctx: ^parsing_context, stream: ^tokens.stream) -> (node
   append(&node.children, lhs_node)
 
   lhs_type_node := lhs_node.data_type
-  if !ast.is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.value == "[procedure]"
+  if !ast.is_member(lhs_node) && lhs_type_node != nil && lhs_type_node.type == .procedure_type
   {
     ctx.return_value_required = len(lhs_type_node.children) == 2
   }

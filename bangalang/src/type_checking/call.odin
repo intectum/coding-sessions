@@ -18,7 +18,7 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   }
 
   procedure_type_node := procedure_node.data_type
-  if procedure_type_node.value != "[procedure]"
+  if procedure_type_node.type != .procedure_type
   {
     src.print_position_message(node.src_position, "'%s' does not refer to a procedure", procedure_node.value)
     return false
@@ -146,8 +146,8 @@ type_check_conversion_call :: proc(ctx: ^type_checking_context, node: ^ast.node)
 
   node.data_type = ast.clone_node(procedure_node)
 
-  procedure_type_node := ast.make_node({ type = .type, value = "[procedure]" })
-  append(&procedure_type_node.children, ast.make_node({ type = .type, value = "[parameters]" }))
+  procedure_type_node := ast.make_node({ type = .procedure_type })
+  append(&procedure_type_node.children, ast.make_node({ type = .group, value = "[parameters]" }))
   append(&procedure_type_node.children[0].children, ast.make_node({ type = .identifier, value = "value", data_type = param_node.data_type }))
   append(&procedure_type_node.children, ast.clone_node(procedure_node))
   procedure_node.data_type = procedure_type_node

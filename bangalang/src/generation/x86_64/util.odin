@@ -8,8 +8,8 @@ import "../../ast"
 import "../../type_checking"
 import ".."
 
-index_type_node := ast.make_node({ type = .type, value = "u64" })
-length_type_node := ast.make_node({ type = .type, value = "u64" })
+index_type_node := ast.make_node({ type = .identifier, value = "u64" })
+length_type_node := ast.make_node({ type = .identifier, value = "u64" })
 reference_type_node := ast.make_node({ type = .reference })
 
 contains_allocations :: proc(node: ^ast.node) -> bool

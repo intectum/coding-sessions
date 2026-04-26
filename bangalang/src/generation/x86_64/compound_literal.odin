@@ -66,8 +66,11 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
   }
   else
   {
-    if ast.is_slice(type_node)
+    #partial switch type_node.type
     {
+    case .subscript:
+      assert(!ast.is_array(type_node), "Failed to generate compound literal")
+
       member_names: []string = { "raw", "length" }
       for member_name in member_names
       {
@@ -75,7 +78,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
         member_location := memory("rsp", 0)
         if member_name == "length"
         {
-          member_type_node = ast.make_node({ type = .type, value = "i64" })
+          member_type_node = ctx.program.identifiers["i64"]
           member_location.offset += address_size
         }
 
@@ -99,61 +102,55 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
           nilify(ctx, member_location, to_byte_size(member_type_node))
         }
       }
-    }
-    else
-    {
-      switch type_node.value
+    case .struct_type:
+      member_location := memory("rsp", 0)
+      nilify_location: location
+      nilify_count := 0
+
+      for member_node in type_node.children
       {
-      case "[struct]":
-        member_location := memory("rsp", 0)
-        nilify_location: location
-        nilify_count := 0
+        member_type_node := member_node.data_type
 
-        for member_node in type_node.children
+        found_assignment := false
+        for child_node in node.children
         {
-          member_type_node := member_node.data_type
+          child_lhs_node := child_node.children[0]
+          child_rhs_node := child_node.children[2]
 
-          found_assignment := false
-          for child_node in node.children
+          if child_lhs_node.value == member_node.value
           {
-            child_lhs_node := child_node.children[0]
-            child_rhs_node := child_node.children[2]
-
-            if child_lhs_node.value == member_node.value
+            if nilify_count > 0
             {
-              if nilify_count > 0
-              {
-                nilify(ctx, nilify_location, nilify_count)
-                nilify_location = {}
-                nilify_count = 0
-              }
-
-              expression_location := generate_expression(ctx, child_rhs_node, register_num)
-              copy(ctx, expression_location, member_location, member_type_node)
-              found_assignment = true
-              break
+              nilify(ctx, nilify_location, nilify_count)
+              nilify_location = {}
+              nilify_count = 0
             }
-          }
 
-          if !found_assignment
-          {
-            if nilify_location.type == .none
-            {
-              nilify_location = member_location
-            }
-            nilify_count += to_byte_size(member_type_node)
+            expression_location := generate_expression(ctx, child_rhs_node, register_num)
+            copy(ctx, expression_location, member_location, member_type_node)
+            found_assignment = true
+            break
           }
-
-          member_location.offset += to_byte_size(member_node.data_type)
         }
 
-        if nilify_count > 0
+        if !found_assignment
         {
-          nilify(ctx, nilify_location, nilify_count)
+          if nilify_location.type == .none
+          {
+            nilify_location = member_location
+          }
+          nilify_count += to_byte_size(member_type_node)
         }
-      case:
-        assert(false, "Failed to generate compound literal")
+
+        member_location.offset += to_byte_size(member_node.data_type)
       }
+
+      if nilify_count > 0
+      {
+        nilify(ctx, nilify_location, nilify_count)
+      }
+    case:
+      assert(false, "Failed to generate compound literal")
     }
   }
 

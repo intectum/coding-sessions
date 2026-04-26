@@ -16,7 +16,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   }
 
   lhs_type_node := lhs_node.data_type
-  if lhs_type_node.value == "[module]"
+  if lhs_type_node.type == .module_type
   {
     return
   }

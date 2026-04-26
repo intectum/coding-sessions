@@ -98,11 +98,6 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
   case .identifier:
     token := tokens.next_token(stream, .identifier) or_return
     node = ast.to_node(token)
-
-    if type == .type
-    {
-      node.type = .type
-    }
   case .placeholder:
     if type == .lhs
     {
@@ -112,11 +107,6 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
 
     token := tokens.next_token(stream, .placeholder) or_return
     node = ast.to_node(token)
-
-    if type == .type
-    {
-      node.type = .type
-    }
   case .keyword:
     if type == .lhs
     {

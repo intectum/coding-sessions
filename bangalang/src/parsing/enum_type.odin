@@ -7,8 +7,7 @@ import "../tokens"
 parse_enum_type :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
-    type = .type,
-    value = "[enum]",
+    type = .enum_type,
     src_position = tokens.peek_token(stream).src_position
   })
 

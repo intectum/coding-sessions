@@ -68,7 +68,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
       return false
     }
 
-    any_int_type_node := ast.make_node({ type = .type, value = "[any_int]" })
+    any_int_type_node := ast.make_node({ type = .identifier, value = "[any_int]" })
 
     start_expression_node := node.children[1]
     end_expression_node: ^ast.node = nil
@@ -116,28 +116,39 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   case .char_literal:
     node.data_type = ctx.program.identifiers["char"]
   case .string_literal:
-    node.data_type = ast.make_node({ type = .type, value = "[any_string]" })
+    node.data_type = ast.make_node({ type = .identifier, value = "[any_string]" })
   case .number_literal:
     type := strings.contains(node.value, ".") ? "[any_float]" : "[any_number]"
-    node.data_type = ast.make_node({ type = .type, value = type })
+    node.data_type = ast.make_node({ type = .identifier, value = type })
   case .boolean_literal:
     node.data_type = ctx.program.identifiers["bool"]
   case .compound_literal:
     type_check_compound_literal(ctx, node) or_return
   case .nil_literal:
-    node.data_type = ast.make_node({ type = .type, value = "[none]" })
-  case .type:
-    if node.value == "[enum]"
+    node.data_type = ast.make_node({ type = .identifier, value = "[none]" })
+  case .enum_type:
+    for member_node, index in node.children[:len(node.children) - 1]
     {
-      for member_node, index in node.children[:len(node.children) - 1]
+      for other_member_node in node.children[index + 1:]
       {
-        for other_member_node in node.children[index + 1:]
+        if other_member_node.value == member_node.value
         {
-          if other_member_node.value == member_node.value
-          {
-            src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, type_name(node))
-            return false
-          }
+          src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, type_name(node))
+          return false
+        }
+      }
+    }
+  case .procedure_type:
+    // Do nothing
+  case .struct_type:
+    for member_node, index in node.children[:len(node.children) - 1]
+    {
+      for other_member_node in node.children[index + 1:]
+      {
+        if other_member_node.value == member_node.value
+        {
+          src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, type_name(node))
+          return false
         }
       }
     }
@@ -147,7 +158,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
   if node.directive == "#danger_untyped"
   {
-    node.data_type = ast.make_node({ type = .type, value= "[none]" })
+    node.data_type = ast.make_node({ type = .identifier, value= "[none]" })
   }
 
   return true

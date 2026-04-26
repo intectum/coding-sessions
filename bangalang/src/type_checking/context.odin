@@ -38,7 +38,7 @@ copy_context := proc(ctx: ^type_checking_context) -> type_checking_context
 
 get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, skip_out_of_order_identifiers: bool = false) -> (^ast.node, []string)
 {
-  if ast.is_member(identifier) && identifier.children[0].data_type != nil && identifier.children[0].data_type.value == "[module]"
+  if ast.is_member(identifier) && identifier.children[0].data_type != nil && identifier.children[0].data_type.type == .module_type
   {
     child_node := identifier.children[0]
 
@@ -117,7 +117,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, 
 
 is_visible_in_nested_proc :: proc(ctx: ^type_checking_context, identifier_node: ^ast.node) -> bool
 {
-  if ast.is_type(identifier_node) || identifier_node.data_type.value == "[module]"
+  if ast.is_type(identifier_node) || identifier_node.data_type.type == .module_type
   {
     return true
  }

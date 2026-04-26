@@ -11,7 +11,9 @@ import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  if node.type != .compound_literal && node.type != .type && len(node.children) > 0
+  if ast.is_type(node) do return
+
+  if node.type != .compound_literal && len(node.children) > 0
   {
     generate_primary(ctx, node.children[0])
   }
@@ -63,8 +65,6 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     }
   case .nil_literal:
     fmt.sbprint(&ctx.output, "0")
-  case .type:
-    // Do nothing
   case:
     fmt.sbprint(&ctx.output, "(")
     generate_expression(ctx, node)

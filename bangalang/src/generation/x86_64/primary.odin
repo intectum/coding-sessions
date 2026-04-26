@@ -14,7 +14,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   if ast.is_type(node) do return {}
 
   child_location: location
-  if node.type != .compound_literal && node.type != .type && len(node.children) > 0
+  if node.type != .compound_literal && len(node.children) > 0
   {
     child_location = generate_primary(ctx, node.children[0], register_num, contains_allocations)
   }
@@ -171,9 +171,6 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     return generate_compound_literal(ctx, node, register_num)
   case .nil_literal:
     return immediate(0)
-  case .type:
-    assert(false, "Failed to generate primary")
-    return {}
   case:
     return generate_expression_1(ctx, node, register_num, contains_allocations)
   }

@@ -18,18 +18,18 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
     if ast.is_array(node.data_type) && node.data_type.directive == "#soa"
     {
       child_type_node := node.data_type.children[0]
-      if child_type_node.value == "[struct]"
+      if child_type_node.type == .struct_type
       {
         length_expression_node := node.data_type.children[1]
 
-        new_type_node := ast.make_node({ type = .type, value = "[struct]", directive = "#soa" })
+        new_type_node := ast.make_node({ type = .struct_type, directive = "#soa" })
 
         for member_node in child_type_node.children
         {
           new_member_node := ast.make_node({ type = .identifier, value = member_node.value })
 
           new_member_type_node := ast.make_node({ type = .subscript })
-          append(&new_member_type_node.children, ast.make_node({ type = .type, value = member_node.data_type.value }))
+          append(&new_member_type_node.children, ast.make_node({ type = .identifier, value = member_node.data_type.value }))
           append(&new_member_type_node.children, length_expression_node)
           new_member_node.data_type = new_member_type_node
 
@@ -56,7 +56,7 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
 {
   if node.allocator == nil
   {
-    node.allocator = ctx.program.identifiers[node.data_type.value == "[procedure]" ? "code" : "stack"]
+    node.allocator = ctx.program.identifiers[node.data_type.type == .procedure_type ? "code" : "stack"]
     return true
   }
 

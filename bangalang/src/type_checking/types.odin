@@ -134,13 +134,44 @@ type_name :: proc(type_node: ^ast.node) -> string
 
   prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
 
-  if type_node.type == .reference
+  #partial switch type_node.type
   {
-    return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
-  }
+  case .enum_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+    append(&member_type_names, member_node.value)
+    }
 
-  if type_node.type == .subscript
-  {
+    return strings.concatenate({ prefix, "enum {{ ", strings.join(member_type_names[:], ", "), " }}" })
+  case .procedure_type:
+    param_type_names: [dynamic]string
+    params_type_node := type_node.children[0]
+    for param_node in params_type_node.children
+    {
+    param_lhs_node := param_node.children[0]
+    append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(param_lhs_node.data_type) }))
+    }
+
+    return_type_name: string
+    if len(type_node.children) == 2
+    {
+    return_type_node := type_node.children[1]
+    return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
+    }
+
+    return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
+  case .reference:
+    return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
+  case .struct_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+    append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(member_node.data_type) }))
+    }
+
+    return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
+  case .subscript:
     if ast.is_array(type_node)
     {
       length_expression_node := type_node.children[1]
@@ -163,39 +194,6 @@ type_name :: proc(type_node: ^ast.node) -> string
     return strings.concatenate({ prefix, "<any number>" })
   case "[any_string]":
     return strings.concatenate({ prefix, "<any string>" })
-  case "[enum]":
-    member_type_names: [dynamic]string
-    for member_node in type_node.children
-    {
-      append(&member_type_names, member_node.value)
-    }
-
-    return strings.concatenate({ prefix, "enum {{ ", strings.join(member_type_names[:], ", "), " }}" })
-  case "[procedure]":
-    param_type_names: [dynamic]string
-    params_type_node := type_node.children[0]
-    for param_node in params_type_node.children
-    {
-      param_lhs_node := param_node.children[0]
-      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(param_lhs_node.data_type) }))
-    }
-
-    return_type_name: string
-    if len(type_node.children) == 2
-    {
-      return_type_node := type_node.children[1]
-      return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
-    }
-
-    return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
-  case "[struct]":
-    member_type_names: [dynamic]string
-    for member_node in type_node.children
-    {
-      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(member_node.data_type) }))
-    }
-
-    return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
   }
 
   return strings.concatenate({ prefix, type_node.value })
@@ -207,28 +205,9 @@ type_var_name :: proc(type_node: ^ast.node) -> string
 
   prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, "." }) : ""
 
-  if type_node.type == .reference
+  #partial switch type_node.type
   {
-    return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
-  }
-
-  if type_node.type == .subscript
-  {
-    if ast.is_array(type_node)
-    {
-      length_expression_node := type_node.children[1]
-      length := length_expression_node.value
-      return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
-    }
-    else
-    {
-      return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
-    }
-  }
-
-  switch type_node.value
-  {
-  case "[enum]":
+  case .enum_type:
     member_type_names: [dynamic]string
     for member_node in type_node.children
     {
@@ -236,7 +215,7 @@ type_var_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "$enum.", strings.join(member_type_names[:], ".") })
-  case "[procedure]":
+  case .procedure_type:
     param_type_names: [dynamic]string
     params_type_node := type_node.children[0]
     for param_node in params_type_node.children
@@ -253,7 +232,9 @@ type_var_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "$proc.", strings.join(param_type_names[:], "."), return_type_name })
-  case "[struct]":
+  case .reference:
+    return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
+  case .struct_type:
     member_type_names: [dynamic]string
     for member_node in type_node.children
     {
@@ -261,6 +242,17 @@ type_var_name :: proc(type_node: ^ast.node) -> string
     }
 
     return strings.concatenate({ prefix, "$struct.", strings.join(member_type_names[:], ".") })
+  case .subscript:
+    if ast.is_array(type_node)
+    {
+      length_expression_node := type_node.children[1]
+      length := length_expression_node.value
+      return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
+    }
+    else
+    {
+      return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
+    }
   }
 
   return strings.concatenate({ prefix, type_node.value })
@@ -304,9 +296,9 @@ upgrade_types :: proc(ctx: ^type_checking_context, node: ^ast.node, new_type_nod
 
 resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  if node.type == .identifier || node.type == .type
+  if node.type == .identifier
   {
-    if len(node.children) > 0 && (node.children[0].type == .identifier || node.children[0].type == .type)
+    if len(node.children) > 0 && node.children[0].type == .identifier
     {
       child_node := node.children[0]
       module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
@@ -334,12 +326,13 @@ resolve_types :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
         return true
       }
     }
-  }
 
-  if node.type == .type && node.value[0] != '[' && node.value[0] != '$'
-  {
-    src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-    return false
+    // TODO handle this somewhere else?
+    /*if !strings.has_prefix(node.value, "[") && !strings.has_prefix(node.value, "$")
+    {
+      src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
+      return false
+    }*/
   }
 
   if node.data_type != nil

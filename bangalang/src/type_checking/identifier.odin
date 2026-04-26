@@ -17,7 +17,7 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     {
       found_member := false
 
-      if child_node.value == "[enum]"
+      if child_node.type == .enum_type
       {
         for member_node in child_node.children
         {
@@ -58,8 +58,41 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       auto_dereference(child_node)
 
       child_type_node := child_node.data_type
-      if child_type_node.type == .subscript
+      #partial switch child_type_node.type
       {
+      case .module_type:
+        identifier_node, identifier_path := get_identifier_node(ctx, node)
+        if identifier_node == nil
+        {
+          src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
+          return false
+        }
+
+        if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+        {
+          reference(ctx, identifier_path, node.value)
+        }
+
+        node.data_type = identifier_node.data_type
+        node.allocator = identifier_node.allocator
+      case .struct_type:
+        found_member := false
+        for member_node in child_type_node.children
+        {
+          if member_node.value == node.value
+          {
+            node.data_type = member_node.data_type
+            found_member = true
+            break
+          }
+        }
+
+        if !found_member
+        {
+          src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
+          return false
+        }
+      case .subscript:
         if node.value == "raw"
         {
           raw_type_node := ast.make_node({ type = .reference })
@@ -74,46 +107,8 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
         {
           type_check_swizzle_member(node) or_return
         }
-      }
-      else
-      {
-        switch child_type_node.value
-        {
-        case "[module]":
-          identifier_node, identifier_path := get_identifier_node(ctx, node)
-          if identifier_node == nil
-          {
-            src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-            return false
-          }
-
-          if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
-          {
-            reference(ctx, identifier_path, node.value)
-          }
-
-          node.data_type = identifier_node.data_type
-          node.allocator = identifier_node.allocator
-        case "[struct]":
-          found_member := false
-          for member_node in child_type_node.children
-          {
-            if member_node.value == node.value
-            {
-              node.data_type = member_node.data_type
-              found_member = true
-              break
-            }
-          }
-
-          if !found_member
-          {
-            src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
-            return false
-          }
-        case:
-          assert(false, "Failed to type check identifier")
-        }
+      case:
+        assert(false, "Failed to type check identifier")
       }
     }
   }

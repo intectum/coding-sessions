@@ -10,7 +10,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
 {
   type_node := node.data_type
 
-  if type_node.type != .subscript && type_node.value != "[struct]"
+  if type_node.type != .subscript && type_node.type != .struct_type
   {
     src.print_position_message(node.src_position, "Cannot use compound literal for type '%s'", type_name(type_node))
     return false
@@ -47,24 +47,25 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
   }
   else
   {
-    if ast.is_slice(type_node)
+    #partial switch type_node.type
     {
+    case .struct_type:
+      // Do nothing
+    case .subscript:
+      if ast.is_array(type_node)
+      {
+        src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
+        return false
+      }
+
       if len(node.children) != 2
       {
         src.print_position_message(node.src_position, "Compound literal for type '%s' must contain 2 elements", type_name(type_node))
         return false
       }
-    }
-    else
-    {
-      switch type_node.value
-      {
-      case "[struct]":
-      // Do nothing
-      case:
-        src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
-        return false
-      }
+    case:
+      src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
+      return false
     }
 
     found_member_names: [dynamic]string
@@ -82,8 +83,19 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
       append(&found_member_names, child_lhs_node.value)
 
       found_member := false
-      if ast.is_slice(type_node)
+      #partial switch type_node.type
       {
+      case .struct_type:
+        for member_node in type_node.children
+        {
+          if member_node.value == child_lhs_node.value
+          {
+            child_lhs_node.data_type = member_node.data_type
+            found_member = true
+            break
+          }
+        }
+      case .subscript:
         switch child_lhs_node.value
         {
         case "raw":
@@ -94,22 +106,6 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
         case "length":
           child_lhs_node.data_type = ctx.program.identifiers["u64"]
           found_member = true
-        }
-      }
-      else
-      {
-        switch type_node.value
-        {
-        case "[struct]":
-          for member_node in type_node.children
-          {
-            if member_node.value == child_lhs_node.value
-            {
-              child_lhs_node.data_type = member_node.data_type
-              found_member = true
-              break
-            }
-          }
         case:
           assert(false, "Unsupported compound-literal")
         }

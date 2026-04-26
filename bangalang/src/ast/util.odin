@@ -131,19 +131,24 @@ is_member :: proc(identifier: ^node) -> bool
     final_identifier = final_identifier.children[0]
   }
 
-  return final_identifier.children[0].type == .identifier || final_identifier.children[0].type == .type
+  return final_identifier.children[0].type == .identifier || is_type(final_identifier.children[0])
 }
 
 is_type :: proc(type: ^node) -> bool
 {
-  if type.type == .type
+  if type.type == .reference || type.type == .subscript
+  {
+    return is_type(type.children[0])
+  }
+
+  if slice.contains(complex_types, type.type)
   {
     return true
   }
 
-  if type.type == .reference || type.type == .subscript
+  if type.type == .identifier && slice.contains(simple_types, type.value)
   {
-    return is_type(type.children[0])
+    return true
   }
 
   return false

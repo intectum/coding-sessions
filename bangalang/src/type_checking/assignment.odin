@@ -15,7 +15,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   type_check_lhs_expression(ctx, lhs_node) or_return
 
-  procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.value == "[procedure]" && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.type == .procedure_type && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value

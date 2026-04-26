@@ -7,8 +7,7 @@ import "../tokens"
 parse_procedure_type :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
   node = ast.make_node({
-    type = .type,
-    value = "[procedure]",
+    type = .procedure_type,
     src_position = tokens.peek_token(stream).src_position
   })
 
@@ -26,7 +25,7 @@ parse_procedure_type :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bo
     return {}, false
   }
 
-  params_type_node := ast.make_node({ type = .type, value = "[parameters]" })
+  params_type_node := ast.make_node({ type = .group, value = "[parameters]" })
 
   for tokens.peek_token(stream).type != .closing_bracket
   {

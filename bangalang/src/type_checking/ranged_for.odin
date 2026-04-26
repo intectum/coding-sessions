@@ -37,11 +37,11 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     basic_pre_node := ast.make_node({ type = .group, value = "[pre]" })
     basic_pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&basic_pre_declaration_node.children, ast.clone_node(element_node))
-    basic_pre_declaration_node.children[0].data_type = ast.make_node({ type = .type, value = "[none]" })
+    basic_pre_declaration_node.children[0].data_type = ast.make_node({ type = .identifier, value = "[none]" })
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&basic_pre_declaration_node.children, start_expression_node)
     assert(basic_pre_declaration_node.children[2].data_type == nil, "Oopsy daisy!") // TODO review
-    basic_pre_declaration_node.children[2].data_type = ast.make_node({ type = .type, value = "[any_number]" })
+    basic_pre_declaration_node.children[2].data_type = ast.make_node({ type = .identifier, value = "[any_number]" })
     append(&basic_pre_node.children, basic_pre_declaration_node)
 
     if index_node != nil
@@ -123,7 +123,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
     basic_element_assignment_node := ast.make_node({ type = .assignment_statement })
     append(&basic_element_assignment_node.children, element_node)
-    basic_element_assignment_node.children[0].data_type = ast.make_node({ type = .type, value = "[none]" })
+    basic_element_assignment_node.children[0].data_type = ast.make_node({ type = .identifier, value = "[none]" })
     append(&basic_element_assignment_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&basic_element_assignment_node.children, ast.make_node({ type = .subscript }))
     append(&basic_element_assignment_node.children[2].children, expression_node)

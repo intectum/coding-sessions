@@ -9,7 +9,7 @@ import "../src"
 
 type_check_type :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  if node.value == "[enum]" || node.value == "[struct]"
+  if node.type == .enum_type || node.type == .struct_type
   {
     for member_node, index in node.children[:len(node.children) - 1]
     {

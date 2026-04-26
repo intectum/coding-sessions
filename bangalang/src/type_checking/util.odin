@@ -54,7 +54,7 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
   identifier_node, _ := get_identifier_node(ctx, node)
   if identifier_node != nil
   {
-    if identifier_node.data_type.value == "[struct]" && identifier_node.data_type.directive == "#soa"
+    if identifier_node.data_type.type == .struct_type && identifier_node.data_type.directive == "#soa"
     {
       return 0
     }
@@ -93,12 +93,12 @@ is_static_procedure_statement :: proc(program: ^program.program, statement: ^ast
 is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) -> bool
 {
   type := identifier.data_type
-  if identifier.type != .identifier || type == nil || type.value != "[procedure]"
+  if identifier.type != .identifier || type == nil || type.type != .procedure_type
   {
     return false
   }
 
-  if ast.is_member(identifier) && identifier.children[0].data_type.value != "[module]"
+  if ast.is_member(identifier) && identifier.children[0].data_type.type != .module_type
   {
     return false
   }

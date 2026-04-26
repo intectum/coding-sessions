@@ -30,7 +30,7 @@ resolve_placeholders :: proc(generic: ^ast.node, concrete: ^ast.node, identifier
 {
   found_placeholder := false
 
-  if generic.type == .type && is_placeholder(generic)
+  if is_placeholder(generic)
   {
     if !(generic.value in identifiers)
     {
