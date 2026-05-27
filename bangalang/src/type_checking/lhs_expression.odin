@@ -1,8 +1,9 @@
 package type_checking
 
+import "core:slice"
+
 import "../ast"
 import "../src"
-import slice "core:slice"
 
 type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {

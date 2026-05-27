@@ -1,7 +1,6 @@
 package type_checking
 
 import "../ast"
-import "../program"
 
 type_check_return :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
@@ -10,8 +9,7 @@ type_check_return :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     return_data_type := ctx.program.identifiers["u8"]
     if len(ctx.path) > 2
     {
-      qualified_name := program.get_qualified_name(ctx.path[:])
-      procedure_node := ctx.program.procedures[qualified_name].statements[0].children[0]
+      procedure_node := ast.get_scope(ctx.program, ctx.path[:]).statements[0].children[0]
       return_data_type = procedure_node.data_type.children[1]
     }
 

@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strings"
 
 import "../../ast"
-import "../../program"
 import ".."
 import "../glsl"
 
@@ -54,10 +53,12 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  ret ; return")
 
   generated_procedure_names: [dynamic]string
-  for qualified_module_name in ctx.program.modules
+  for _, lib in ctx.program.children
   {
-    main_procedure := &ctx.program.procedures[qualified_module_name]
-    generate_procedures(ctx, main_procedure.references[:], &generated_procedure_names)
+    for _, &module in lib.children
+    {
+      generate_procedures(ctx, &module.references, &generated_procedure_names)
+    }
   }
 
   fmt.sbprintln(&ctx.output, "section .data")
@@ -102,7 +103,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
 
 generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, generated_import_names: ^[dynamic]string)
 {
-  qualified_module_name := program.get_qualified_module_name(path)
+  qualified_module_name := ast.get_qualified_module_name(path)
   _, found_generated_module := slice.linear_search(generated_import_names[:], qualified_module_name)
   if found_generated_module
   {
@@ -111,24 +112,26 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, g
 
   append(generated_import_names, qualified_module_name)
 
-  module := &ctx.program.modules[qualified_module_name]
-  for import_name in module.imports
+  module := ast.get_scope(ctx.program, path)
+  for import_name in module.references
   {
-    imported_module_path := module.imports[import_name]
+    imported_module_path := module.references[import_name]
+    if len(imported_module_path) != 2 do continue
+
     generate_main_statements(ctx, imported_module_path[:], generated_import_names)
   }
 
   ctx.path = path
 
-  main_procedure := &ctx.program.procedures[program.get_qualified_name(ctx.path)]
-  generate_statements(ctx, main_procedure.statements[:])
+  generate_statements(ctx, module.statements[:])
 }
 
-generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic]string, generated_procedure_names: ^[dynamic]string)
+generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[string][dynamic]string, generated_procedure_names: ^[dynamic]string)
 {
-  for reference in references
+  for reference, reference_path in references
   {
-    qualified_name := program.get_qualified_name(reference[:])
+    if len(reference_path) == 2 do continue
+    qualified_name := ast.get_qualified_name(reference_path[:])
 
     _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], qualified_name)
     if found_generated_procedure
@@ -138,7 +141,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
     append(generated_procedure_names, qualified_name)
 
-    procedure := &ctx.program.procedures[qualified_name]
+    procedure := ast.get_scope(ctx.program, reference_path[:])
     node := procedure.statements[0]
     lhs_node := node.children[0]
 
@@ -149,7 +152,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = reference[:],
+        path = reference_path[:],
         output = ctx.output
       }
 
@@ -157,12 +160,12 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
       ctx.output = procedure_ctx.output
 
-      generate_procedures(ctx, procedure.references[:], generated_procedure_names)
+      generate_procedures(ctx, &procedure.references, generated_procedure_names)
     case "compute_shader":
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = reference[:]
+        path = reference_path[:]
       }
 
       strings.builder_init(&procedure_ctx.output)

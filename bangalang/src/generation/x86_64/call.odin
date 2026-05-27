@@ -22,12 +22,7 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   if !ast.is_member(procedure_node) && procedure_node.value == "link"
   {
       link := node.children[1].value
-
-      _, found_link := slice.linear_search(ctx.program.links[:], link)
-      if !found_link
-      {
-          append(&ctx.program.links, link)
-      }
+      ctx.program.references[link] = {}
 
       return {}
   }

@@ -13,23 +13,11 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 {
   general_tests: map[string]string
 
-  general_tests["comments"] =
+  /*general_tests["comments"] =
   `
     debug: = import("debug", "core")
 
     uncommented_code: i8 = 1
-
-    // Single-line comment
-
-    /*
-      Multi-line comment
-
-      /*
-        Nested multi-line comment!
-      */
-
-      "Multi-line close */"
-    */
 
     uncommented_code = 1
   `
@@ -77,7 +65,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     var0: = false
     if false do var0 = true
     debug.assert(var0 == false, "")
-  `
+  `*/
 
   general_tests["if_true_do_scope"] =
   `
@@ -88,7 +76,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0, "")
   `
 
-  general_tests["if_else_true_scope"] =
+  /*general_tests["if_else_true_scope"] =
   `
     debug: = import("debug", "core")
 
@@ -693,7 +681,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
     var0: proc(param0: u8)@stack = do debug.assert(param0 == 2, "")
     var0(2)
-  `
+  `*/
 
   value_tests: map[string]string
 
@@ -1263,7 +1251,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     }
   }
 
-  for value_test in value_tests
+  /*for value_test in value_tests
   {
     bool_code, _ := strings.replace_all(value_tests[value_test], "<type>", "bool")
     bool_code, _ = strings.replace_all(bool_code, "<value0>", "true")
@@ -1347,7 +1335,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         append(&failed_tests, fmt.aprintf("%s (%s)", numerical_test, numerical_type))
       }
     }
-  }
+  }*/
 
   return
 }

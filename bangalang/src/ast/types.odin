@@ -2,6 +2,23 @@ package ast
 
 import "../src"
 
+scope :: struct
+{
+  path: []string, // TODO do we need this?
+  statements: [dynamic]^node,
+  references: map[string][dynamic]string,
+  identifiers: map[string]^node,
+  children: map[string]scope,
+  type_checked: bool, // TODO review
+
+  // TODO move to ctx
+  f32_literals: [dynamic]string,
+  f64_literals: [dynamic]string,
+  string_literals: [dynamic]string,
+  cstring_literals: [dynamic]string,
+  static_vars: map[string]^node
+}
+
 node :: struct
 {
   type: node_type,

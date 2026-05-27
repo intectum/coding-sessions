@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
-import "../../program"
 import "../../type_checking"
 import ".."
 
@@ -40,7 +39,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       append(&path, lhs_node.value)
       defer delete(path)
 
-      qualified_name := program.get_qualified_name(path[:])
+      qualified_name := ast.get_qualified_name(path[:])
       if !(qualified_name in ctx.program.static_vars)
       {
         ctx.program.static_vars[qualified_name] = node

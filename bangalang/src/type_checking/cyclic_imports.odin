@@ -4,16 +4,17 @@ import "core:fmt"
 import "core:slice"
 import "core:strings"
 
-import "../program"
+import "../ast"
 
-type_check_cyclic_imports :: proc(the_program: ^program.program, path: []string, import_path: ^[dynamic]string) -> bool
+type_check_cyclic_imports :: proc(program: ^ast.scope, path: []string, import_path: ^[dynamic]string) -> bool
 {
     readable_name := strings.concatenate({ path[0], ":", path[1] })
-    module := &the_program.modules[program.get_qualified_module_name(path)]
+    module := ast.get_scope(program, path)
     append(import_path, readable_name)
-    for import_name in module.imports
+    for import_name,imported_module_path in module.references
     {
-        imported_module_path := module.imports[import_name]
+        if len(imported_module_path) != 2 do continue
+
         imported_readable_name := strings.concatenate({ imported_module_path[0], ":", imported_module_path[1] })
         _, found_module := slice.linear_search(import_path[:], imported_readable_name)
         if found_module
@@ -22,7 +23,7 @@ type_check_cyclic_imports :: proc(the_program: ^program.program, path: []string,
             return false
         }
 
-        type_check_cyclic_imports(the_program, imported_module_path[:], import_path) or_return
+        type_check_cyclic_imports(program, imported_module_path[:], import_path) or_return
     }
     pop(import_path)
 

@@ -5,14 +5,13 @@ import "core:slice"
 import "core:strings"
 
 import "../../ast"
-import "../../program"
 import ".."
 import "../glsl"
 
 generate_program :: proc(ctx: ^generation.gen_context)
 {
   fmt.sbprintln(&ctx.output, "{")
-  fmt.sbprintln(&ctx.output, "  \"type\": \"program\",")
+  fmt.sbprintln(&ctx.output, "  \"type\": \"loading\",")
   fmt.sbprintln(&ctx.output, "  \"children\":")
   fmt.sbprintln(&ctx.output, "  [")
 
@@ -28,7 +27,7 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, g
 {
   generated_statement := generated_statement
 
-  qualified_module_name := program.get_qualified_module_name(path)
+  qualified_module_name := ast.get_qualified_module_name(path)
   _, found_generated_module := slice.linear_search(generated_import_names[:], qualified_module_name)
   if found_generated_module
   {
@@ -37,18 +36,18 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, g
 
   append(generated_import_names, qualified_module_name)
 
-  module := &ctx.program.modules[qualified_module_name]
-  for import_name in module.imports
+  module := ast.get_scope(ctx.program, path)
+  for import_name, imported_module_path in module.references
   {
-    imported_module_path := module.imports[import_name]
+    if len(imported_module_path) != 2 do continue
+
     generate_main_statements(ctx, imported_module_path[:], generated_import_names, generated_statement)
     generated_statement = true
   }
 
   ctx.path = path
 
-  main_procedure := &ctx.program.procedures[program.get_qualified_name(ctx.path)]
-  for statement in main_procedure.statements
+  for statement in module.statements
   {
     if generated_statement
     {

@@ -1,11 +1,10 @@
 package type_checking
 
 import "../ast"
-import "../program"
 
 type_checking_context :: struct
 {
-  program: ^program.program,
+  program: ^ast.scope,
   path: []string,
 
   identifiers: map[string]^ast.node,
@@ -42,24 +41,17 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, 
   {
     child_node := identifier.children[0]
 
-    module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
-    if !(child_node.value in module.imports)
-    {
-      return nil, {}
-    }
+    module := ast.get_scope(ctx.program, ctx.path[:2])
+    if !(child_node.value in module.references) do return nil, {}
 
-    imported_module_path := &module.imports[child_node.value]
-    imported_module := &ctx.program.modules[program.get_qualified_module_name(imported_module_path[:])]
-    if !(identifier.value in imported_module.identifiers)
-    {
-      return nil, {}
-    }
+    imported_module_path := &module.references[child_node.value]
+    if len(imported_module_path) != 2 do return nil, {}
+
+    imported_module := ast.get_scope(ctx.program, imported_module_path[:])
+    if !(identifier.value in imported_module.identifiers) do return nil, {}
 
     identifier_node := imported_module.identifiers[identifier.value]
-    if identifier_node.directive == "#private"
-    {
-      return nil, {}
-    }
+    if identifier_node.directive == "#private" do return nil, {}
 
     return identifier_node, imported_module_path[:]
   }
@@ -80,8 +72,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, 
   for path_length := len(ctx.path); path_length > 1; path_length -= 1
   {
     path := ctx.path[:path_length]
-    qualified_name := program.get_qualified_name(path)
-    procedure := &ctx.program.procedures[qualified_name]
+    procedure := ast.get_scope(ctx.program, path)
 
     if identifier.value in procedure.identifiers
     {
@@ -93,7 +84,7 @@ get_identifier_node :: proc(ctx: ^type_checking_context, identifier: ^ast.node, 
     }
   }
 
-  module := &ctx.program.modules[program.get_qualified_module_name(ctx.path)]
+  module := ast.get_scope(ctx.program, ctx.path)
   if identifier.value in module.identifiers
   {
     identifier_node := module.identifiers[identifier.value]

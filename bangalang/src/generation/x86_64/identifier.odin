@@ -5,7 +5,6 @@ import "core:fmt"
 import "core:math"
 
 import "../../ast"
-import "../../program"
 import "../../type_checking"
 import ".."
 
@@ -170,7 +169,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       append(&path, node.value)
       defer delete(path)
 
-      name = program.get_qualified_name(path[:])
+      name = ast.get_qualified_name(path[:])
     }
 
     if type_node.type == .procedure_type || type_node.type == .reference

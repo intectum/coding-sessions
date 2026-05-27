@@ -2,11 +2,11 @@ package generation
 
 import "core:strings"
 
-import "../program"
+import "../ast"
 
 gen_context :: struct
 {
-  program: ^program.program,
+  program: ^ast.scope,
   path: []string,
 
   stack_size: int,

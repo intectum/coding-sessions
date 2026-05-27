@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool

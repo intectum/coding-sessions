@@ -1,10 +1,105 @@
 package ast
 
+import "core:fmt"
 import "core:slice"
 import "core:strings"
 
 import "../tokens"
-import fmt "core:fmt"
+
+init_root :: proc(root: ^scope)
+{
+  root.identifiers["atomic_i8"] = make_node({ type = .identifier, value = "atomic_i8" })
+  root.identifiers["atomic_i16"] = make_node({ type = .identifier, value = "atomic_i16" })
+  root.identifiers["atomic_i32"] = make_node({ type = .identifier, value = "atomic_i32" })
+  root.identifiers["atomic_i64"] = make_node({ type = .identifier, value = "atomic_i64" })
+  root.identifiers["bool"] = make_node({ type = .identifier, value = "bool" })
+  root.identifiers["cint"] = make_node({ type = .identifier, value = "cint" })
+  root.identifiers["cuint"] = make_node({ type = .identifier, value = "cuint" })
+  root.identifiers["f32"] = make_node({ type = .identifier, value = "f32" })
+  root.identifiers["f64"] = make_node({ type = .identifier, value = "f64" })
+  root.identifiers["i8"] = make_node({ type = .identifier, value = "i8" })
+  root.identifiers["i16"] = make_node({ type = .identifier, value = "i16" })
+  root.identifiers["i32"] = make_node({ type = .identifier, value = "i32" })
+  root.identifiers["i64"] = make_node({ type = .identifier, value = "i64" })
+  root.identifiers["u8"] = make_node({ type = .identifier, value = "u8" })
+  root.identifiers["u16"] = make_node({ type = .identifier, value = "u16" })
+  root.identifiers["u32"] = make_node({ type = .identifier, value = "u32" })
+  root.identifiers["u64"] = make_node({ type = .identifier, value = "u64" })
+
+  allocator_type := make_node({ type = .procedure_type })
+  append(&allocator_type.children, make_node({ type = .group, value = "[parameters]" }))
+
+  string_type := make_node({ type = .subscript })
+  append(&string_type.children, root.identifiers["u8"])
+  range_node := make_node({ type = .range })
+  append(&range_node.children, make_node({ type = .nil_literal }))
+  append(&range_node.children, make_node({ type = .nil_literal }))
+  append(&string_type.children, range_node)
+
+  code_allocator_type := clone_node(allocator_type)
+  append(&code_allocator_type.children[0].children, make_node({ type = .assignment_statement }))
+  append(&code_allocator_type.children[0].children[0].children, make_node({ type = .identifier, value = "src", data_type = string_type }))
+  append(&code_allocator_type.children, string_type)
+  root.identifiers["code_allocator"] = code_allocator_type
+
+  memory_allocator_type := clone_node(allocator_type)
+  append(&memory_allocator_type.children[0].children, make_node({ type = .assignment_statement }))
+  append(&memory_allocator_type.children[0].children[0].children, make_node({ type = .identifier, value = "size", data_type = root.identifiers["u64"] }))
+  append(&memory_allocator_type.children, make_node({ type = .reference }))
+  append(&memory_allocator_type.children[1].children, root.identifiers["u8"])
+  root.identifiers["memory_allocator"] = memory_allocator_type
+
+  nil_allocator_type := clone_node(allocator_type)
+  root.identifiers["nil_allocator"] = nil_allocator_type
+
+  static_allocator_type := clone_node(allocator_type)
+  append(&static_allocator_type.children, root.identifiers["u64"])
+  root.identifiers["static_allocator"] = static_allocator_type
+
+  root.identifiers["code"] = make_node({ type = .identifier, value = "code", data_type = code_allocator_type })
+  root.identifiers["extern"] = make_node({ type = .identifier, value = "extern", data_type = nil_allocator_type })
+  root.identifiers["none"] = make_node({ type = .identifier, value = "none", data_type = nil_allocator_type })
+  root.identifiers["stack"] = make_node({ type = .identifier, value = "stack", data_type = static_allocator_type })
+  root.identifiers["static"] = make_node({ type = .identifier, value = "static", data_type = static_allocator_type })
+}
+
+get_qualified_name :: proc(path: []string) -> string
+{
+  qualified_name := get_qualified_module_name(path)
+
+  if len(path) > 2
+  {
+    qualified_name = strings.concatenate({ qualified_name, ".", strings.join(path[2:], ".") })
+  }
+
+  return qualified_name
+}
+
+get_qualified_module_name :: proc(path: []string) -> string
+{
+  final_module_name, _ := strings.replace_all(path[1], "/", ".")
+  qualified_module_name := strings.concatenate({ final_module_name, ".$module" })
+
+  if path[0] == "[main]"
+  {
+    return qualified_module_name
+  }
+
+  final_lib_name, _ := strings.replace_all(path[0], "/", ".")
+  return strings.concatenate({ final_lib_name, ".$lib.", qualified_module_name })
+}
+
+get_scope :: proc(root: ^scope, path: []string) -> ^scope
+{
+  current := root
+  for fragment in path
+  {
+    if !(fragment in current.children) do return nil
+    current = &current.children[fragment]
+  }
+
+  return current
+}
 
 make_node :: proc(init: node = {}) -> ^node
 {

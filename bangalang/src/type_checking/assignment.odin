@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
@@ -20,7 +19,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   {
     name := lhs_node.value
 
-    procedure: program.procedure
+    procedure: ast.scope
 
     if is_static_procedure(ctx.program, lhs_node)
     {
@@ -49,9 +48,10 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     procedure_path: [dynamic]string
     append(&procedure_path, ..ctx.path)
     append(&procedure_path, name)
+    procedure.path = procedure_path[:]
 
-    qualified_name := program.get_qualified_name(procedure_path[:])
-    ctx.program.procedures[qualified_name] = procedure
+    scope := ast.get_scope(ctx.program, ctx.path)
+    scope.children[name] = procedure
   }
 
   if len(node.children) > 1

@@ -6,25 +6,27 @@ import "core:slice"
 import "core:strings"
 
 import "../../ast"
-import "../../program"
 import ".."
 import "../glsl"
 
 generate_program :: proc(ctx: ^generation.gen_context)
 {
   generated_procedure_names: [dynamic]string
-  for qualified_module_name in ctx.program.modules
+  for _, lib in ctx.program.children
   {
-    main_procedure := &ctx.program.procedures[qualified_module_name]
-    generate_procedures(ctx, main_procedure.references[:], &generated_procedure_names)
+    for _, &module in lib.children
+    {
+      generate_procedures(ctx, &module.references, &generated_procedure_names)
+    }
   }
 }
 
-generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic]string, generated_procedure_names: ^[dynamic]string)
+generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[string][dynamic]string, generated_procedure_names: ^[dynamic]string)
 {
-  for reference in references
+  for reference, reference_path in references
   {
-    qualified_name := program.get_qualified_name(reference[:])
+    if len(reference_path) == 2 do continue
+    qualified_name := ast.get_qualified_name(reference_path[:])
 
     _, found_generated_procedure := slice.linear_search(generated_procedure_names[:], qualified_name)
     if found_generated_procedure
@@ -34,7 +36,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
 
     append(generated_procedure_names, qualified_name)
 
-    procedure := &ctx.program.procedures[qualified_name]
+    procedure := ast.get_scope(ctx.program, reference_path[:])
     node := procedure.statements[0]
     lhs_node := node.children[0]
 
@@ -42,12 +44,12 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: [][dynamic
     switch lhs_node.allocator.value
     {
     case "code":
-      generate_procedures(ctx, procedure.references[:], generated_procedure_names)
+      generate_procedures(ctx, &procedure.references, generated_procedure_names)
     case "compute_shader":
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = reference[:]
+        path = references[reference][:]
       }
 
       strings.builder_init(&procedure_ctx.output)

@@ -7,7 +7,7 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
+import "../loading"
 import "../src"
 
 lib_locations: []string =
@@ -62,14 +62,14 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
         }
       }
 
-      path: [2]string = { lib_name, module_name }
-      qualified_module_name := program.get_qualified_module_name(ctx.path)
-      qualified_imported_module_name := program.get_qualified_module_name(path[:])
+      path: [dynamic]string
+      append(&path, lib_name, module_name)
+      imported_module := ast.get_scope(ctx.program, path[:])
 
-      if qualified_imported_module_name in ctx.program.modules
+      if imported_module != nil
       {
-        module := &ctx.program.modules[qualified_module_name]
-        module.imports[reference] = path
+        module := ast.get_scope(ctx.program, ctx.path)
+        module.references[reference] = path
 
         continue
       }
@@ -82,7 +82,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
         return false
       }
 
-      program.load_module(ctx.program, path[:], string(module_data)) or_return
+      loading.load_module(ctx.program, path[:], string(module_data)) or_return
 
       imported_module_ctx: type_checking_context =
       {
@@ -91,8 +91,8 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       }
       type_check_module(&imported_module_ctx) or_return
 
-      module := &ctx.program.modules[qualified_module_name]
-      module.imports[reference] = path
+      module := ast.get_scope(ctx.program, ctx.path)
+      module.references[reference] = path
     }
     else if statement.type == .assignment_statement && statement.children[0].data_type != nil && statement.children[0].data_type.type == .procedure_type
     {
