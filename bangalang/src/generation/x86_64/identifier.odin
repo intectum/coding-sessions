@@ -5,8 +5,6 @@ import "core:fmt"
 import "core:math"
 
 import "../../ast"
-import "../../program"
-import "../../type_checking"
 import ".."
 
 generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, child_location: location, contains_allocations: bool) -> location
@@ -38,8 +36,8 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       case "max":
         switch child_node.value
         {
-        case "f32": return memory(get_literal_name(&ctx.program.f32_literals, "f32_", fmt.aprintf("%f", math.max(f32))), 0)
-        case "f64": return memory(get_literal_name(&ctx.program.f64_literals, "f64_", fmt.aprintf("%f", math.max(f64))), 0)
+        case "f32": return memory(get_literal_name(&ctx.root.children["[f32_literals]"], "f32_", fmt.aprintf("%f", math.max(f32))), 0)
+        case "f64": return memory(get_literal_name(&ctx.root.children["[f64_literals]"], "f64_", fmt.aprintf("%f", math.max(f64))), 0)
         case "atomic_i8", "i8": return immediate(int(math.max(i8)))
         case "atomic_i16", "i16": return immediate(int(math.max(i16)))
         case "atomic_i32", "i32": return immediate(int(math.max(i32)))
@@ -55,8 +53,8 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       case "min":
         switch child_node.value
         {
-        case "f32": return memory(get_literal_name(&ctx.program.f32_literals, "f32_", fmt.aprintf("%f", math.min(f32))), 0)
-        case "f64": return memory(get_literal_name(&ctx.program.f64_literals, "f64_", fmt.aprintf("%f", math.min(f64))), 0)
+        case "f32": return memory(get_literal_name(&ctx.root.children["[f32_literals]"], "f32_", fmt.aprintf("%f", math.min(f32))), 0)
+        case "f64": return memory(get_literal_name(&ctx.root.children["[f64_literals]"], "f64_", fmt.aprintf("%f", math.min(f64))), 0)
         case "atomic_i8", "i8": return immediate(int(math.min(i8)))
         case "atomic_i16", "i16": return immediate(int(math.min(i16)))
         case "atomic_i32", "i32": return immediate(int(math.min(i32)))
@@ -71,7 +69,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
         }
       case "name":
         // TODO as static var?
-        return memory(get_literal_name(&ctx.program.string_literals, "string_", fmt.aprintf("\"%s\"", type_checking.type_name(child_node))), 0)
+        return memory(get_literal_name(&ctx.root.children["[string_literals]"], "string_", fmt.aprintf("\"%s\"", ast.type_name(child_node))), 0)
       case "size": return immediate(to_byte_size(child_node))
       case: assert(false, "Failed to generate identifier")
       }
@@ -117,7 +115,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
           max_index := 0
           for char in node.value
           {
-            index := type_checking.get_swizzle_index(char)
+            index := ast.get_swizzle_index(char)
             if index > max_index do max_index = index
           }
 
@@ -130,7 +128,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
 
           if len(node.value) == 1
           {
-            index := type_checking.get_swizzle_index(rune(node.value[0]))
+            index := ast.get_swizzle_index(rune(node.value[0]))
 
             memory_location.offset += index * element_size
             return memory_location
@@ -153,24 +151,22 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       }
     }
 
-  _, memory_allocator := type_checking.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
-  if !memory_allocator && node.allocator != ctx.program.identifiers["stack"]
+  _, memory_allocator := ast.coerce_type(node.allocator.data_type, ctx.root.identifiers["memory_allocator"])
+  if !memory_allocator && node.allocator != ctx.root.identifiers["stack"]
   {
     name := node.value
 
     // TODO add #namespaced=false
-    if node.allocator != ctx.program.identifiers["extern"]
+    if node.allocator != ctx.root.identifiers["extern"]
     {
-      // TODO hacky
-      tc_ctx: type_checking.type_checking_context = { program = ctx.program, path = ctx.path }
-      _, identifier_path := type_checking.get_identifier_node(&tc_ctx, node)
+      _, declaration_path := ast.get_declaration(ctx.root, ctx.scope, node)
 
       path: [dynamic]string
-      append(&path, ..identifier_path)
+      append(&path, ..declaration_path)
       append(&path, node.value)
       defer delete(path)
 
-      name = program.get_qualified_name(path[:])
+      name = ast.get_scope_name(path[:], true)
     }
 
     if type_node.type == .procedure_type || type_node.type == .reference

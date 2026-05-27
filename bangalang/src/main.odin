@@ -12,7 +12,7 @@ import "./generation"
 import "./generation/json"
 import "./generation/kernels"
 import "./generation/x86_64"
-import "./program"
+import "./loading"
 import "./type_checking"
 
 help_flags: []string = { "-h", "--help" }
@@ -71,7 +71,7 @@ main :: proc()
         fmt.println("")
       }
 
-      fmt.println("Build the program with the given entry module.")
+      fmt.println("Build the loading with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc build <input> [options]")
       fmt.println("")
@@ -116,7 +116,7 @@ main :: proc()
         fmt.println("")
       }
 
-      fmt.println("Build and run the program with the given entry module.")
+      fmt.println("Build and run the loading with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc run <input>")
       fmt.println("")
@@ -157,7 +157,7 @@ build :: proc(name: string, code: string, out_path: string, target := "x86_64")
     compile(name, code, out_path, target)
   case "x86_64":
     asm_path := strings.concatenate({ out_path, ".asm" })
-    the_program := compile(name, code, asm_path, target)
+    program := compile(name, code, asm_path, target)
 
     object_path := strings.concatenate({ out_path, ".o" })
     nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
@@ -169,9 +169,9 @@ build :: proc(name: string, code: string, out_path: string, target := "x86_64")
     }
 
     links: string
-    for link in the_program.links
+    for reference in program.references
     {
-      links = strings.concatenate({ links, " -l", link })
+      links = strings.concatenate({ links, " -l", reference.name })
     }
 
     ld_command := strings.concatenate({ "ld -dynamic-linker /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ", object_path, " -o ", out_path, links })
@@ -186,10 +186,10 @@ build :: proc(name: string, code: string, out_path: string, target := "x86_64")
   }
 }
 
-compile :: proc(name: string, code: string, out_path: string, target: string) -> program.program
+compile :: proc(name: string, code: string, out_path: string, target: string) -> ast.scope
 {
-  the_program: program.program
-  program.init(&the_program)
+  program: ast.scope
+  ast.init_root(&program)
 
   globals_data, globals_ok := os.read_entire_file("stdlib/core/globals.bang")
   if !globals_ok
@@ -199,12 +199,12 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   }
 
   globals_path: []string = { "core", "globals" }
-  if !type_checking.type_check_program(&the_program, globals_path, string(globals_data))
+  if !type_checking.type_check_program(&program, globals_path, string(globals_data))
   {
     os.exit(1)
   }
 
-  globals_module := &the_program.modules[program.get_qualified_module_name(globals_path)]
+  globals_module := ast.get_scope(&program, globals_path)
   for identifier in globals_module.identifiers
   {
     if identifier == "import"
@@ -213,19 +213,19 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
       append(&identifier_node.data_type.children, ast.make_node({ type = .module_type }))
     }
 
-    the_program.identifiers[identifier] = globals_module.identifiers[identifier]
+    program.identifiers[identifier] = globals_module.identifiers[identifier]
   }
 
   path: []string = { "[main]", name }
-  if !type_checking.type_check_program(&the_program, path, code)
+  if !type_checking.type_check_program(&program, path, code)
   {
     os.exit(1)
   }
 
   gen_ctx: generation.gen_context =
   {
-    program = &the_program,
-    path = path
+    root = &program,
+    scope = ast.get_scope(&program, path),
   }
 
   strings.builder_init(&gen_ctx.output)
@@ -238,7 +238,6 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   case "kernels":
     kernels.generate_program(&gen_ctx)
   case "x86_64":
-
     x86_64.generate_program(&gen_ctx)
   case:
     assert(false, "Unsupported target")
@@ -257,7 +256,7 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
     fmt.fprint(file, strings.to_string(gen_ctx.output))
   }
 
-  return the_program
+  return program
 }
 
 exec :: proc(command: string) -> u32

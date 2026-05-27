@@ -3,7 +3,9 @@ package type_checking
 import "core:slice"
 
 import "../ast"
-import "../program"
+import "../loading"
+
+queue: [dynamic][dynamic]string
 
 auto_dereference :: proc(node: ^ast.node)
 {
@@ -51,10 +53,10 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
     }
   }
 
-  identifier_node, _ := get_identifier_node(ctx, node)
-  if identifier_node != nil
+  declaration, _ := ast.get_declaration(ctx.root, ctx.scope, node)
+  if declaration != nil
   {
-    if identifier_node.data_type.type == .struct_type && identifier_node.data_type.directive == "#soa"
+    if declaration.data_type.type == .struct_type && declaration.data_type.directive == "#soa"
     {
       return 0
     }
@@ -63,47 +65,19 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
   return -1
 }
 
-swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
-get_swizzle_index :: proc(char: rune) -> int
-{
-  swizzle_index, swizzle_value := slice.linear_search(swizzle_values, char)
-  if !swizzle_value do return -1
-  return swizzle_index / 2
-}
-
 reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
 {
-  qualified_name := program.get_qualified_name(ctx.path)
-  procedure := &ctx.program.procedures[qualified_name]
-
   final_path: [dynamic]string
-  append(&final_path, ..path)
+  if len(path) == 0
+  {
+    append(&final_path, "core", "globals")
+  }
+  else
+  {
+    append(&final_path, ..path)
+  }
   append(&final_path, name)
 
-  append(&procedure.references, final_path)
-  append(&ctx.program.queue, final_path)
-}
-
-// TODO this is a bit messy
-is_static_procedure_statement :: proc(program: ^program.program, statement: ^ast.node) -> bool
-{
-  return statement.type == .assignment_statement && is_static_procedure(program, statement.children[0])
-}
-
-is_static_procedure :: proc(program: ^program.program, identifier: ^ast.node) -> bool
-{
-  type := identifier.data_type
-  if identifier.type != .identifier || type == nil || type.type != .procedure_type
-  {
-    return false
-  }
-
-  if ast.is_member(identifier) && identifier.children[0].data_type.type != .module_type
-  {
-    return false
-  }
-
-  _, code_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
-  _, nil_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
-  return code_allocator || nil_allocator
+  append(&ctx.scope.references, ast.reference { name = name, path = final_path })
+  append(&queue, final_path)
 }

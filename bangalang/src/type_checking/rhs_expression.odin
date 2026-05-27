@@ -21,10 +21,10 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
   type_check_rhs_expression_1(ctx, node) or_return
 
   type_node := node.data_type
-  coerced_type_node, coerce_ok := coerce_type(type_node, expected_type_node)
+  coerced_type_node, coerce_ok := ast.coerce_type(type_node, expected_type_node)
   if !coerce_ok
   {
-    src.print_position_message(node.src_position, "Types '%s' and '%s' are not compatible", type_name(type_node), type_name(expected_type_node))
+    src.print_position_message(node.src_position, "Types '%s' and '%s' are not compatible", ast.type_name(type_node), ast.type_name(expected_type_node))
     return false
   }
 
@@ -34,15 +34,15 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
     // TODO is that something we want?
     if coerced_type_node.value == "[any_float]"
     {
-      upgrade_types(ctx, node, ctx.program.identifiers["f64"]) or_return
+      ast.upgrade_types(ctx.root, node, ctx.root.identifiers["f64"]) or_return
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      upgrade_types(ctx, node, ctx.program.identifiers["i64"]) or_return
+      ast.upgrade_types(ctx.root, node, ctx.root.identifiers["i64"]) or_return
     }
     else
     {
-      upgrade_types(ctx, node, coerced_type_node) or_return
+      ast.upgrade_types(ctx.root, node, coerced_type_node) or_return
     }
   }
 
@@ -75,68 +75,68 @@ type_check_rhs_expression_1 :: proc(ctx: ^type_checking_context, node: ^ast.node
 
   lhs_type_node := lhs_node.data_type
   rhs_type_node := rhs_node.data_type
-  coerced_type_node, coerce_ok := coerce_type(lhs_type_node, rhs_type_node)
+  coerced_type_node, coerce_ok := ast.coerce_type(lhs_type_node, rhs_type_node)
   if !coerce_ok
   {
-    src.print_position_message(node.src_position, "Types '%s' and '%s' are not compatible", type_name(lhs_type_node), type_name(rhs_type_node))
+    src.print_position_message(node.src_position, "Types '%s' and '%s' are not compatible", ast.type_name(lhs_type_node), ast.type_name(rhs_type_node))
     return false
   }
 
   _, comparison_operator := slice.linear_search(ast.comparison_operators, node.type)
   if comparison_operator
   {
-    node.data_type = ctx.program.identifiers["bool"]
+    node.data_type = ctx.root.identifiers["bool"]
     if coerced_type_node.value == "[any_float]"
     {
-      upgrade_types(ctx, lhs_node, ctx.program.identifiers["f64"]) or_return
-      upgrade_types(ctx, rhs_node, ctx.program.identifiers["f64"]) or_return
+      ast.upgrade_types(ctx.root, lhs_node, ctx.root.identifiers["f64"]) or_return
+      ast.upgrade_types(ctx.root, rhs_node, ctx.root.identifiers["f64"]) or_return
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      upgrade_types(ctx, lhs_node, ctx.program.identifiers["i64"]) or_return
-      upgrade_types(ctx, rhs_node, ctx.program.identifiers["i64"]) or_return
+      ast.upgrade_types(ctx.root, lhs_node, ctx.root.identifiers["i64"]) or_return
+      ast.upgrade_types(ctx.root, rhs_node, ctx.root.identifiers["i64"]) or_return
     }
     else
     {
-      upgrade_types(ctx, lhs_node, coerced_type_node) or_return
-      upgrade_types(ctx, rhs_node, coerced_type_node) or_return
+      ast.upgrade_types(ctx.root, lhs_node, coerced_type_node) or_return
+      ast.upgrade_types(ctx.root, rhs_node, coerced_type_node) or_return
     }
   }
   else
   {
     node.data_type = coerced_type_node
-    upgrade_types(ctx, lhs_node, coerced_type_node) or_return
-    upgrade_types(ctx, rhs_node, coerced_type_node) or_return
+    ast.upgrade_types(ctx.root, lhs_node, coerced_type_node) or_return
+    ast.upgrade_types(ctx.root, rhs_node, coerced_type_node) or_return
   }
 
   if node.type != .equal && node.type != .not_equal
   {
-    _, numerical_type := slice.linear_search(numerical_types, coerced_type_node.value)
+    _, numerical_type := slice.linear_search(ast.numerical_types, coerced_type_node.value)
     if coerced_type_node.value == "bool"
     {
       if node.type != .and && node.type != .or
       {
-        src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
+        src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, ast.type_name(node.data_type))
         return false
       }
     }
     else if !numerical_type || node.type == .and || node.type == .or
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, ast.type_name(node.data_type))
       return false
     }
 
-    _, float_type := slice.linear_search(float_types, coerced_type_node.value)
+    _, float_type := slice.linear_search(ast.float_types, coerced_type_node.value)
     if float_type && (node.type == .bitwise_and || node.type == .bitwise_or || node.type == .modulo)
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, ast.type_name(node.data_type))
       return false
     }
 
-    _, atomic_integer_type := slice.linear_search(atomic_integer_types, coerced_type_node.value)
+    _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, coerced_type_node.value)
     if atomic_integer_type && !comparison_operator
     {
-      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, type_name(node.data_type))
+      src.print_position_message(node.src_position, "Binary operator '%s' is not valid for type '%s'", node.type, ast.type_name(node.data_type))
       return false
     }
   }

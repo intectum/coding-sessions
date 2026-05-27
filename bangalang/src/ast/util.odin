@@ -1,10 +1,165 @@
 package ast
 
+import "core:fmt"
 import "core:slice"
 import "core:strings"
 
+import "../src"
 import "../tokens"
-import fmt "core:fmt"
+
+init_root :: proc(root: ^scope)
+{
+  root.identifiers["atomic_i8"] = make_node({ type = .identifier, value = "atomic_i8" })
+  root.identifiers["atomic_i16"] = make_node({ type = .identifier, value = "atomic_i16" })
+  root.identifiers["atomic_i32"] = make_node({ type = .identifier, value = "atomic_i32" })
+  root.identifiers["atomic_i64"] = make_node({ type = .identifier, value = "atomic_i64" })
+  root.identifiers["bool"] = make_node({ type = .identifier, value = "bool" })
+  root.identifiers["cint"] = make_node({ type = .identifier, value = "cint" })
+  root.identifiers["cuint"] = make_node({ type = .identifier, value = "cuint" })
+  root.identifiers["f32"] = make_node({ type = .identifier, value = "f32" })
+  root.identifiers["f64"] = make_node({ type = .identifier, value = "f64" })
+  root.identifiers["i8"] = make_node({ type = .identifier, value = "i8" })
+  root.identifiers["i16"] = make_node({ type = .identifier, value = "i16" })
+  root.identifiers["i32"] = make_node({ type = .identifier, value = "i32" })
+  root.identifiers["i64"] = make_node({ type = .identifier, value = "i64" })
+  root.identifiers["u8"] = make_node({ type = .identifier, value = "u8" })
+  root.identifiers["u16"] = make_node({ type = .identifier, value = "u16" })
+  root.identifiers["u32"] = make_node({ type = .identifier, value = "u32" })
+  root.identifiers["u64"] = make_node({ type = .identifier, value = "u64" })
+
+  allocator_type := make_node({ type = .procedure_type })
+  append(&allocator_type.children, make_node({ type = .group, value = "[parameters]" }))
+
+  string_type := make_node({ type = .subscript })
+  append(&string_type.children, root.identifiers["u8"])
+  range_node := make_node({ type = .range })
+  append(&range_node.children, make_node({ type = .nil_literal }))
+  append(&range_node.children, make_node({ type = .nil_literal }))
+  append(&string_type.children, range_node)
+
+  code_allocator_type := clone_node(allocator_type)
+  append(&code_allocator_type.children[0].children, make_node({ type = .assignment_statement }))
+  append(&code_allocator_type.children[0].children[0].children, make_node({ type = .identifier, value = "src", data_type = string_type }))
+  append(&code_allocator_type.children, string_type)
+  root.identifiers["code_allocator"] = code_allocator_type
+
+  memory_allocator_type := clone_node(allocator_type)
+  append(&memory_allocator_type.children[0].children, make_node({ type = .assignment_statement }))
+  append(&memory_allocator_type.children[0].children[0].children, make_node({ type = .identifier, value = "size", data_type = root.identifiers["u64"] }))
+  append(&memory_allocator_type.children, make_node({ type = .reference }))
+  append(&memory_allocator_type.children[1].children, root.identifiers["u8"])
+  root.identifiers["memory_allocator"] = memory_allocator_type
+
+  nil_allocator_type := clone_node(allocator_type)
+  root.identifiers["nil_allocator"] = nil_allocator_type
+
+  static_allocator_type := clone_node(allocator_type)
+  append(&static_allocator_type.children, root.identifiers["u64"])
+  root.identifiers["static_allocator"] = static_allocator_type
+
+  root.identifiers["code"] = make_node({ type = .identifier, value = "code", data_type = code_allocator_type })
+  root.identifiers["extern"] = make_node({ type = .identifier, value = "extern", data_type = nil_allocator_type })
+  root.identifiers["none"] = make_node({ type = .identifier, value = "none", data_type = nil_allocator_type })
+  root.identifiers["stack"] = make_node({ type = .identifier, value = "stack", data_type = static_allocator_type })
+  root.identifiers["static"] = make_node({ type = .identifier, value = "static", data_type = static_allocator_type })
+}
+
+get_scope :: proc(root: ^scope, path: []string) -> ^scope
+{
+  current := root
+  for fragment in path
+  {
+    if !(fragment in current.children)
+    {
+      return nil
+    }
+
+    current = &current.children[fragment]
+  }
+
+  return current
+}
+
+get_declaration :: proc(root: ^scope, scope: ^scope, identifier: ^node, skip_out_of_order_identifiers: bool = false) -> (^node, []string)
+{
+  if is_member(identifier) && identifier.children[0].data_type != nil && identifier.children[0].data_type.type == .module_type
+  {
+    child_node := identifier.children[0]
+
+    module := get_scope(root, scope.path[:2])
+    reference := find_reference(module.references[:], child_node.value)
+    if reference == nil || len(reference.path) != 2 do return nil, {}
+
+    imported_module := get_scope(root, reference.path[:])
+    if !(identifier.value in imported_module.identifiers) do return nil, {}
+
+    identifier_node := imported_module.identifiers[identifier.value]
+    if identifier_node.directive == "#private" do return nil, {}
+
+    return identifier_node, reference.path[:]
+  }
+
+  if identifier.value in scope.identifiers
+  {
+    return scope.identifiers[identifier.value], scope.path
+  }
+
+  if !skip_out_of_order_identifiers
+  {
+    if identifier.value in scope.out_of_order_identifiers
+    {
+      return scope.out_of_order_identifiers[identifier.value], scope.path
+    }
+  }
+
+  for path_length := len(scope.path) - 1; path_length >= 0; path_length -= 1
+  {
+    ancestor_path := scope.path[:path_length]
+    ancestor := get_scope(root, ancestor_path)
+
+    if identifier.value in ancestor.identifiers
+    {
+      identifier_node := ancestor.identifiers[identifier.value]
+      if path_length == len(ancestor_path) || is_visible_in_nested_scope(root, identifier_node)
+      {
+        return identifier_node, ancestor_path
+      }
+    }
+  }
+
+  return nil, {}
+}
+
+get_scope_name :: proc(path: []string, var := false) -> string
+{
+  if var
+  {
+    module_name, _ := strings.replace_all(path[1], "/", "__")
+
+    return fmt.aprintf(
+      "%s___%s___%s",
+      path[0] == "[main]" ? "" : path[0],
+      module_name,
+      strings.join(path[2:], "__")
+    )
+  }
+
+  return strings.join(path, ":")
+}
+
+is_visible_in_nested_scope :: proc(root: ^scope, identifier_node: ^node) -> bool
+{
+  if is_type(identifier_node) || identifier_node.data_type.type == .module_type
+  {
+    return true
+  }
+
+  // Should only be core allocators that do not have an allocator themselves...
+  if identifier_node.allocator == nil do return false
+
+  _, memory_allocator := coerce_type(identifier_node.allocator.data_type, root.identifiers["memory_allocator"])
+  return !memory_allocator && identifier_node.allocator != root.identifiers["stack"]
+}
 
 make_node :: proc(init: node = {}) -> ^node
 {
@@ -231,4 +386,387 @@ to_node_type :: proc(token_type: tokens.token_type) -> node_type
 
   assert(false, "Unsupported node type")
   return .none
+}
+
+coerce_type :: proc(a: ^node, b: ^node) -> (^node, bool)
+{
+  if a == nil || a.value == "[none]" || is_placeholder(a)
+  {
+    return b, true
+  }
+
+  if b == nil || b.value == "[none]" || is_placeholder(b)
+  {
+    return a, true
+  }
+
+  compatible_value_types := false
+
+  if a.value != b.value
+  {
+    _, a_numerical_type := slice.linear_search(numerical_types, a.value)
+    if b.value == "[any_number]" && !a_numerical_type
+    {
+      return nil, false
+    }
+
+    _, b_numerical_type := slice.linear_search(numerical_types, b.value)
+    if a.value == "[any_number]" && !b_numerical_type
+    {
+      return nil, false
+    }
+
+    if a.value != "[any_number]" && b.value != "[any_number]"
+    {
+      _, a_float_type := slice.linear_search(float_types, a.value)
+      if b.value == "[any_float]" && !a_float_type
+      {
+        return nil, false
+      }
+
+      _, b_float_type := slice.linear_search(float_types, b.value)
+      if a.value == "[any_float]" && !b_float_type
+      {
+        return nil, false
+      }
+
+      _, a_integer_type := slice.linear_search(integer_types, a.value)
+      if b.value == "[any_int]" && !a_integer_type
+      {
+        return nil, false
+      }
+
+      _, b_integer_type := slice.linear_search(integer_types, b.value)
+      if a.value == "[any_int]" && !b_integer_type
+      {
+        return nil, false
+      }
+    }
+
+    a_string := is_slice(a) && a.children[0].value == "u8"
+    a_cstring := a.type == .reference && a.children[0].value == "u8"
+    if b.value == "[any_string]" && !a_string && !a_cstring
+    {
+      return nil, false
+    }
+
+    b_string := is_slice(b) && b.children[0].value == "u8"
+    b_cstring := b.type == .reference && b.children[0].value == "u8"
+    if a.value == "[any_string]" && !b_string && !b_cstring
+    {
+      return nil, false
+    }
+
+    if a.value != "[any_number]" && b.value != "[any_number]" &&
+    a.value != "[any_float]" && b.value != "[any_float]" &&
+    a.value != "[any_int]" && b.value != "[any_int]" &&
+    a.value != "[any_string]" && b.value != "[any_string]"
+    {
+      return nil, false
+    }
+
+    compatible_value_types = true
+  }
+
+  if !compatible_value_types
+  {
+    if a.type != b.type
+    {
+      return nil, false
+    }
+
+    if len(a.children) != len(b.children)
+    {
+      return nil, false
+    }
+
+    for child_index := 0; child_index < len(a.children); child_index += 1
+    {
+      _, child_coerce_ok := coerce_type(a.children[child_index], b.children[child_index])
+      if !child_coerce_ok
+      {
+        return nil, false
+      }
+    }
+  }
+
+  if a.value == "[any_number]"
+  {
+    return b, true
+  }
+  else if b.value == "[any_number]"
+  {
+    return a, true
+  }
+
+  return a.value == "[any_float]" || a.value == "[any_int]" || a.value == "[any_string]" ? b : a, true
+}
+
+type_name :: proc(type_node: ^node) -> string
+{
+  assert(is_type(type_node), "Invalid type")
+
+  prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
+
+  #partial switch type_node.type
+  {
+  case .enum_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, member_node.value)
+    }
+
+    return strings.concatenate({ prefix, "enum {{ ", strings.join(member_type_names[:], ", "), " }}" })
+  case .procedure_type:
+    param_type_names: [dynamic]string
+    params_type_node := type_node.children[0]
+    for param_node in params_type_node.children
+    {
+      param_lhs_node := param_node.children[0]
+      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ": ", type_name(param_lhs_node.data_type) }))
+    }
+
+    return_type_name: string
+    if len(type_node.children) == 2
+    {
+      return_type_node := type_node.children[1]
+      return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
+    }
+
+    return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
+  case .reference:
+    return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
+  case .struct_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, strings.concatenate({ member_node.value, ": ", type_name(member_node.data_type) }))
+    }
+
+    return strings.concatenate({ prefix, "struct {{ ", strings.join(member_type_names[:], ", "), " }}" })
+  case .subscript:
+    if is_array(type_node)
+    {
+      length_expression_node := type_node.children[1]
+      length := length_expression_node.type == .number_literal ? length_expression_node.value : "?"
+      return strings.concatenate({ prefix, type_name(type_node.children[0]), "[", length, "]" })
+    }
+    else
+    {
+      return strings.concatenate({ prefix, type_name(type_node.children[0]), "[]" })
+    }
+  }
+
+  switch type_node.value
+  {
+  case "[any_float]":
+    return strings.concatenate({ prefix, "<any float>" })
+  case "[any_int]":
+    return strings.concatenate({ prefix, "<any int>" })
+  case "[any_number]":
+    return strings.concatenate({ prefix, "<any number>" })
+  case "[any_string]":
+    return strings.concatenate({ prefix, "<any string>" })
+  }
+
+  return strings.concatenate({ prefix, type_node.value })
+}
+
+type_var_name :: proc(type_node: ^node) -> string
+{
+  assert(is_type(type_node), "Invalid type")
+
+  prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, "." }) : ""
+
+  #partial switch type_node.type
+  {
+  case .enum_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, member_node.value)
+    }
+
+    return strings.concatenate({ prefix, "$enum.", strings.join(member_type_names[:], ".") })
+  case .procedure_type:
+    param_type_names: [dynamic]string
+    params_type_node := type_node.children[0]
+    for param_node in params_type_node.children
+    {
+      param_lhs_node := param_node.children[0]
+      append(&param_type_names, strings.concatenate({ param_lhs_node.value, ".", type_var_name(param_lhs_node.data_type) }))
+    }
+
+    return_type_name: string
+    if len(type_node.children) == 2
+    {
+      return_type_node := type_node.children[1]
+      return_type_name = strings.concatenate({ ".$return.", type_var_name(return_type_node) })
+    }
+
+    return strings.concatenate({ prefix, "$proc.", strings.join(param_type_names[:], "."), return_type_name })
+  case .reference:
+    return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
+  case .struct_type:
+    member_type_names: [dynamic]string
+    for member_node in type_node.children
+    {
+      append(&member_type_names, strings.concatenate({ member_node.value, ".", type_var_name(member_node.data_type) }))
+    }
+
+    return strings.concatenate({ prefix, "$struct.", strings.join(member_type_names[:], ".") })
+  case .subscript:
+    if is_array(type_node)
+    {
+      length_expression_node := type_node.children[1]
+      length := length_expression_node.value
+      return strings.concatenate({ prefix, "$array.", type_var_name(type_node.children[0]), ".", length })
+    }
+    else
+    {
+      return strings.concatenate({ prefix, "$slice.", type_var_name(type_node.children[0]) })
+    }
+  }
+
+  return strings.concatenate({ prefix, type_node.value })
+}
+
+upgrade_types :: proc(root: ^scope, identifier: ^node, new_type_node: ^node) -> bool
+{
+  if identifier.data_type != nil
+  {
+    if new_type_node.value == "[any_string]" && identifier.data_type.value == "[any_string]"
+    {
+      identifier.data_type = root.identifiers["string"]
+    }
+    else if identifier.data_type.value == "[any_int]" || identifier.data_type.value == "[any_number]"
+    {
+      if identifier.type == .number_literal && strings.has_prefix(identifier.value, "-")
+      {
+        _, unsigned_integer_type := slice.linear_search(unsigned_integer_types, new_type_node.value)
+        if unsigned_integer_type
+        {
+          src.print_position_message(identifier.src_position, "cannot upgrade negative integer literal '%s' to type '%s'", identifier.value, type_name(new_type_node))
+          return false
+        }
+      }
+
+      identifier.data_type = new_type_node
+    }
+    else if identifier.data_type.value == "[none]" || identifier.data_type.value == "[any_float]" || identifier.data_type.value == "[any_string]"
+    {
+      identifier.data_type = new_type_node
+    }
+  }
+
+  for child_node in identifier.children
+  {
+    upgrade_types(root, child_node, new_type_node) or_return
+  }
+
+  return true
+}
+
+resolve_types :: proc(root: ^scope, scope: ^scope, node: ^node) -> bool
+{
+  if node.type == .identifier
+  {
+    if len(node.children) > 0 && node.children[0].type == .identifier
+    {
+      child_node := node.children[0]
+      module := get_scope(root, scope.path[:2])
+      reference := find_reference(module.references[:], child_node.value)
+      if reference != nil && len(reference.path) == 2
+      {
+        imported_module := get_scope(root, reference.path[:])
+        if node.value in imported_module.identifiers
+        {
+          identifier_node := imported_module.identifiers[node.value]
+          if is_type(identifier_node)
+          {
+            node^ = identifier_node^
+            return true
+          }
+        }
+      }
+    }
+    else
+    {
+      declaration, _ := get_declaration(root, scope, node)
+      if declaration != nil && is_type(declaration)
+      {
+        node^ = declaration^
+        return true
+      }
+    }
+
+    // TODO handle this somewhere else?
+    /*if !strings.has_prefix(node.value, "[") && !strings.has_prefix(node.value, "$")
+    {
+      src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
+      return false
+    }*/
+  }
+
+  if node.data_type != nil
+  {
+    resolve_types(root, scope, node.data_type) or_return
+  }
+
+  if node.allocator != nil
+  {
+    resolve_types(root, scope, node.allocator) or_return
+  }
+
+  for child_node in node.children
+  {
+    if child_node.type == .scope_statement do continue
+
+    resolve_types(root, scope, child_node) or_return
+  }
+
+  return true
+}
+
+// TODO this is a bit messy
+is_static_procedure_statement :: proc(program: ^scope, statement: ^node) -> bool
+{
+  return statement.type == .assignment_statement && is_static_procedure(program, statement.children[0])
+}
+
+is_static_procedure :: proc(program: ^scope, identifier: ^node) -> bool
+{
+  type := identifier.data_type
+  if identifier.type != .identifier || type == nil || type.type != .procedure_type
+  {
+    return false
+  }
+
+  if is_member(identifier) && identifier.children[0].data_type.type != .module_type
+  {
+    return false
+  }
+
+  _, code_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
+  _, nil_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
+  return code_allocator || nil_allocator
+}
+
+swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
+get_swizzle_index :: proc(char: rune) -> int
+{
+  swizzle_index, swizzle_value := slice.linear_search(swizzle_values, char)
+  if !swizzle_value do return -1
+  return swizzle_index / 2
+}
+
+find_reference :: proc(references: []reference, name: string) -> ^reference
+{
+  for &reference in references
+  {
+    if reference.name == name do return &reference
+  }
+
+  return nil
 }

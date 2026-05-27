@@ -8,8 +8,8 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
 {
   if node.data_type != nil
   {
-    identifier_node, _ := get_identifier_node(ctx, node, true)
-    if identifier_node != nil
+    declaration, _ := ast.get_declaration(ctx.root, ctx.scope, node, true)
+    if declaration != nil
     {
       src.print_position_message(node.src_position, "'%s' has already been declared", node.value)
       return false
@@ -56,7 +56,7 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
 {
   if node.allocator == nil
   {
-    node.allocator = ctx.program.identifiers[node.data_type.type == .procedure_type ? "code" : "stack"]
+    node.allocator = ctx.root.identifiers[node.data_type.type == .procedure_type ? "code" : "stack"]
     return true
   }
 
@@ -65,18 +65,18 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
     _, core_allocator := slice.linear_search(core_allocator_names, node.allocator.value)
     if core_allocator
     {
-      node.allocator = ctx.program.identifiers[node.allocator.value]
+      node.allocator = ctx.root.identifiers[node.allocator.value]
       return true
     }
   }
 
   type_check_rhs_expression(ctx, node.allocator, nil) or_return
 
-  _, code_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["code_allocator"])
-  _, memory_allocator := coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+  _, code_allocator := ast.coerce_type(node.allocator.data_type, ctx.root.identifiers["code_allocator"])
+  _, memory_allocator := ast.coerce_type(node.allocator.data_type, ctx.root.identifiers["memory_allocator"])
   if !code_allocator && !memory_allocator
   {
-    src.print_position_message(node.src_position, "Cannot apply allocator with type '%s'", type_name(node.allocator.data_type))
+    src.print_position_message(node.src_position, "Cannot apply allocator with type '%s'", ast.type_name(node.allocator.data_type))
     return false
   }
 

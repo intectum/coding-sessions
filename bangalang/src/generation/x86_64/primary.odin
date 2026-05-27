@@ -6,7 +6,6 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
@@ -30,7 +29,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .negate:
     location := copy_to_register(ctx, child_location, register_num, type_node)
 
-    _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
+    _, float_type := slice.linear_search(ast.float_types, type_node.value)
     if float_type
     {
       sign_mask_name := strings.concatenate({ type_node.value, "_sign_mask" })
@@ -145,11 +144,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .string_literal:
     if ast.is_slice(type_node) && type_node.children[0].value == "u8"
     {
-      return memory(get_literal_name(&ctx.program.string_literals, "string_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.children["[string_literals]"], "string_", node.value), 0)
     }
     else if type_node.type == .reference && type_node.children[0].value == "u8"
     {
-      return immediate(get_literal_name(&ctx.program.cstring_literals, "cstring_", node.value))
+      return immediate(get_literal_name(&ctx.root.children["[cstring_literals]"], "cstring_", node.value))
     }
 
     assert(false, "Failed to generate primary")
@@ -157,11 +156,11 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .number_literal:
     if type_node.value == "f32"
     {
-      return memory(get_literal_name(&ctx.program.f32_literals, "f32_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.children["[f32_literals]"], "f32_", node.value), 0)
     }
     else if type_node.value == "f64"
     {
-      return memory(get_literal_name(&ctx.program.f64_literals, "f64_", node.value), 0)
+      return memory(get_literal_name(&ctx.root.children["[f64_literals]"], "f64_", node.value), 0)
     }
 
     return immediate(node.value)

@@ -5,7 +5,6 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 index_type_node := ast.make_node({ type = .identifier, value = "u64" })
@@ -91,21 +90,21 @@ get_length_location :: proc(container_type_node: ^ast.node, container_location: 
   }
 }
 
-get_literal_name :: proc(literal_values: ^[dynamic]string, prefix: string, value: string) -> string
+get_literal_name :: proc(literal_scope: ^ast.scope, prefix: string, value: string) -> string
 {
-  index := len(literal_values)
-  for existing_value, existing_index in literal_values
+  index := len(literal_scope.statements)
+  for existing_literal, existing_index in literal_scope.statements
   {
-    if existing_value == value
+    if existing_literal.value == value
     {
       index = existing_index
       break
     }
   }
 
-  if index == len(literal_values)
+  if index == len(literal_scope.statements)
   {
-    append(literal_values, value)
+    append(&literal_scope.statements, ast.make_node({ value = value }))
   }
 
   buf: [8]byte
@@ -132,7 +131,7 @@ to_shuffle_code :: proc(swizzle_values: string) -> string
 
   #reverse for char in swizzle_values
   {
-    index := type_checking.get_swizzle_index(char)
+    index := ast.get_swizzle_index(char)
     switch index
     {
     case 0: fmt.sbprint(&shuffle_code, "00")

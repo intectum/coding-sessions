@@ -1,15 +1,13 @@
-package type_checking
+package ast
 
 import "core:strings"
 
-import "../ast"
-
-is_placeholder :: proc(node: ^ast.node) -> bool
+is_placeholder :: proc(node: ^node) -> bool
 {
   return strings.has_prefix(node.value, "$")
 }
 
-has_placeholders :: proc(node: ^ast.node) -> bool
+has_placeholders :: proc(node: ^node) -> bool
 {
   if is_placeholder(node) do return true
 
@@ -26,7 +24,7 @@ has_placeholders :: proc(node: ^ast.node) -> bool
   return false
 }
 
-resolve_placeholders :: proc(generic: ^ast.node, concrete: ^ast.node, identifiers: ^map[string]^ast.node) -> bool
+resolve_placeholders :: proc(generic: ^node, concrete: ^node, identifiers: ^map[string]^node) -> bool
 {
   found_placeholder := false
 

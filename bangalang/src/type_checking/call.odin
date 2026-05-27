@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strings"
 
 import "../ast"
-import "../program"
 import "../src"
 
 type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
@@ -40,11 +39,11 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     return false
   }
 
-  call_ctx := copy_context(ctx)
+  call_ctx := start_anonymous_context(ctx)
   placeholder_identifiers: map[string]^ast.node
-  concrete_procedure: program.procedure
+  concrete_procedure: ast.scope
 
-  _, identifier_path := get_identifier_node(&call_ctx, procedure_node)
+  _, identifier_path := ast.get_declaration(ctx.root, call_ctx.scope, procedure_node)
   procedure_path: [dynamic]string
   append(&procedure_path, ..identifier_path)
   append(&procedure_path, procedure_node.value)
@@ -57,12 +56,11 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     type_check_rhs_expression(&call_ctx, param_expression_node, param_lhs_node.data_type) or_return
 
-    if resolve_placeholders(param_lhs_node.data_type, param_expression_node.data_type, &placeholder_identifiers)
+    if ast.resolve_placeholders(param_lhs_node.data_type, param_expression_node.data_type, &placeholder_identifiers)
     {
       if len(concrete_procedure.statements) == 0
       {
-        qualified_name := program.get_qualified_name(procedure_path[:])
-        procedure := &call_ctx.program.procedures[qualified_name]
+        procedure := ast.get_scope(ctx.root, procedure_path[:])
 
         append(&concrete_procedure.statements, ast.clone_node(procedure.statements[0]))
         node.children[0].data_type = concrete_procedure.statements[0].children[0].data_type
@@ -70,8 +68,8 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
         params_type_node = procedure_type_node.children[0]
       }
 
-      for key, value in placeholder_identifiers do call_ctx.identifiers[key] = value
-      resolve_types(&call_ctx, procedure_type_node) or_return
+      for key, value in placeholder_identifiers do call_ctx.scope.identifiers[key] = value
+      ast.resolve_types(call_ctx.root, call_ctx.scope, procedure_type_node) or_return
     }
   }
 
@@ -89,33 +87,25 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     fmt.sbprintf(&name, "%s.$variant", procedure_node.value)
     for _, value in placeholder_identifiers
     {
-      fmt.sbprintf(&name, ".%s", type_var_name(value))
+      fmt.sbprintf(&name, ".%s", ast.type_var_name(value))
     }
 
     procedure_node.value = strings.clone(strings.to_string(name))
     procedure_path[len(procedure_path) - 1] = procedure_node.value
-    concrete_qualified_name := program.get_qualified_name(procedure_path[:])
 
-    if !(concrete_qualified_name in call_ctx.program.procedures)
+    if ast.get_scope(ctx.root, procedure_path[:]) == nil
     {
+      concrete_procedure.path = procedure_path[:]
       for key, value in placeholder_identifiers do concrete_procedure.identifiers[key] = value
 
-      parent_qualified_name := program.get_qualified_name(identifier_path[:])
-      if len(identifier_path) == 2
-      {
-        parent_module := &call_ctx.program.modules[parent_qualified_name]
-        parent_module.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
-      }
-      else
-      {
-        parent_procedure := &call_ctx.program.procedures[parent_qualified_name]
-        parent_procedure.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
-      }
-
-      call_ctx.program.procedures[concrete_qualified_name] = concrete_procedure
+      parent_scope := ast.get_scope(ctx.root, identifier_path[:])
+      parent_scope.identifiers[procedure_node.value] = concrete_procedure.statements[0].children[0]
+      parent_scope.children[procedure_node.value] = concrete_procedure
       reference(ctx, identifier_path, procedure_node.value)
     }
   }
+
+  end_anonymous_context(ctx, &call_ctx)
 
   return true
 }
@@ -134,15 +124,15 @@ type_check_conversion_call :: proc(ctx: ^type_checking_context, node: ^ast.node)
 
   type_check_rhs_expression(ctx, param_node, nil) or_return
 
-  _, param_numerical_type := slice.linear_search(numerical_types, param_node.data_type.value)
-  _, return_numerical_type := slice.linear_search(numerical_types, procedure_node.value)
+  _, param_numerical_type := slice.linear_search(ast.numerical_types, param_node.data_type.value)
+  _, return_numerical_type := slice.linear_search(ast.numerical_types, procedure_node.value)
   if !param_numerical_type && !return_numerical_type
   {
     src.print_position_message(node.src_position, "Type '%s' cannot be converted to type '%s'", param_node.data_type.value, procedure_node.value)
     return false
   }
 
-  upgrade_types(ctx, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"]) or_return
+  ast.upgrade_types(ctx.root, param_node, param_node.data_type.value == "[any_float]" ? ctx.root.identifiers["f64"] : ctx.root.identifiers["i64"]) or_return
 
   node.data_type = ast.clone_node(procedure_node)
 

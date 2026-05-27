@@ -48,7 +48,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     {
       basic_pre_index_node := ast.make_node({ type = .assignment_statement })
       append(&basic_pre_index_node.children, ast.clone_node(index_node))
-      basic_pre_index_node.children[0].data_type = ctx.program.identifiers["u64"]
+      basic_pre_index_node.children[0].data_type = ctx.root.identifiers["u64"]
       append(&basic_pre_index_node.children, ast.make_node({ type = .assign, value = "=" }))
       append(&basic_pre_index_node.children, ast.make_node({ type = .number_literal, value = "0" }))
       append(&basic_pre_node.children, basic_pre_index_node)
@@ -99,7 +99,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     basic_pre_node := ast.make_node({ type = .group, value = "[pre]" })
     basic_pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&basic_pre_declaration_node.children, ast.clone_node(basic_index_node))
-    basic_pre_declaration_node.children[0].data_type = ctx.program.identifiers["u64"]
+    basic_pre_declaration_node.children[0].data_type = ctx.root.identifiers["u64"]
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .number_literal, value = "0" }))
     append(&basic_pre_node.children, basic_pre_declaration_node)

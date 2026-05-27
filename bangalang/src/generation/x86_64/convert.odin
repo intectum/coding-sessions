@@ -4,7 +4,6 @@ import "core:fmt"
 import "core:slice"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, src_type_node: ^ast.node, dest_type_node: ^ast.node) -> location
@@ -16,15 +15,15 @@ convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, 
 
   dest := register(register_num, dest_type_node)
 
-  _, src_float_type := slice.linear_search(type_checking.float_types, src_type_node.value)
-  _, src_atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, src_type_node.value)
-  _, src_signed_integer_type := slice.linear_search(type_checking.signed_integer_types, src_type_node.value)
-  _, src_unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, src_type_node.value)
+  _, src_float_type := slice.linear_search(ast.float_types, src_type_node.value)
+  _, src_atomic_integer_type := slice.linear_search(ast.atomic_integer_types, src_type_node.value)
+  _, src_signed_integer_type := slice.linear_search(ast.signed_integer_types, src_type_node.value)
+  _, src_unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, src_type_node.value)
 
-  _, dest_float_type := slice.linear_search(type_checking.float_types, dest_type_node.value)
-  _, dest_atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, dest_type_node.value)
-  _, dest_signed_integer_type := slice.linear_search(type_checking.signed_integer_types, dest_type_node.value)
-  _, dest_unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, dest_type_node.value)
+  _, dest_float_type := slice.linear_search(ast.float_types, dest_type_node.value)
+  _, dest_atomic_integer_type := slice.linear_search(ast.atomic_integer_types, dest_type_node.value)
+  _, dest_signed_integer_type := slice.linear_search(ast.signed_integer_types, dest_type_node.value)
+  _, dest_unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, dest_type_node.value)
 
   src_size := to_byte_size(src_type_node)
   dest_size := to_byte_size(dest_type_node)
@@ -70,7 +69,7 @@ convert :: proc(ctx: ^generation.gen_context, src: location, register_num: int, 
   {
     if dest_atomic_integer_type || dest_signed_integer_type || dest_unsigned_integer_type
     {
-      large_dest := register(register_num, ctx.program.identifiers["u64"])
+      large_dest := register(register_num, ctx.root.identifiers["u64"])
       fmt.sbprintfln(&ctx.output, "  cvtts%s2si %s, %s ; convert", to_precision_size(src_size), to_operand(large_dest), to_operand(src))
     }
     else if dest_float_type

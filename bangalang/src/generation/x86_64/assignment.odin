@@ -5,8 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
-import "../../program"
-import "../../type_checking"
 import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
@@ -29,22 +27,21 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
     switch lhs_node.allocator
     {
-    case ctx.program.identifiers["none"]:
+    case ctx.root.identifiers["none"]:
       // Do nothing
-    case ctx.program.identifiers["stack"]:
+    case ctx.root.identifiers["stack"]:
       allocate_stack(ctx, to_byte_size(lhs_type_node))
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
-    case ctx.program.identifiers["static"]:
+    case ctx.root.identifiers["static"]:
       path: [dynamic]string
-      append(&path, ..ctx.path[:])
+      append(&path, ..ctx.scope.path[:])
       append(&path, lhs_node.value)
       defer delete(path)
 
-      qualified_name := program.get_qualified_name(path[:])
-      if !(qualified_name in ctx.program.static_vars)
-      {
-        ctx.program.static_vars[qualified_name] = node
-      }
+      static_assignment := ast.clone_node(node)
+      static_assignment.children[0].value = ast.get_scope_name(path[:], true)
+      static_vars := &ctx.root.children["[static_vars]"]
+      append(&static_vars.statements, static_assignment)
     case:
       allocate_stack(ctx, to_byte_size(lhs_type_node))
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
@@ -71,7 +68,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   if len(node.children) == 1
   {
     // TODO heap etc. ?
-    _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
+    _, static_allocator := ast.coerce_type(lhs_node.allocator.data_type, ctx.root.identifiers["static_allocator"])
     if static_allocator
     {
       nilify(ctx, lhs_location, to_byte_size(lhs_type_node))
@@ -90,10 +87,10 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     }
     else
     {
-      _, float_type := slice.linear_search(type_checking.float_types, lhs_type_node.value)
-      _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, lhs_type_node.value)
-      _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, lhs_type_node.value)
-      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, lhs_type_node.value)
+      _, float_type := slice.linear_search(ast.float_types, lhs_type_node.value)
+      _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, lhs_type_node.value)
+      _, signed_integer_type := slice.linear_search(ast.signed_integer_types, lhs_type_node.value)
+      _, unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, lhs_type_node.value)
 
       if float_type
       {
@@ -278,7 +275,7 @@ generate_assignment_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
 
 generate_assignment_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, type_node: ^ast.node, register_num: int)
 {
-  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, type_node.value)
+  _, signed_integer_type := slice.linear_search(ast.signed_integer_types, type_node.value)
   prefix := signed_integer_type ? "i" : ""
 
   #partial switch node.type

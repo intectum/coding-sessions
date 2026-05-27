@@ -6,7 +6,7 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../program"
+import "../../loading"
 import "../../type_checking"
 import ".."
 
@@ -37,7 +37,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
       element_type_node := type_node.children[0]
       element_size := to_byte_size(element_type_node)
 
-      qualified_name := program.get_qualified_name(ctx.path)
+      qualified_name := ast.get_scope_name(ctx.scope.path, true)
       slice_array_index := ctx.next_index
       ctx.next_index += 1
       static_var_name := fmt.aprintf("%s.$array_%i", qualified_name, slice_array_index)
@@ -48,7 +48,8 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
 
       static_var_node := ast.make_node({ type = .assignment_statement })
       append(&static_var_node.children, ast.make_node({ type = .identifier, value = static_var_name, data_type = static_var_type_node }))
-      ctx.program.static_vars[static_var_name] = static_var_node
+      static_vars := &ctx.root.children["[static_vars]"]
+      append(&static_vars.statements, static_var_node)
 
       element_location := memory(static_var_name, 0)
       for child_node in node.children
@@ -78,7 +79,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
         member_location := memory("rsp", 0)
         if member_name == "length"
         {
-          member_type_node = ctx.program.identifiers["i64"]
+          member_type_node = ctx.root.identifiers["i64"]
           member_location.offset += address_size
         }
 

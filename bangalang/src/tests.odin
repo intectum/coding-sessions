@@ -1,11 +1,10 @@
 package main
 
 import "core:fmt"
-import "core:os"
 import "core:slice"
 import "core:strings"
 
-import "./type_checking"
+import "./ast"
 
 non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "bitwise_or", "bitwise_or_assign", "multiply", "multiply_assign", "divide", "divide_assign", "bitwise_and", "bitwise_and_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
 
@@ -1273,7 +1272,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
       append(&failed_tests, fmt.aprintf("%s (%s)", value_test, "bool"))
     }
 
-    for numerical_type in type_checking.numerical_types
+    for numerical_type in ast.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
@@ -1303,7 +1302,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   for numerical_test in numerical_tests
   {
-    for numerical_type in type_checking.numerical_types
+    for numerical_type in ast.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
@@ -1316,13 +1315,13 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         continue
       }
 
-      _, float_type := slice.linear_search(type_checking.float_types, numerical_type)
+      _, float_type := slice.linear_search(ast.float_types, numerical_type)
       if float_type && (numerical_test == "bitwise_or" || numerical_test == "bitwise_or_assign" || numerical_test == "bitwise_and" || numerical_test == "bitwise_and_assign" || numerical_test == "modulo" || numerical_test == "modulo_assign")
       {
         continue
       }
 
-      _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, numerical_type)
+      _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, numerical_type)
       if atomic_integer_type
       {
         _, non_atomic_integer_test := slice.linear_search(non_atomic_integer_tests, numerical_test)
@@ -1332,7 +1331,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         }
       }
 
-      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, numerical_type)
+      _, unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, numerical_type)
       if unsigned_integer_type && numerical_test == "negate"
       {
         continue

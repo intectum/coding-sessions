@@ -23,18 +23,19 @@ generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_nu
   {
       link := node.children[1].value
 
-      _, found_link := slice.linear_search(ctx.program.links[:], link)
-      if !found_link
+      for reference in ctx.root.references
       {
-          append(&ctx.program.links, link)
+        if reference.name == link do return {}
       }
+
+      append(&ctx.root.references, ast.reference { name = link })
 
       return {}
   }
 
   procedure_type_node := procedure_node.data_type
-  extern := procedure_node.allocator == ctx.program.identifiers["extern"]
-  none := procedure_node.allocator == ctx.program.identifiers["none"]
+  extern := procedure_node.allocator == ctx.root.identifiers["extern"]
+  none := procedure_node.allocator == ctx.root.identifiers["none"]
   is_syscall := procedure_node.value == "syscall" && none
 
   params_type_node := procedure_type_node.children[0]

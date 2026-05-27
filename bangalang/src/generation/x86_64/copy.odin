@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 copy_stack_address :: proc(ctx: ^generation.gen_context, offset: int, register_num: int) -> location
@@ -37,7 +36,7 @@ copy :: proc(ctx: ^generation.gen_context, src: location, dest: location, type_n
 
   if dest == src do return
 
-  _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
+  _, float_type := slice.linear_search(ast.float_types, type_node.value)
   size := to_byte_size(type_node)
 
   if src.type == .register || dest.type == .register
