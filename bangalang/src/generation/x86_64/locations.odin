@@ -5,7 +5,6 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../type_checking"
 
 location :: struct
 {
@@ -54,7 +53,7 @@ register :: proc
 
 register_named :: proc(name: string, type_node: ^ast.node) -> location
 {
-  _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
+  _, float_type := slice.linear_search(ast.float_types, type_node.value)
   if float_type
   {
     assert(false, "Unsupported data type")
@@ -87,7 +86,7 @@ register_named :: proc(name: string, type_node: ^ast.node) -> location
 
 register_numbered :: proc(number: int, type_node: ^ast.node) -> location
 {
-  _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
+  _, float_type := slice.linear_search(ast.float_types, type_node.value)
   if float_type
   {
     buf: [2]byte

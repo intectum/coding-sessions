@@ -1,17 +1,10 @@
 package type_checking
 
-import "core:strings"
-
 import "../ast"
-
-is_placeholder :: proc(node: ^ast.node) -> bool
-{
-  return strings.has_prefix(node.value, "$")
-}
 
 has_placeholders :: proc(node: ^ast.node) -> bool
 {
-  if is_placeholder(node) do return true
+  if ast.is_placeholder(node) do return true
 
   if node.data_type != nil
   {
@@ -30,7 +23,7 @@ resolve_placeholders :: proc(generic: ^ast.node, concrete: ^ast.node, identifier
 {
   found_placeholder := false
 
-  if is_placeholder(generic)
+  if ast.is_placeholder(generic)
   {
     if !(generic.value in identifiers)
     {

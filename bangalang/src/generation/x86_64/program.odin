@@ -15,7 +15,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "_start:")
 
   generated_import_names: [dynamic]string
-  generate_main_statements(ctx, ctx.path, &generated_import_names)
+  generate_main_statements(ctx, ctx.scope.path, &generated_import_names)
 
   fmt.sbprintln(&ctx.output, "  ; default exit")
   fmt.sbprintln(&ctx.output, "  mov rax, 60 ; syscall: exit")
@@ -121,7 +121,7 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, g
     generate_main_statements(ctx, imported_module_path[:], generated_import_names)
   }
 
-  ctx.path = path
+  ctx.scope = module
 
   generate_statements(ctx, module.statements[:])
 }
@@ -142,6 +142,8 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[strin
     append(generated_procedure_names, qualified_name)
 
     procedure := ast.get_scope(ctx.program, reference_path[:])
+    if procedure == nil do continue
+
     node := procedure.statements[0]
     lhs_node := node.children[0]
 
@@ -152,7 +154,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[strin
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = reference_path[:],
+        scope = procedure,
         output = ctx.output
       }
 
@@ -165,7 +167,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[strin
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = reference_path[:]
+        scope = procedure
       }
 
       strings.builder_init(&procedure_ctx.output)

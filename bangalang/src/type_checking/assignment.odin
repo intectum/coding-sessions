@@ -19,7 +19,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   {
     name := lhs_node.value
 
-    procedure: ast.scope
+    procedure := new(ast.scope)
 
     if is_static_procedure(ctx.program, lhs_node)
     {
@@ -41,16 +41,16 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       append(&new_node.children, ast.make_node({ type = .identifier, value = name, data_type = lhs_node.data_type, allocator = ctx.program.identifiers["static"] }))
       node^ = new_node
 
-      ctx.identifiers[name] = new_node.children[2]
-      reference(ctx, ctx.path, name)
+      ctx.scope.identifiers[name] = new_node.children[2]
+      reference(ctx, ctx.scope.path, name)
     }
 
     procedure_path: [dynamic]string
-    append(&procedure_path, ..ctx.path)
+    append(&procedure_path, ..ctx.scope.path)
     append(&procedure_path, name)
     procedure.path = procedure_path[:]
 
-    scope := ast.get_scope(ctx.program, ctx.path)
+    scope := ast.get_scope(ctx.program, ctx.scope.path)
     scope.children[name] = procedure
   }
 
@@ -94,34 +94,34 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       }
 
       rhs_type_node := rhs_node.data_type
-      _, numerical_type := slice.linear_search(numerical_types, rhs_type_node.value)
+      _, numerical_type := slice.linear_search(ast.numerical_types, rhs_type_node.value)
       if rhs_type_node.type == .subscript
       {
         element_type_node := rhs_type_node.children[0]
-        _, float_type := slice.linear_search(float_types, element_type_node.value)
+        _, float_type := slice.linear_search(ast.float_types, element_type_node.value)
         if !float_type || operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign
         {
-          src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
+          src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, ast.type_name(rhs_type_node))
           return false
         }
       }
       else if !numerical_type
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, ast.type_name(rhs_type_node))
         return false
       }
 
-      _, float_type := slice.linear_search(float_types, rhs_type_node.value)
+      _, float_type := slice.linear_search(ast.float_types, rhs_type_node.value)
       if float_type && (operator_node.type == .bitwise_and_assign || operator_node.type == .bitwise_or_assign || operator_node.type == .modulo_assign)
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s", operator_node.value, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s", operator_node.value, ast.type_name(rhs_type_node))
         return false
       }
 
-      _, atomic_integer_type := slice.linear_search(atomic_integer_types, rhs_type_node.value)
+      _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, rhs_type_node.value)
       if atomic_integer_type && operator_node.type != .add_assign && operator_node.type != .subtract_assign
       {
-        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, type_name(rhs_type_node))
+        src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for type '%s'", operator_node.value, ast.type_name(rhs_type_node))
         return false
       }
     }
@@ -135,7 +135,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   if declaration
   {
-    _, memory_allocator := coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+    _, memory_allocator := ast.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
     if memory_allocator
     {
       if len(node.children) > 1
@@ -195,11 +195,11 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
     if contains_non_fixed_array_sizes(lhs_node.data_type)
     {
-      src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", type_name(lhs_node.data_type))
+      src.print_position_message(lhs_node.src_position, "Type '%s' cannot contain non-fixed array sizes", ast.type_name(lhs_node.data_type))
       return false
     }
 
-    ctx.identifiers[lhs_node.value] = lhs_node
+    ctx.scope.identifiers[lhs_node.value] = lhs_node
   }
 
   return true

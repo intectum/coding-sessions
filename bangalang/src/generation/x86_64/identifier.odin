@@ -70,7 +70,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
         }
       case "name":
         // TODO as static var?
-        return memory(get_literal_name(&ctx.program.string_literals, "string_", fmt.aprintf("\"%s\"", type_checking.type_name(child_node))), 0)
+        return memory(get_literal_name(&ctx.program.string_literals, "string_", fmt.aprintf("\"%s\"", ast.type_name(child_node))), 0)
       case "size": return immediate(to_byte_size(child_node))
       case: assert(false, "Failed to generate identifier")
       }
@@ -152,7 +152,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       }
     }
 
-  _, memory_allocator := type_checking.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+  _, memory_allocator := ast.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
   if !memory_allocator && node.allocator != ctx.program.identifiers["stack"]
   {
     name := node.value
@@ -160,12 +160,10 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
     // TODO add #namespaced=false
     if node.allocator != ctx.program.identifiers["extern"]
     {
-      // TODO hacky
-      tc_ctx: type_checking.type_checking_context = { program = ctx.program, path = ctx.path }
-      _, identifier_path := type_checking.get_identifier_node(&tc_ctx, node)
+      _, declaration_path := ast.get_declaration(ctx.program, ctx.scope, node)
 
       path: [dynamic]string
-      append(&path, ..identifier_path)
+      append(&path, ..declaration_path)
       append(&path, node.value)
       defer delete(path)
 

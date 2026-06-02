@@ -4,7 +4,6 @@ import "core:fmt"
 import "core:slice"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
@@ -39,7 +38,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   {
     // TODO non-integers
     //nilify(ctx, lhs_location, lhs_type_node)
-    _, integer := slice.linear_search(type_checking.integer_types, lhs_type_node.value)
+    _, integer := slice.linear_search(ast.integer_types, lhs_type_node.value)
     if integer
     {
       fmt.sbprint(&ctx.output, " = 0")

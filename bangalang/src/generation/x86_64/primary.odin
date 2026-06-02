@@ -6,7 +6,6 @@ import "core:strconv"
 import "core:strings"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register_num: int, contains_allocations: bool) -> location
@@ -30,7 +29,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
   case .negate:
     location := copy_to_register(ctx, child_location, register_num, type_node)
 
-    _, float_type := slice.linear_search(type_checking.float_types, type_node.value)
+    _, float_type := slice.linear_search(ast.float_types, type_node.value)
     if float_type
     {
       sign_mask_name := strings.concatenate({ type_node.value, "_sign_mask" })

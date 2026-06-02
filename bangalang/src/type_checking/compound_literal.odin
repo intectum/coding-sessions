@@ -12,7 +12,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
 
   if type_node.type != .subscript && type_node.type != .struct_type
   {
-    src.print_position_message(node.src_position, "Cannot use compound literal for type '%s'", type_name(type_node))
+    src.print_position_message(node.src_position, "Cannot use compound literal for type '%s'", ast.type_name(type_node))
     return false
   }
 
@@ -25,7 +25,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
   {
     if type_node.type != .subscript
     {
-      src.print_position_message(node.src_position, "Cannot use compound literal with values for type '%s'", type_name(type_node))
+      src.print_position_message(node.src_position, "Cannot use compound literal with values for type '%s'", ast.type_name(type_node))
       return false
     }
 
@@ -34,7 +34,7 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
       length := strconv.atoi(type_node.children[1].value)
       if len(node.children) != length
       {
-        src.print_position_message(node.src_position, "Compound literal for type '%s' must contain %i elements", type_name(type_node), length)
+        src.print_position_message(node.src_position, "Compound literal for type '%s' must contain %i elements", ast.type_name(type_node), length)
         return false
       }
     }
@@ -54,17 +54,17 @@ type_check_compound_literal :: proc(ctx: ^type_checking_context, node: ^ast.node
     case .subscript:
       if ast.is_array(type_node)
       {
-        src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
+        src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", ast.type_name(type_node))
         return false
       }
 
       if len(node.children) != 2
       {
-        src.print_position_message(node.src_position, "Compound literal for type '%s' must contain 2 elements", type_name(type_node))
+        src.print_position_message(node.src_position, "Compound literal for type '%s' must contain 2 elements", ast.type_name(type_node))
         return false
       }
     case:
-      src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", type_name(type_node))
+      src.print_position_message(node.src_position, "Cannot use compound literal with assignments for type '%s'", ast.type_name(type_node))
       return false
     }
 

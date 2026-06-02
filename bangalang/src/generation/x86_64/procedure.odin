@@ -23,7 +23,7 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 
   ctx.stack_variable_offsets["[return]"] = offset
 
-  fmt.sbprintfln(&ctx.output, "%s:", ast.get_qualified_name(ctx.path[:]))
+  fmt.sbprintfln(&ctx.output, "%s:", ast.get_qualified_name(ctx.scope.path))
 
   // Account for the instruction pointer pushed to the stack by 'call'
   ctx.stack_size += address_size

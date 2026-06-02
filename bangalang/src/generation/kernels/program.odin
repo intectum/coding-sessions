@@ -49,7 +49,7 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[strin
       procedure_ctx: generation.gen_context =
       {
         program = ctx.program,
-        path = references[reference][:]
+        scope = procedure
       }
 
       strings.builder_init(&procedure_ctx.output)

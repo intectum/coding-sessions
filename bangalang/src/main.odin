@@ -70,7 +70,7 @@ main :: proc()
         fmt.println("")
       }
 
-      fmt.println("Build the loading with the given entry module.")
+      fmt.println("Build the program with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc build <input> [options]")
       fmt.println("")
@@ -115,7 +115,7 @@ main :: proc()
         fmt.println("")
       }
 
-      fmt.println("Build and run the loading with the given entry module.")
+      fmt.println("Build and run the program with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc run <input>")
       fmt.println("")
@@ -224,7 +224,7 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   gen_ctx: generation.gen_context =
   {
     program = &program,
-    path = path
+    scope = ast.get_scope(&program, path)
   }
 
   strings.builder_init(&gen_ctx.output)

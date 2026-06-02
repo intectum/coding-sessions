@@ -5,7 +5,7 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-import "./type_checking"
+import "./ast"
 
 non_atomic_integer_tests: []string = { "negate" /* TODO re-add */, "add", "add_assign", "subtract", "subtract_assign", "bitwise_or", "bitwise_or_assign", "multiply", "multiply_assign", "divide", "divide_assign", "bitwise_and", "bitwise_and_assign", "modulo", "modulo_assign", "bedmas_1", "bedmas_2", "bedmas_3", "bedmas_4" }
 
@@ -13,7 +13,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 {
   general_tests: map[string]string
 
-  /*general_tests["comments"] =
+  general_tests["comments"] =
   `
     debug: = import("debug", "core")
 
@@ -65,7 +65,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     var0: = false
     if false do var0 = true
     debug.assert(var0 == false, "")
-  `*/
+  `
 
   general_tests["if_true_do_scope"] =
   `
@@ -76,7 +76,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     debug.assert(var0, "")
   `
 
-  /*general_tests["if_else_true_scope"] =
+  general_tests["if_else_true_scope"] =
   `
     debug: = import("debug", "core")
 
@@ -681,7 +681,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
     var0: proc(param0: u8)@stack = do debug.assert(param0 == 2, "")
     var0(2)
-  `*/
+  `
 
   value_tests: map[string]string
 
@@ -1251,7 +1251,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
     }
   }
 
-  /*for value_test in value_tests
+  for value_test in value_tests
   {
     bool_code, _ := strings.replace_all(value_tests[value_test], "<type>", "bool")
     bool_code, _ = strings.replace_all(bool_code, "<value0>", "true")
@@ -1261,7 +1261,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
       append(&failed_tests, fmt.aprintf("%s (%s)", value_test, "bool"))
     }
 
-    for numerical_type in type_checking.numerical_types
+    for numerical_type in ast.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
@@ -1291,7 +1291,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
   for numerical_test in numerical_tests
   {
-    for numerical_type in type_checking.numerical_types
+    for numerical_type in ast.numerical_types
     {
       if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
       {
@@ -1304,13 +1304,13 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         continue
       }
 
-      _, float_type := slice.linear_search(type_checking.float_types, numerical_type)
+      _, float_type := slice.linear_search(ast.float_types, numerical_type)
       if float_type && (numerical_test == "bitwise_or" || numerical_test == "bitwise_or_assign" || numerical_test == "bitwise_and" || numerical_test == "bitwise_and_assign" || numerical_test == "modulo" || numerical_test == "modulo_assign")
       {
         continue
       }
 
-      _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, numerical_type)
+      _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, numerical_type)
       if atomic_integer_type
       {
         _, non_atomic_integer_test := slice.linear_search(non_atomic_integer_tests, numerical_test)
@@ -1320,7 +1320,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         }
       }
 
-      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, numerical_type)
+      _, unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, numerical_type)
       if unsigned_integer_type && numerical_test == "negate"
       {
         continue
@@ -1335,7 +1335,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
         append(&failed_tests, fmt.aprintf("%s (%s)", numerical_test, numerical_type))
       }
     }
-  }*/
+  }
 
   return
 }

@@ -16,7 +16,7 @@ generate_program :: proc(ctx: ^generation.gen_context)
   fmt.sbprintln(&ctx.output, "  [")
 
   generated_import_names: [dynamic]string
-  generate_main_statements(ctx, ctx.path, &generated_import_names, false)
+  generate_main_statements(ctx, ctx.scope.path, &generated_import_names, false)
 
   fmt.sbprintln(&ctx.output, "")
   fmt.sbprintln(&ctx.output, "  ]")
@@ -45,7 +45,7 @@ generate_main_statements :: proc(ctx: ^generation.gen_context, path: []string, g
     generated_statement = true
   }
 
-  ctx.path = path
+  ctx.scope = module
 
   for statement in module.statements
   {

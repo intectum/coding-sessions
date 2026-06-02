@@ -28,11 +28,17 @@ load_module :: proc(program: ^ast.scope, path: []string, code: string) -> bool
 
   if !(path[0] in program.children)
   {
-    program.children[path[0]] = { path = path[0:1] }
+    new_lib := new(ast.scope)
+    new_lib.path = path[0:1]
+    program.children[path[0]] = new_lib
   }
 
-  lib := &program.children[path[0]]
-  lib.children[path[1]] = { path = path, statements = nodes }
+  new_module := new(ast.scope)
+  new_module.path = path
+  new_module.statements = nodes
+
+  lib := program.children[path[0]]
+  lib.children[path[1]] = new_module
 
   return true
 }

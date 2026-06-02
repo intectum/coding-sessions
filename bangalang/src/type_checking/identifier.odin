@@ -34,20 +34,20 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
         switch node.value
         {
         case "max", "min":
-          _, integer := slice.linear_search(numerical_types, child_node.value)
+          _, integer := slice.linear_search(ast.numerical_types, child_node.value)
           if !integer
           {
-            src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
+            src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, ast.type_name(child_node))
             return false
           }
 
-          _, integer2 := slice.linear_search(integer_types, child_node.value)
+          _, integer2 := slice.linear_search(ast.integer_types, child_node.value)
 
           node.data_type = child_node
         case "name": node.data_type = ctx.program.identifiers["string"]
         case "size": node.data_type = ctx.program.identifiers["u64"]
         case:
-          src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_node))
+          src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, ast.type_name(child_node))
           return false
         }
       }
@@ -60,20 +60,20 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       #partial switch child_type_node.type
       {
       case .module_type:
-        identifier_node, identifier_path := get_identifier_node(ctx, node)
-        if identifier_node == nil
+        declaration, declaration_path := ast.get_declaration(ctx.program, ctx.scope, node)
+        if declaration == nil
         {
           src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
           return false
         }
 
-        if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+        if is_static_procedure(ctx.program, declaration) && !has_placeholders(declaration)
         {
-          reference(ctx, identifier_path, node.value)
+          reference(ctx, declaration_path, node.value)
         }
 
-        node.data_type = identifier_node.data_type
-        node.allocator = identifier_node.allocator
+        node.data_type = declaration.data_type
+        node.allocator = declaration.allocator
       case .struct_type:
         found_member := false
         for member_node in child_type_node.children
@@ -88,7 +88,7 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
         if !found_member
         {
-          src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
+          src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, ast.type_name(child_type_node))
           return false
         }
       case .subscript:
@@ -113,20 +113,20 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   }
   else
   {
-    identifier_node, identifier_path := get_identifier_node(ctx, node)
-    if identifier_node == nil
+    declaration, declaration_path := ast.get_declaration(ctx.program, ctx.scope, node)
+    if declaration_path == nil
     {
       src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
       return false
     }
 
-    if is_static_procedure(ctx.program, identifier_node) && !has_placeholders(identifier_node)
+    if is_static_procedure(ctx.program, declaration) && !has_placeholders(declaration)
     {
-      reference(ctx, identifier_path, node.value)
+      reference(ctx, declaration_path, node.value)
     }
 
-    node.data_type = identifier_node.data_type
-    node.allocator = identifier_node.allocator
+    node.data_type = declaration.data_type
+    node.allocator = declaration.allocator
   }
 
   return true
@@ -140,7 +140,7 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
 
   if element_type_node.value != "f32"
   {
-    src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, type_name(child_type_node))
+    src.print_position_message(node.src_position, "'%s' is not a member of variable '%s' with type '%s'", node.value, child_node.value, ast.type_name(child_type_node))
     return false
   }
 
@@ -155,7 +155,7 @@ type_check_swizzle_member :: proc(node: ^ast.node) -> bool
     index := get_swizzle_index(char)
     if index == -1
     {
-      src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, type_name(child_type_node))
+      src.print_position_message(node.src_position, "'%s' is not a member of type '%s'", node.value, ast.type_name(child_type_node))
       return false
     }
 

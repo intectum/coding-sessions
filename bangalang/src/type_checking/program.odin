@@ -12,15 +12,15 @@ type_check_program :: proc(program: ^ast.scope, path: []string, code: string) ->
   type_checking_ctx: type_checking_context =
   {
     program = program,
-    path = path
+    scope = ast.get_scope(program, path)
   }
-  type_check_module(&type_checking_ctx) or_return
+  type_check_statements(&type_checking_ctx, type_checking_ctx.scope.statements[:]) or_return
 
   for len(queue) > 0
   {
     proc_path := pop(&queue)
     procedure := ast.get_scope(program, proc_path[:])
-    if procedure.type_checked
+    if procedure == nil || procedure.type_checked
     {
       continue
     }
@@ -28,13 +28,12 @@ type_check_program :: proc(program: ^ast.scope, path: []string, code: string) ->
     procedure_ctx: type_checking_context =
     {
       program = program,
-      path = proc_path[:]
+      scope = procedure
     }
 
     type_check_procedure(&procedure_ctx, procedure.statements[0]) or_return
 
     procedure.type_checked = true
-    procedure.identifiers = procedure_ctx.identifiers
   }
 
   import_path: [dynamic]string

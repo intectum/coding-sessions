@@ -52,10 +52,10 @@ convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
     }
   }
 
-  identifier_node, _ := get_identifier_node(ctx, node)
-  if identifier_node != nil
+  declaration, _ := ast.get_declaration(ctx.program, ctx.scope, node)
+  if declaration != nil
   {
-    if identifier_node.data_type.type == .struct_type && identifier_node.data_type.directive == "#soa"
+    if declaration.data_type.type == .struct_type && declaration.data_type.directive == "#soa"
     {
       return 0
     }
@@ -74,7 +74,7 @@ get_swizzle_index :: proc(char: rune) -> int
 
 reference :: proc(ctx: ^type_checking_context, path: []string, name: string)
 {
-  procedure := ast.get_scope(ctx.program, path)
+  procedure := ast.get_scope(ctx.program, ctx.scope.path)
 
   final_path: [dynamic]string
   append(&final_path, ..path)
@@ -103,7 +103,7 @@ is_static_procedure :: proc(program: ^ast.scope, identifier: ^ast.node) -> bool
     return false
   }
 
-  _, code_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
-  _, nil_allocator := coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
+  _, code_allocator := ast.coerce_type(identifier.allocator.data_type, program.identifiers["code_allocator"])
+  _, nil_allocator := ast.coerce_type(identifier.allocator.data_type, program.identifiers["nil_allocator"])
   return code_allocator || nil_allocator
 }

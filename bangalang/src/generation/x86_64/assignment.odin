@@ -5,7 +5,6 @@ import "core:slice"
 import "core:strconv"
 
 import "../../ast"
-import "../../type_checking"
 import ".."
 
 generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
@@ -35,7 +34,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
       ctx.stack_variable_offsets[lhs_node.value] = ctx.stack_size
     case ctx.program.identifiers["static"]:
       path: [dynamic]string
-      append(&path, ..ctx.path[:])
+      append(&path, ..ctx.scope.path)
       append(&path, lhs_node.value)
       defer delete(path)
 
@@ -70,7 +69,7 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   if len(node.children) == 1
   {
     // TODO heap etc. ?
-    _, static_allocator := type_checking.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
+    _, static_allocator := ast.coerce_type(lhs_node.allocator.data_type, ctx.program.identifiers["static_allocator"])
     if static_allocator
     {
       nilify(ctx, lhs_location, to_byte_size(lhs_type_node))
@@ -89,10 +88,10 @@ generate_assignment :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     }
     else
     {
-      _, float_type := slice.linear_search(type_checking.float_types, lhs_type_node.value)
-      _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, lhs_type_node.value)
-      _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, lhs_type_node.value)
-      _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, lhs_type_node.value)
+      _, float_type := slice.linear_search(ast.float_types, lhs_type_node.value)
+      _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, lhs_type_node.value)
+      _, signed_integer_type := slice.linear_search(ast.signed_integer_types, lhs_type_node.value)
+      _, unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, lhs_type_node.value)
 
       if float_type
       {
@@ -277,7 +276,7 @@ generate_assignment_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
 
 generate_assignment_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, type_node: ^ast.node, register_num: int)
 {
-  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, type_node.value)
+  _, signed_integer_type := slice.linear_search(ast.signed_integer_types, type_node.value)
   prefix := signed_integer_type ? "i" : ""
 
   #partial switch node.type

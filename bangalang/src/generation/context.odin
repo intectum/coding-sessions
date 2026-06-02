@@ -7,7 +7,7 @@ import "../ast"
 gen_context :: struct
 {
   program: ^ast.scope,
-  path: []string,
+  scope: ^ast.scope,
 
   stack_size: int,
   stack_variable_offsets: map[string]int,
@@ -18,6 +18,7 @@ gen_context :: struct
   output: strings.Builder
 }
 
+// TODO why is this never used?
 copy_context := proc(ctx: ^gen_context) -> gen_context
 {
   ctx_copy := ctx^

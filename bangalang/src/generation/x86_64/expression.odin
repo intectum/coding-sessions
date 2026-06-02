@@ -48,20 +48,20 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
     return generate_expression_bool(ctx, node, lhs_location, rhs_location, operand_type_node, register_num)
   }
 
-  _, float_type := slice.linear_search(type_checking.float_types, operand_type_node.value)
+  _, float_type := slice.linear_search(ast.float_types, operand_type_node.value)
   if float_type
   {
     return generate_expression_float(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
-  _, atomic_integer_type := slice.linear_search(type_checking.atomic_integer_types, operand_type_node.value)
+  _, atomic_integer_type := slice.linear_search(ast.atomic_integer_types, operand_type_node.value)
   if atomic_integer_type
   {
     return generate_expression_atomic_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
   }
 
-  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
-  _, unsigned_integer_type := slice.linear_search(type_checking.unsigned_integer_types, operand_type_node.value)
+  _, signed_integer_type := slice.linear_search(ast.signed_integer_types, operand_type_node.value)
+  _, unsigned_integer_type := slice.linear_search(ast.unsigned_integer_types, operand_type_node.value)
   if signed_integer_type || unsigned_integer_type || operand_type_node.type == .enum_type
   {
     return generate_expression_integer(ctx, node, lhs_location, rhs_location, operand_type_node, result_type_node, register_num)
@@ -254,7 +254,7 @@ generate_expression_atomic_integer :: proc(ctx: ^generation.gen_context, node: ^
 
 generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.node, lhs_location: location, rhs_location: location, operand_type_node: ^ast.node, result_type_node: ^ast.node, register_num: int) -> location
 {
-  _, signed_integer_type := slice.linear_search(type_checking.signed_integer_types, operand_type_node.value)
+  _, signed_integer_type := slice.linear_search(ast.signed_integer_types, operand_type_node.value)
   prefix := signed_integer_type ? "i" : ""
   less := signed_integer_type ? "l" : "b"
   greater := signed_integer_type ? "g" : "a"

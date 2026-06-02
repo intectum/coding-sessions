@@ -20,7 +20,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 {
   for statement in statements
   {
-    resolve_types(ctx, statement) or_return
+    ast.resolve_types(ctx.program, ctx.scope, statement) or_return
 
     if ast.is_type_alias_statement(statement)
     {
@@ -29,17 +29,18 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 
       name := lhs_node.value
       lhs_node^ = rhs_node^
-      ctx.identifiers[name] = lhs_node
+      ctx.scope.identifiers[name] = lhs_node
     }
     else if ast.is_import_statement(statement)
     {
+      module := ast.get_scope(ctx.program, ctx.scope.path[:2])
       lhs_node := statement.children[0]
       reference := lhs_node.value
 
       rhs_node := statement.children[2]
       module_name := rhs_node.children[1].value
       module_name = module_name[1:len(module_name) - 1]
-      lib_name := len(rhs_node.children) == 3 ? rhs_node.children[2].value : strings.concatenate({ "\"", ctx.path[0], "\"" })
+      lib_name := len(rhs_node.children) == 3 ? rhs_node.children[2].value : strings.concatenate({ "\"", ctx.scope.path[0], "\"" })
       lib_name = lib_name[1:len(lib_name) - 1]
 
       lib_path := "."
@@ -68,9 +69,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 
       if imported_module != nil
       {
-        module := ast.get_scope(ctx.program, ctx.path)
         module.references[reference] = path
-
         continue
       }
 
@@ -87,17 +86,11 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       imported_module_ctx: type_checking_context =
       {
         program = ctx.program,
-        path = path[:]
+        scope = ast.get_scope(ctx.program, path[:])
       }
-      type_check_module(&imported_module_ctx) or_return
+      type_check_statements(&imported_module_ctx, imported_module_ctx.scope.statements[:]) or_return
 
-      module := ast.get_scope(ctx.program, ctx.path)
       module.references[reference] = path
-    }
-    else if statement.type == .assignment_statement && statement.children[0].data_type != nil && statement.children[0].data_type.type == .procedure_type
-    {
-      lhs_node := statement.children[0]
-      ctx.out_of_order_identifiers[lhs_node.value] = lhs_node
     }
   }
 

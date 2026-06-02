@@ -4,11 +4,11 @@ import "../src"
 
 scope :: struct
 {
-  path: []string, // TODO do we need this?
+  path: []string,
   statements: [dynamic]^node,
   references: map[string][dynamic]string,
   identifiers: map[string]^node,
-  children: map[string]scope,
+  children: map[string]^scope,
   type_checked: bool, // TODO review
 
   // TODO move to ctx
@@ -94,3 +94,9 @@ literals: []node_type = { .boolean_literal, .compound_literal, .nil_literal, .nu
 complex_types: []node_type = { .enum_type, .module_type, .procedure_type, .struct_type }
 
 simple_types: []string = { "[any_float]", "[any_int]", "[any_number]", "[any_string]", "[none]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "bool", "cint", "cuint", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
+numerical_types: []string = { "[any_float]", "[any_int]", "[any_number]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
+float_types: []string = { "[any_float]", "f32", "f64" }
+integer_types: []string = { "[any_int]", "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64", "cint", "cuint", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64" }
+atomic_integer_types: []string = { "atomic_i8", "atomic_i16", "atomic_i32", "atomic_i64" }
+signed_integer_types: []string = { "cint", "i8", "i16", "i32", "i64" }
+unsigned_integer_types: []string = { "cuint", "u8", "u16", "u32", "u64" }
