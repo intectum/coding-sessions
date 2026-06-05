@@ -32,7 +32,7 @@ mmap: proc(address: ^byte, length: u64, prot: u64, flags: u64, file_descriptor: 
 
 exit: proc(exit_code: u64) = do syscall(60, exit_code)
 
-timeval_t = struct { seconds: u64, micro_seconds: u64 }
+timeval_t: = struct { seconds: u64, micro_seconds: u64 }
 gettimeofday: proc(timeval: ^timeval_t) = do syscall(96, #danger_untyped timeval)
 
 futex_wait: proc(futex_word: ^u32, expected: u32, timeout: u64) =

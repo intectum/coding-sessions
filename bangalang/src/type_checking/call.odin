@@ -40,6 +40,8 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   }
 
   call_ctx := start_anonymous_scope(ctx)
+  defer end_anonymous_scope(ctx, &call_ctx)
+
   placeholder_identifiers: map[string]^ast.node
   concrete_procedure := new(ast.scope)
 
@@ -69,11 +71,9 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
       }
 
       for key, value in placeholder_identifiers do call_ctx.scope.identifiers[key] = value
-      ast.resolve_types(call_ctx.program, call_ctx.scope, procedure_type_node) or_return
+      type_check_primary(&call_ctx, procedure_type_node) or_return
     }
   }
-
-  end_anonymous_scope(ctx, &call_ctx)
 
   if len(procedure_type_node.children) == 2
   {

@@ -56,10 +56,9 @@ type_check_rhs_expression_1 :: proc(ctx: ^type_checking_context, node: ^ast.node
   {
     type_node := node.data_type
     directive := node.directive != "" ? node.directive : (type_node != nil ? type_node.directive : "")
-    convert_soa_index(ctx, node)
     type_check_primary(ctx, node) or_return
 
-    if directive != ""
+    if node.data_type != nil && directive != ""
     {
       node.data_type.directive = directive
     }

@@ -7,6 +7,7 @@ import "../ast"
 type_check_basic_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
   for_ctx := start_anonymous_scope(ctx)
+  defer end_anonymous_scope(ctx, &for_ctx)
   for_ctx.within_for = true
 
   flow_node := node.children[0]
@@ -24,8 +25,6 @@ type_check_basic_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
   if post_node != nil do type_check_statements(&for_ctx, post_node.children[:]) or_return
 
   type_check_scope(&for_ctx, scope_node) or_return
-
-  end_anonymous_scope(ctx, &for_ctx)
 
   return true
 }

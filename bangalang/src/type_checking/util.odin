@@ -28,42 +28,6 @@ auto_dereference :: proc(node: ^ast.node)
   node.data_type.directive = type_node.directive
 }
 
-convert_soa_index :: proc(ctx: ^type_checking_context, node: ^ast.node) -> int
-{
-  if len(node.children) > 0 && !ast.is_type(node.children[0])
-  {
-    child_result := convert_soa_index(ctx, node.children[0])
-    if child_result == 0 && node.type == .subscript
-    {
-      return 1
-    }
-    else if child_result == 1 && node.type == .identifier
-    {
-      member_node := node
-      index_node := member_node.children[0]
-      soa_node := index_node.children[0]
-
-      new_node := ast.make_node({ type = .subscript })
-      append(&new_node.children, ast.make_node({ type = .identifier, value = member_node.value }))
-      append(&new_node.children[0].children, ast.make_node({ type = .identifier, value = soa_node.value }))
-      append(&new_node.children, index_node.children[1])
-
-      node^ = new_node^
-    }
-  }
-
-  declaration, _ := ast.get_declaration(ctx.program, ctx.scope, node)
-  if declaration != nil
-  {
-    if declaration.data_type.type == .struct_type && declaration.data_type.directive == "#soa"
-    {
-      return 0
-    }
-  }
-
-  return -1
-}
-
 swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
 get_swizzle_index :: proc(char: rune) -> int
 {

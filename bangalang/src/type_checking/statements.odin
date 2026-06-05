@@ -20,18 +20,8 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 {
   for statement in statements
   {
-    ast.resolve_types(ctx.program, ctx.scope, statement) or_return
-
-    if ast.is_type_alias_statement(statement)
-    {
-      lhs_node := statement.children[0]
-      rhs_node := statement.children[2]
-
-      name := lhs_node.value
-      lhs_node^ = rhs_node^
-      ctx.scope.identifiers[name] = lhs_node
-    }
-    else if ast.is_import_statement(statement)
+    // TODO move to call?
+    if ast.is_import_statement(statement)
     {
       module := ast.get_scope(ctx.program, ctx.scope.path[:2])
       lhs_node := statement.children[0]
@@ -97,8 +87,6 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
   failures := false
   for statement in statements
   {
-    if ast.is_type_alias_statement(statement) do continue
-
     if !type_check_statement(ctx, statement)
     {
       failures = true

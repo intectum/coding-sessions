@@ -215,6 +215,7 @@ is_import_statement :: proc(statement: ^node) -> bool
   return false
 }
 
+// TODO remove?
 is_type_alias_statement :: proc(statement: ^node) -> bool
 {
   return statement.type == .assignment_statement && len(statement.children) > 1 && is_type(statement.children[2])
@@ -673,69 +674,6 @@ upgrade_types :: proc(root: ^scope, current_node: ^node, new_type_node: ^node) -
   for child_node in current_node.children
   {
     upgrade_types(root, child_node, new_type_node) or_return
-  }
-
-  return true
-}
-
-resolve_types :: proc(root: ^scope, scope: ^scope, node: ^node) -> bool
-{
-  if node.type == .identifier
-  {
-    if len(node.children) > 0 && node.children[0].type == .identifier
-    {
-      child_node := node.children[0]
-      module := get_scope(root, scope.path[:2])
-      if child_node.value in module.references
-      {
-        imported_module_path := &module.references[child_node.value]
-        if len(imported_module_path) != 2 do return true
-
-        imported_module := get_scope(root, imported_module_path[:])
-        if node.value in imported_module.identifiers
-        {
-          identifier_node := imported_module.identifiers[node.value]
-          if is_type(identifier_node)
-          {
-            node^ = identifier_node^
-            return true
-          }
-        }
-      }
-    }
-    else
-    {
-      declaration, _ := get_declaration(root, scope, node)
-      if declaration != nil && is_type(declaration)
-      {
-        node^ = declaration^
-        return true
-      }
-    }
-
-  // TODO handle this somewhere else?
-  /*if !strings.has_prefix(node.value, "[") && !strings.has_prefix(node.value, "$")
-  {
-    src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-    return false
-  }*/
-  }
-
-  if node.data_type != nil
-  {
-    resolve_types(root, scope, node.data_type) or_return
-  }
-
-  if node.allocator != nil
-  {
-    resolve_types(root, scope, node.allocator) or_return
-  }
-
-  for child_node in node.children
-  {
-    if child_node.type == .scope_statement do continue
-
-    resolve_types(root, scope, child_node) or_return
   }
 
   return true

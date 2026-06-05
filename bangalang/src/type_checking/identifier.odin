@@ -60,20 +60,7 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       #partial switch child_type_node.type
       {
       case .module_type:
-        declaration, declaration_path := ast.get_declaration(ctx.program, ctx.scope, node)
-        if declaration == nil
-        {
-          src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-          return false
-        }
-
-        if is_static_procedure(ctx.program, declaration) && !has_placeholders(declaration)
-        {
-          reference(ctx, declaration_path, node.value)
-        }
-
-        node.data_type = declaration.data_type
-        node.allocator = declaration.allocator
+        apply_declaration(ctx, node) or_return
       case .struct_type:
         found_member := false
         for member_node in child_type_node.children
@@ -113,20 +100,35 @@ type_check_identifier :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   }
   else
   {
-    declaration, declaration_path := ast.get_declaration(ctx.program, ctx.scope, node)
-    if declaration_path == nil
-    {
-      src.print_position_message(node.src_position, "'%s' has not been declared", node.value)
-      return false
-    }
+    apply_declaration(ctx, node) or_return
+  }
 
+  return true
+}
+
+apply_declaration :: proc(ctx: ^type_checking_context, identifier: ^ast.node) -> bool
+{
+  declaration, declaration_path := ast.get_declaration(ctx.program, ctx.scope, identifier)
+  if declaration == nil
+  {
+    if ctx.within_procedure_type && ast.is_placeholder(identifier) do return true
+    src.print_position_message(identifier.src_position, "'%s' has not been declared", identifier.value)
+    return false
+  }
+
+  if ast.is_type(declaration)
+  {
+    identifier^ = declaration^
+  }
+  else
+  {
     if is_static_procedure(ctx.program, declaration) && !has_placeholders(declaration)
     {
-      reference(ctx, declaration_path, node.value)
+      reference(ctx, declaration_path, identifier.value)
     }
 
-    node.data_type = declaration.data_type
-    node.allocator = declaration.allocator
+    identifier.data_type = declaration.data_type
+    identifier.allocator = declaration.allocator
   }
 
   return true

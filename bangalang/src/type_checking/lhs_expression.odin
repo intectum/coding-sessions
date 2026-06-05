@@ -10,10 +10,15 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
   if node.data_type != nil
   {
     declaration, _ := ast.get_declaration(ctx.program, ctx.scope, node)
-    if declaration != nil
+    if declaration != nil && !ctx.within_procedure_type // TODO a better way of expressing this
     {
       src.print_position_message(node.src_position, "'%s' has already been declared", node.value)
       return false
+    }
+
+    if node.data_type.value != "[none]"
+    {
+      type_check_primary(ctx, node.data_type) or_return
     }
 
     if ast.is_array(node.data_type) && node.data_type.directive == "#soa"
@@ -45,7 +50,6 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
   }
   else
   {
-    convert_soa_index(ctx, node)
     type_check_primary(ctx, node) or_return
   }
 

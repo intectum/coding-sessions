@@ -7,11 +7,13 @@ import "core:strings"
 import "../ast"
 import "../src"
 
+complex_primaries: []ast.node_type = { .compound_literal, .enum_type, .procedure_type, .struct_type }
+
 type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  if ast.is_type(node) do return type_check_type(ctx, node)
+  if ctx.within_struct_type && node.type == .reference do return true
 
-  if node.type != .compound_literal && len(node.children) > 0
+  if !slice.contains(complex_primaries, node.type) && len(node.children) > 0
   {
     type_check_primary(ctx, node.children[0]) or_return
   }
@@ -19,6 +21,8 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   #partial switch node.type
   {
   case .reference:
+    if ast.is_type(node.children[0]) do return true
+
     _, literal := slice.linear_search(ast.literals, node.children[0].type)
     if literal
     {
@@ -59,6 +63,8 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     node.data_type = child_type_node.children[0]
   case .subscript:
+    if ast.is_type(node.children[0]) do return true
+
     auto_dereference(node.children[0])
 
     child_type_node := node.children[0].data_type
@@ -139,19 +145,64 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
       }
     }
   case .procedure_type:
-    // Do nothing
-  case .struct_type:
-    for member_node, index in node.children[:len(node.children) - 1]
+    proc_ctx := start_anonymous_scope(ctx)
+    defer end_anonymous_scope(ctx, &proc_ctx)
+    proc_ctx.within_procedure_type = true
+
+    found_default := false
+    params_type_node := node.children[0]
+    for param_node in params_type_node.children
     {
-      for other_member_node in node.children[index + 1:]
+      if len(param_node.children) == 1 && found_default
       {
-        if other_member_node.value == member_node.value
+        src.print_position_message(node.src_position, "Procedure parameters with defaults cannot be followed by parameters without defaults")
+        return false
+      }
+
+      if len(param_node.children) > 1
+      {
+        found_default = true
+      }
+
+      param_lhs_node := param_node.children[0]
+      param_lhs_node.allocator = ctx.program.identifiers["stack"]
+
+      type_check_assignment(&proc_ctx, param_node) or_return
+    }
+
+    if len(node.children) > 1
+    {
+      return_type_node := node.children[1]
+      type_check_primary(&proc_ctx, return_type_node) or_return
+    }
+  case .struct_type:
+    within_struct_type := ctx.within_struct_type
+    ctx.within_struct_type = true
+
+    success := true
+    for member_node, index in node.children
+    {
+      if index < len(node.children) - 1
+      {
+        for other_member_node in node.children[index + 1:]
         {
-          src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, ast.type_name(node))
-          return false
+          if other_member_node.value == member_node.value
+          {
+            src.print_position_message(other_member_node.src_position, "Duplicate member '%s' found in type '%s'", other_member_node.value, ast.type_name(node))
+            success = false
+          }
         }
       }
+
+      if !type_check_primary(ctx, member_node.data_type)
+      {
+        success = false
+      }
     }
+
+    ctx.within_struct_type = within_struct_type
+
+    if !success do return false
   case:
     type_check_rhs_expression_1(ctx, node) or_return
   }

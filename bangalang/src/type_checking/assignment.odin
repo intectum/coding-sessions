@@ -73,7 +73,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       lhs_type_node := lhs_node.data_type
       type_check_rhs_expression(ctx, rhs_node, lhs_type_node) or_return
 
-      if lhs_type_node.value == "[none]"
+      if !ast.is_type(rhs_node) && lhs_type_node.value == "[none]"
       {
         if rhs_node.data_type == nil
         {
@@ -199,7 +199,14 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       return false
     }
 
-    ctx.scope.identifiers[lhs_node.value] = lhs_node
+    if len(node.children) > 1 && ast.is_type(node.children[2])
+    {
+      ctx.scope.identifiers[lhs_node.value] = node.children[2]
+    }
+    else
+    {
+      ctx.scope.identifiers[lhs_node.value] = lhs_node
+    }
   }
 
   return true

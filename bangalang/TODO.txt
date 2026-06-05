@@ -54,19 +54,17 @@ cleanup
 - bounds checking in glsl? or disable in kernels? disable refs/pointers also
 - negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
 - check all TODOs
-- better type-checking for type-alias/import
-- disallow type redeclaration and require ":" for type aliases
 - switch only generate expression_node once
 - switch require all enum values unless #partial
 - align for stack vars (and other allocators?)
 - test project in diff folder
 - auto-convert dynamic array sizes
 - dynamically sized soa
-- allow struct member to be pointer to struct but prevent recursive struct
 - restrict generic param types
 - check if param names must match...
 - set affinity of threads in thread pool (sched_setaffinity?)
 - think through parsing messages
+- deferred type resolution
 
 - asm/glsl indenting etc.
 - remove default return when not needed

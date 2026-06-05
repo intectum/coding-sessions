@@ -18,25 +18,11 @@ type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
     return false
   }
 
-  found_default := false
   params_type_node := lhs_type_node.children[0]
   for param_node in params_type_node.children
   {
-    if len(param_node.children) == 1 && found_default
-    {
-      src.print_position_message(lhs_node.src_position, "Procedure parameters with defaults cannot be followed by parameters without defaults")
-      return false
-    }
-
-    if len(param_node.children) > 1
-    {
-      found_default = true
-    }
-
     param_lhs_node := param_node.children[0]
-    param_lhs_node.allocator = ctx.program.identifiers["stack"]
-
-    type_check_assignment(ctx, param_node) or_return
+    ctx.scope.identifiers[param_lhs_node.value] = param_lhs_node
   }
 
   if len(node.children) > 1
