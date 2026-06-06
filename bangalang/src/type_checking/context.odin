@@ -8,6 +8,7 @@ type_checking_context :: struct
   scope: ^ast.scope,
 
   next_index: int,
+  within_kernel: bool,
   within_for: bool,
   within_procedure_type: bool,
   within_struct_type: bool

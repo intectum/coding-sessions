@@ -15,13 +15,6 @@ generate_program :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   procedure_type_node := lhs_node.data_type
   params_type_node := procedure_type_node.children[0]
 
-  assert(len(procedure_type_node.children) == 1, "GLSL procs must not return a value");
-  assert(len(params_type_node.children) > 0, "GLSL procs must contain at-least one param");
-  param0_node := params_type_node.children[0]
-  param0_lhs_node := param0_node.children[0]
-  param0_lhs_type_node := param0_lhs_node.data_type
-  assert(param0_lhs_node.value == "index" && param0_lhs_type_node.value == "u32", "First param must be 'index: u32'");
-
   fmt.sbprintln(&ctx.output, "#version 460 core")
   fmt.sbprintln(&ctx.output, "")
   fmt.sbprintln(&ctx.output, "layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;")

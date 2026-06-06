@@ -17,7 +17,7 @@ type_check_call :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   }
 
   procedure_type_node := procedure_node.data_type
-  if procedure_type_node.type != .procedure_type
+  if procedure_type_node.type != .kernel_type && procedure_type_node.type != .procedure_type
   {
     src.print_position_message(node.src_position, "'%s' does not refer to a procedure", procedure_node.value)
     return false

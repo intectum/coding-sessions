@@ -120,7 +120,7 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
       node = parse_enum_type(stream) or_return
     case "struct":
       node = parse_struct_type(stream) or_return
-    case "proc":
+    case "kernel", "proc":
       node = parse_procedure_type(stream) or_return
     case:
       stream.error = src.to_position_message(node.src_position, "Invalid keyword '%s'", tokens.peek_token(stream).value)

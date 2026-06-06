@@ -6,22 +6,23 @@ import "../tokens"
 
 parse_procedure_type :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
-  node = ast.make_node({
-    type = .procedure_type,
-    src_position = tokens.peek_token(stream).src_position
-  })
-
-  proc_token, proc_ok := tokens.next_token(stream, .keyword, "proc")
-  if !proc_ok
+  proc_token, proc_ok := tokens.next_token(stream, .keyword)
+  if !proc_ok || (proc_token.value != "kernel" && proc_token.value != "proc")
   {
-    stream.error = src.to_position_message(proc_token.src_position, "procedure type must begin with 'proc'")
+    stream.error = src.to_position_message(proc_token.src_position, "procedure type must begin with 'proc' or 'kernel'")
     return {}, false
   }
+
+  node = ast.make_node({
+    type = proc_token.value == "kernel" ? .kernel_type : .procedure_type,
+    value = proc_token.value,
+    src_position = proc_token.src_position
+  })
 
   opening_bracket_token, opening_bracket_ok := tokens.next_token(stream, .opening_bracket)
   if !opening_bracket_ok
   {
-    stream.error = src.to_position_message(opening_bracket_token.src_position, "'proc' must be followed by '('")
+    stream.error = src.to_position_message(opening_bracket_token.src_position, "'%s' must be followed by '('", node.value)
     return {}, false
   }
 

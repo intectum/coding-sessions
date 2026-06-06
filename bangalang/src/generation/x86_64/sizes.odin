@@ -12,7 +12,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
   #partial switch type_node.type
   {
   case .enum_type: return 8
-  case .procedure_type, .reference: return address_size
+  case .kernel_type, .procedure_type, .reference: return address_size
   case .struct_type:
     size := 0
     for member_node in type_node.children

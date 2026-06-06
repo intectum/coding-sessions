@@ -65,7 +65,7 @@ start_thread: proc(func: proc(param: $T), param: $T) -> u64 =
 
 thread_pool_task_t: = struct
 {
-  func: proc(index: u32, data: vec4[]),
+  func: kernel(index: u32, data: vec4[]),
   start: u32,
   end: u32,
   data: vec4[]

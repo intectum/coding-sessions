@@ -27,7 +27,7 @@ init_root :: proc(root: ^scope)
   root.identifiers["u32"] = make_node({ type = .identifier, value = "u32" })
   root.identifiers["u64"] = make_node({ type = .identifier, value = "u64" })
 
-  allocator_type := make_node({ type = .procedure_type })
+  allocator_type := make_node({ type = .procedure_type, value = "proc" })
   append(&allocator_type.children, make_node({ type = .group, value = "[parameters]" }))
 
   string_type := make_node({ type = .subscript })
@@ -529,7 +529,7 @@ type_name :: proc(type_node: ^node) -> string
     }
 
     return strings.concatenate({ prefix, "enum {{ ", strings.join(member_type_names[:], ", "), " }}" })
-  case .procedure_type:
+  case .kernel_type, .procedure_type:
     param_type_names: [dynamic]string
     params_type_node := type_node.children[0]
     for param_node in params_type_node.children
@@ -545,7 +545,7 @@ type_name :: proc(type_node: ^node) -> string
       return_type_name = strings.concatenate({ " -> ", type_name(return_type_node) })
     }
 
-    return strings.concatenate({ prefix, "proc(", strings.join(param_type_names[:], ", "), ")", return_type_name })
+    return strings.concatenate({ prefix, type_node.value, "(", strings.join(param_type_names[:], ", "), ")", return_type_name })
   case .reference:
     return strings.concatenate({ prefix, "^", type_name(type_node.children[0]) })
   case .struct_type:
@@ -600,7 +600,7 @@ type_var_name :: proc(type_node: ^node) -> string
     }
 
     return strings.concatenate({ prefix, "$enum.", strings.join(member_type_names[:], ".") })
-  case .procedure_type:
+  case .kernel_type, .procedure_type:
     param_type_names: [dynamic]string
     params_type_node := type_node.children[0]
     for param_node in params_type_node.children
@@ -616,7 +616,7 @@ type_var_name :: proc(type_node: ^node) -> string
       return_type_name = strings.concatenate({ ".$return.", type_var_name(return_type_node) })
     }
 
-    return strings.concatenate({ prefix, "$proc.", strings.join(param_type_names[:], "."), return_type_name })
+    return strings.concatenate({ prefix, "$", type_node.value, ".", strings.join(param_type_names[:], "."), return_type_name })
   case .reference:
     return strings.concatenate({ prefix, "$ref.", type_var_name(type_node.children[0]) })
   case .struct_type:

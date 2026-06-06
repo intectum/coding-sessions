@@ -28,7 +28,8 @@ type_check_program :: proc(program: ^ast.scope, path: []string, code: string) ->
     procedure_ctx: type_checking_context =
     {
       program = program,
-      scope = procedure
+      scope = procedure,
+      within_kernel = procedure.statements[0].children[0].data_type.type == .kernel_type
     }
 
     type_check_procedure(&procedure_ctx, procedure.statements[0]) or_return

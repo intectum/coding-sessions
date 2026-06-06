@@ -170,7 +170,7 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node, regis
       name = ast.get_qualified_name(path[:])
     }
 
-    if type_node.type == .procedure_type || type_node.type == .reference
+    if type_node.type == .kernel_type || type_node.type == .procedure_type || type_node.type == .reference
     {
       return immediate(name)
     }

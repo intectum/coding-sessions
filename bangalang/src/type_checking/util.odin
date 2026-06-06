@@ -57,7 +57,7 @@ is_static_procedure_statement :: proc(program: ^ast.scope, statement: ^ast.node)
 is_static_procedure :: proc(program: ^ast.scope, identifier: ^ast.node) -> bool
 {
   type := identifier.data_type
-  if identifier.type != .identifier || type == nil || type.type != .procedure_type
+  if identifier.type != .identifier || type == nil || (type.type != .kernel_type && type.type != .procedure_type)
   {
     return false
   }

@@ -2,7 +2,7 @@ threading: = import("threading")
 
 gl: = import("gl", "vendor")
 
-kernel_t: = proc(index: u32, data: vec4[])
+kernel_t: = kernel(index: u32, data: vec4[])
 
 #private pool: threading.thread_pool_t@static
 
@@ -27,11 +27,11 @@ init: proc() =
   }
 }
 
-bang: proc(kernel: kernel_t, data: vec4[]) =
+bang: proc(bang_kernel: kernel_t, data: vec4[]) =
 {
   for kernel_index: u64, kernel_index < glsl_kernels.length, kernel_index += 1
   {
-    if kernel == #danger_untyped glsl_kernels[kernel_index]
+    if bang_kernel == #danger_untyped glsl_kernels[kernel_index]
     {
       gl.glUseProgram(glsl_kernel_names[kernel_index])
 
@@ -58,7 +58,7 @@ bang: proc(kernel: kernel_t, data: vec4[]) =
 
     task: threading.thread_pool_task_t =
     {
-      func = kernel,
+      func = bang_kernel,
       start = start,
       end = end,
       data = data

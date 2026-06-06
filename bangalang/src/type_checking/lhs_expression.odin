@@ -1,5 +1,6 @@
 package type_checking
 
+import "core:fmt"
 import "core:slice"
 
 import "../ast"
@@ -61,7 +62,7 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
 {
   if node.allocator == nil
   {
-    node.allocator = ctx.program.identifiers[node.data_type.type == .procedure_type ? "code" : "stack"]
+    node.allocator = ctx.program.identifiers[node.data_type.type == .kernel_type || node.data_type.type == .procedure_type ? "code" : "stack"]
     return true
   }
 
@@ -81,6 +82,7 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
   _, memory_allocator := ast.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
   if !code_allocator && !memory_allocator
   {
+    fmt.println(ast.type_name(ctx.program.identifiers["memory_allocator"]))
     src.print_position_message(node.src_position, "Cannot apply allocator with type '%s'", ast.type_name(node.allocator.data_type))
     return false
   }

@@ -7,7 +7,7 @@ import "core:strings"
 import "../ast"
 import "../src"
 
-complex_primaries: []ast.node_type = { .compound_literal, .enum_type, .procedure_type, .struct_type }
+complex_primaries: []ast.node_type = { .compound_literal, .enum_type, .kernel_type, .procedure_type, .struct_type }
 
 type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
@@ -21,6 +21,12 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
   #partial switch node.type
   {
   case .reference:
+    if ctx.within_kernel
+    {
+      src.print_position_message(node.src_position, "Kernels do not support pointers")
+      return false
+    }
+
     if ast.is_type(node.children[0]) do return true
 
     _, literal := slice.linear_search(ast.literals, node.children[0].type)
@@ -54,6 +60,12 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     node.data_type = child_type_node
   case .dereference:
+    if ctx.within_kernel
+    {
+      src.print_position_message(node.src_position, "Kernels do not support pointers")
+      return false
+    }
+
     child_type_node := node.children[0].data_type
     if child_type_node.type != .reference
     {
@@ -144,7 +156,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
         }
       }
     }
-  case .procedure_type:
+  case .kernel_type, .procedure_type:
     proc_ctx := start_anonymous_scope(ctx)
     defer end_anonymous_scope(ctx, &proc_ctx)
     proc_ctx.within_procedure_type = true
@@ -168,6 +180,46 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
       param_lhs_node.allocator = ctx.program.identifiers["stack"]
 
       type_check_assignment(&proc_ctx, param_node) or_return
+    }
+
+    if node.type == .kernel_type
+    {
+      if len(params_type_node.children) != 2
+      {
+        src.print_position_message(node.src_position, "Kernels must have two parameters")
+        return false
+      }
+
+      if params_type_node.children[0].children[0].data_type.value != "u32"
+      {
+        src.print_position_message(node.src_position, "The first parameter of a kernel must be a 'u32'")
+        return false
+      }
+
+      // TODO is this needed?
+      if params_type_node.children[0].children[0].value != "index"
+      {
+        src.print_position_message(node.src_position, "The first parameter of a kernel must have the name 'index'")
+        return false
+      }
+
+      if !ast.is_slice(params_type_node.children[1].children[0].data_type)
+      {
+        src.print_position_message(node.src_position, "The second parameter of a kernel must be a slice")
+        return false
+      }
+
+      if found_default
+      {
+        src.print_position_message(node.src_position, "Kernel parameters must not have defaults")
+        return false
+      }
+
+      if len(node.children) > 1
+      {
+        src.print_position_message(node.src_position, "Kernels must not have a return type")
+        return false
+      }
     }
 
     if len(node.children) > 1

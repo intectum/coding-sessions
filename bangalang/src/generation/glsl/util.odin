@@ -15,10 +15,7 @@ type_name :: proc(type_node: ^ast.node) -> string
         switch type_node.value
         {
         case "i32": return "int"
-        case "i8", "i16": assert(false, "Unsupported type name")
         }
-    case .procedure_type:
-        assert(false, "Unsupported type name")
     case .subscript:
         if ast.is_array(type_node)
         {
@@ -34,6 +31,8 @@ type_name :: proc(type_node: ^ast.node) -> string
         {
             return type_name(type_node.children[0])
         }
+    case:
+        assert(false, "Unsupported type name")
     }
 
     return type_node.value

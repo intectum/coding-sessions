@@ -14,7 +14,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   type_check_lhs_expression(ctx, lhs_node) or_return
 
-  procedure_definition := is_static_procedure(ctx.program, lhs_node) || (lhs_node.data_type.type == .procedure_type && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := is_static_procedure(ctx.program, lhs_node) || ((lhs_node.type == .kernel_type || lhs_node.type == .procedure_type) && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value
@@ -199,6 +199,12 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       return false
     }
 
+    if ctx.within_kernel && ast.is_slice(lhs_node.data_type)
+    {
+      src.print_position_message(node.src_position, "Kernels do not support slices")
+      return false
+    }
+
     if len(node.children) > 1 && ast.is_type(node.children[2])
     {
       ctx.scope.identifiers[lhs_node.value] = node.children[2]
@@ -212,6 +218,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
   return true
 }
 
+// TODO something more targeted
 contains_non_fixed_array_sizes :: proc(type_node: ^ast.node) -> bool
 {
   if ast.is_array(type_node) && type_node.children[1].type != .number_literal
