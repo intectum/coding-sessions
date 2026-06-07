@@ -18,6 +18,11 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     type_check_primary(ctx, node.children[0]) or_return
   }
 
+  if node.modifier != nil
+  {
+    type_check_modifier(ctx, node.modifier) or_return
+  }
+
   #partial switch node.type
   {
   case .reference:
@@ -75,11 +80,12 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 
     node.data_type = child_type_node.children[0]
   case .subscript:
-    if ast.is_type(node.children[0]) do return true
+    child_node := node.children[0]
+    if ast.is_type(child_node) do return true
 
-    auto_dereference(node.children[0])
+    auto_dereference(child_node)
 
-    child_type_node := node.children[0].data_type
+    child_type_node := child_node.data_type
     if child_type_node.type != .subscript
     {
       src.print_position_message(node.src_position, "Cannot index type '%s'", ast.type_name(child_type_node))
@@ -121,7 +127,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     {
       length := strconv.atoi(child_type_node.children[1].value)
 
-      if child_type_node.directive != "#danger_boundless" && start_expression_node.type == .number_literal && strconv.atoi(start_expression_node.value) >= length
+      if ast.get_modifier(child_node, "#danger_boundless") == nil && start_expression_node.type == .number_literal && strconv.atoi(start_expression_node.value) >= length
       {
         src.print_position_message(node.src_position, "Index %i out of bounds", strconv.atoi(start_expression_node.value))
         return false
@@ -259,7 +265,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     type_check_rhs_expression_1(ctx, node) or_return
   }
 
-  if node.directive == "#danger_untyped"
+  if ast.get_modifier(node, "#danger_untyped") != nil
   {
     node.data_type = ast.make_node({ type = .identifier, value= "[none]" })
   }

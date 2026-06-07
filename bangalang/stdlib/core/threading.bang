@@ -71,7 +71,7 @@ thread_pool_task_t: = struct
   data: vec4[]
 }
 
-thread_pool_t: = #align4 struct
+thread_pool_t: = #align=4 struct
 {
   worker_count: u32,
   current_worker_count: u32,

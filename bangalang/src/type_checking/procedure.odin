@@ -37,11 +37,17 @@ type_check_procedure :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
       return false
     }
 
-    type_check_statements(ctx, rhs_node.children[:]) or_return
-
     if operator_node.type != .assign
     {
       src.print_position_message(operator_node.src_position, "Assignment operator '%s' is not valid for declarations", operator_node.value)
+      return false
+    }
+
+    type_check_statements(ctx, rhs_node.children[:]) or_return
+
+    if len(lhs_type_node.children) > 1 && !ctx.found_return
+    {
+      src.print_position_message(node.src_position, "Procedure '%s' must return a value", lhs_node.value)
       return false
     }
   }

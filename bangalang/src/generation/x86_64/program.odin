@@ -212,13 +212,13 @@ generate_static_vars :: proc(ctx: ^generation.gen_context)
     }
     else
     {
-      lhs_type_node := lhs_node.data_type
-      if lhs_node.directive == "#align4" || lhs_type_node.directive == "#align4"
+      alignment := ast.get_modifier(lhs_node, "#align")
+      if alignment != nil
       {
-        fmt.sbprintln(&ctx.output, "  align 4")
+        fmt.sbprintfln(&ctx.output, "  align %s", alignment.children[0].value)
       }
 
-      size := to_byte_size(lhs_type_node)
+      size := to_byte_size(lhs_node.data_type)
       fmt.sbprintfln(&ctx.output, "  %s: times %i db 0", static_var_name, size)
     }
   }

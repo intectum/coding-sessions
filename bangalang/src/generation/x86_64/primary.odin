@@ -69,7 +69,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
     start_expression_location = copy_to_register(ctx, start_expression_location, register_num + 1, start_expression_type_node)
     start_expression_location = convert(ctx, start_expression_location, register_num + 1, start_expression_type_node, index_type_node)
 
-    if start_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
+    if start_expression_node.type != .nil_literal && ast.get_modifier(node, "#danger_boundless") == nil
     {
       fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(start_expression_location), to_operand(child_length_location))
       fmt.sbprintln(&ctx.output, "  jae panic_out_of_bounds ; panic!")
@@ -119,7 +119,7 @@ generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node, register
       fmt.sbprintfln(&ctx.output, "  mov %s, %s ; copy", to_operand(slice_length_location), to_operand(end_expression_location))
       fmt.sbprintfln(&ctx.output, "  sub %s, %s ; subtract", to_operand(slice_length_location), to_operand(start_expression_location))
 
-      if end_expression_node.type != .nil_literal && type_node.directive != "#danger_boundless"
+      if end_expression_node.type != .nil_literal && ast.get_modifier(node, "#danger_boundless") == nil
       {
         fmt.sbprintfln(&ctx.output, "  cmp %s, %s ; compare", to_operand(end_expression_location), to_operand(child_length_location))
         fmt.sbprintln(&ctx.output, "  ja panic_out_of_bounds ; panic!")

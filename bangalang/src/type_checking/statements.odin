@@ -97,6 +97,12 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       return false
     }
 
+    if ctx.found_return
+    {
+      src.print_position_message(statement.src_position, "Statement cannot be reached")
+      return false
+    }
+
     if !type_check_statement(ctx, statement)
     {
       failures = true

@@ -51,19 +51,9 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
 
 type_check_rhs_expression_1 :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
-  _, binary_operator := slice.linear_search(ast.binary_operators, node.type)
-  if !binary_operator
+  if !slice.contains(ast.binary_operators, node.type)
   {
-    type_node := node.data_type
-    directive := node.directive != "" ? node.directive : (type_node != nil ? type_node.directive : "")
-    type_check_primary(ctx, node) or_return
-
-    if node.data_type != nil && directive != ""
-    {
-      node.data_type.directive = directive
-    }
-
-    return true
+    return type_check_primary(ctx, node)
   }
 
   lhs_node := node.children[0]

@@ -23,7 +23,7 @@ auto_dereference :: proc(node: ^ast.node)
   node.data_type = type_node.children[0]
 
   // TODO not sure if this best, propagates #danger_boundless
-  node.data_type.directive = type_node.directive
+  node.data_type.modifier = type_node.modifier
 }
 
 swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }

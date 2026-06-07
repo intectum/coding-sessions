@@ -20,17 +20,17 @@ parse_primary :: proc(stream: ^tokens.stream, type: primary_type) -> (node: ^ast
 
   #partial switch tokens.peek_token(stream).type
   {
-  case .directive:
+  case .modifier:
     if type == .lhs
     {
       stream.error = src.to_position_message(node.src_position, "A left-hand-side primary cannot contain a directive")
       return {}, false
     }
 
-    directive := (tokens.next_token(stream, .directive) or_return).value
+    modifier := parse_modifier(stream) or_return
 
     node = parse_primary(stream, type) or_return
-    node.directive = directive
+    node.modifier = modifier
   case .hat:
     if type == .lhs
     {

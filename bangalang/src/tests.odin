@@ -1343,6 +1343,8 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
 run_test :: proc(name: string, code: string) -> bool
 {
-  build(name, code, "bin/test")
+  main_code := fmt.aprintf("main: proc() = {{%s}}", code)
+
+  build(name, main_code, "bin/test")
   return exec("bin/test") == 0
 }

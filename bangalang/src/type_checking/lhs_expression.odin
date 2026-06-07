@@ -22,14 +22,15 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
       type_check_primary(ctx, node.data_type) or_return
     }
 
-    if ast.is_array(node.data_type) && node.data_type.directive == "#soa"
+    if ast.is_array(node.data_type) && ast.get_modifier(node, "#soa") != nil
     {
       child_type_node := node.data_type.children[0]
       if child_type_node.type == .struct_type
       {
         length_expression_node := node.data_type.children[1]
 
-        new_type_node := ast.make_node({ type = .struct_type, directive = "#soa" })
+        new_type_node := ast.make_node({ type = .struct_type })
+        new_type_node.modifier = ast.make_node({ type = .identifier, value = "#soa" })
 
         for member_node in child_type_node.children
         {
@@ -48,6 +49,18 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
     }
 
     type_check_allocator(ctx, node) or_return
+
+    if node.modifier != nil
+    {
+      type_check_modifier(ctx, node.modifier) or_return
+    }
+
+    alignment := ast.get_modifier(node, "#align")
+    if alignment != nil && node.allocator == ctx.program.identifiers["stack"]
+    {
+      src.print_position_message(node.src_position, "Cannot align a stack allocated value")
+      return false
+    }
   }
   else
   {

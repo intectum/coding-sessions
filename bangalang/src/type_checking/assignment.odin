@@ -14,7 +14,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
   type_check_lhs_expression(ctx, lhs_node) or_return
 
-  procedure_definition := is_static_procedure(ctx.program, lhs_node) || ((lhs_node.type == .kernel_type || lhs_node.type == .procedure_type) && len(node.children) > 1 && node.children[2].type == .scope_statement)
+  procedure_definition := is_static_procedure(ctx.program, lhs_node) || ((lhs_node.data_type.type == .kernel_type || lhs_node.data_type.type == .procedure_type) && len(node.children) > 1 && node.children[2].type == .scope_statement)
   if procedure_definition
   {
     name := lhs_node.value
@@ -164,7 +164,8 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       operator_node := ast.make_node({ type = .assign, value = "=" })
       append(&node.children, operator_node)
 
-      allocator_node := ast.make_node({ type = .call, directive = "#danger_untyped" })
+      allocator_node := ast.make_node({ type = .call })
+      allocator_node.modifier = ast.make_node({ type = .identifier, value = "#danger_untyped" })
       append(&allocator_node.children, ast.clone_node(lhs_node.allocator))
 
       if ast.is_slice(lhs_node.data_type)

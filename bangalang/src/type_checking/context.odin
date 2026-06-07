@@ -8,6 +8,7 @@ type_checking_context :: struct
   scope: ^ast.scope,
 
   next_index: int,
+  found_return: bool,
 
   within_entry_module: bool,
   within_kernel: bool,
@@ -29,6 +30,7 @@ start_anonymous_scope := proc(parent_ctx: ^type_checking_context) -> type_checki
 end_anonymous_scope := proc(parent_ctx: ^type_checking_context, ctx: ^type_checking_context)
 {
   parent_ctx.next_index = ctx.next_index
+  parent_ctx.found_return = ctx.found_return
 
   delete(ctx.scope.identifiers)
   free(ctx.scope)

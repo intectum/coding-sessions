@@ -166,11 +166,11 @@ print_node :: proc(output: ^strings.Builder, root: ^node, indentations: int)
     fmt.sbprintln(output, "  \"allocator\":")
     print_node(output, root.allocator, indentations + 1)
   }
-  if root.directive != ""
+  if root.modifier != nil
   {
     fmt.sbprintln(output, ",")
     print_indentations(output, indentations)
-    fmt.sbprintf(output, "  \"valdirectiveue\": \"%s\"", root.directive)
+    fmt.sbprintf(output, "  \"modifier\": \"%s\"", root.modifier.value)
   }
   if len(root.children) > 0
   {
@@ -272,6 +272,13 @@ is_slice :: proc(type: ^node) -> bool
   return type.type == .subscript && type.children[1].type == .range && is_type(type)
 }
 
+get_modifier :: proc(identifier: ^node, modifier: string, check_data_type := true) -> ^node
+{
+  if identifier.modifier != nil && identifier.modifier.value == modifier do return identifier.modifier
+  if check_data_type && identifier.data_type != nil && identifier.data_type.modifier != nil && identifier.data_type.modifier.value == modifier do return identifier.data_type.modifier
+  return nil
+}
+
 to_node :: proc(token: tokens.token) -> ^node
 {
   return make_node({
@@ -357,7 +364,7 @@ get_declaration :: proc(root: ^scope, scope: ^scope, identifier: ^node) -> (^nod
     if !(identifier.value in imported_module.identifiers) do return nil, {}
 
     declaration := imported_module.identifiers[identifier.value]
-    if declaration.directive == "#private" do return nil, {}
+    if get_modifier(declaration, "#private", false) != nil do return nil, {}
 
     return declaration, imported_module_path[:]
   }
@@ -517,7 +524,7 @@ type_name :: proc(type_node: ^node) -> string
 {
   assert(is_type(type_node), "Invalid type")
 
-  prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, " " }) : ""
+  prefix := type_node.modifier != nil ? strings.concatenate({ type_node.modifier.value, "=", len(type_node.modifier.children) > 0 ? type_node.modifier.children[0].value : "", " " }) : ""
 
   #partial switch type_node.type
   {
@@ -588,7 +595,7 @@ type_var_name :: proc(type_node: ^node) -> string
 {
   assert(is_type(type_node), "Invalid type")
 
-  prefix := type_node.directive != "" ? strings.concatenate({ type_node.directive, "." }) : ""
+  prefix := type_node.modifier != nil ? strings.concatenate({ type_node.modifier.value, "$", len(type_node.modifier.children) > 0 ? type_node.modifier.children[0].value : "", "." }) : ""
 
   #partial switch type_node.type
   {

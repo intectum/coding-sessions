@@ -172,7 +172,7 @@ tokenize :: proc(name: string, code: string) -> ([dynamic]tokens.token, bool)
         src.next_rune(&stream)
       }
 
-      token := tokens.token { .directive, code[initial_stream.next_index:stream.next_index], initial_stream.position }
+      token := tokens.token { .modifier, code[initial_stream.next_index:stream.next_index], initial_stream.position }
       append(&result, token)
     }
     else if src.peek_rune(&stream) == '$'

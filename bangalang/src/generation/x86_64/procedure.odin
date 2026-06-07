@@ -31,8 +31,11 @@ generate_procedure :: proc(ctx: ^generation.gen_context, node: ^ast.node)
   rhs_node := node.children[2]
   generate_statement(ctx, rhs_node)
 
-  // Account for the instruction pointer pushed to the stack by 'call'
-  ctx.stack_size -= address_size
-  deallocate_stack(ctx, ctx.stack_size)
-  fmt.sbprintln(&ctx.output, "  ret ; default return")
+  if len(lhs_type_node.children) == 1
+  {
+    // Account for the instruction pointer pushed to the stack by 'call'
+    ctx.stack_size -= address_size
+    deallocate_stack(ctx, ctx.stack_size)
+    fmt.sbprintln(&ctx.output, "  ret ; default return")
+  }
 }

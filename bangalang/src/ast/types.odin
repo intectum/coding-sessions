@@ -25,7 +25,7 @@ node :: struct
   value: string,
   data_type: ^node,
   allocator: ^node,
-  directive: string, // TODO as node?
+  modifier: ^node,
   children: [dynamic]^node,
   src_position: src.position
 }

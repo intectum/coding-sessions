@@ -6,10 +6,10 @@ import "../tokens"
 
 parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: bool)
 {
-  directive: string
-  if tokens.peek_token(stream).type == .directive
+  modifier: ^ast.node
+  if tokens.peek_token(stream).type == .modifier
   {
-    directive = (tokens.next_token(stream, .directive) or_return).value
+    modifier = parse_modifier(stream) or_return
   }
 
   identifier_token, identifier_ok := tokens.next_token(stream, .identifier)
@@ -20,7 +20,7 @@ parse_lhs_declaration :: proc(stream: ^tokens.stream) -> (node: ^ast.node, ok: b
   }
 
   node = ast.to_node(identifier_token)
-  node.directive = directive
+  node.modifier = modifier
 
   colon_token, colon_ok := tokens.next_token(stream, .colon)
   if !colon_ok
