@@ -12,7 +12,7 @@ import "../src"
 
 lib_locations: []string =
 {
-  strings.concatenate({ filepath.dir(filepath.dir(os.args[0])), "/stdlib" }),
+  strings.concatenate({ filepath.dir(os.args[0]), "/stdlib" }),
   "lib"
 }
 
@@ -85,8 +85,18 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
   }
 
   failures := false
-  for statement in statements
+  for statement, index in statements
   {
+    if
+      len(ctx.scope.path) == 2 &&
+      (statement.type != .assignment_statement || statement.children[0].data_type == nil) &&
+      !(index == len(statements) - 1 && statement.type == .call && !ast.is_member(statement.children[0]) && statement.children[0].value == "main") &&
+      !(statement.type == .call && !ast.is_member(statement.children[0]) && slice.contains([]string { "import", "link" }, statement.children[0].value))
+    {
+      src.print_position_message(statement.src_position, "A module-level statement must be declaration")
+      return false
+    }
+
     if !type_check_statement(ctx, statement)
     {
       failures = true

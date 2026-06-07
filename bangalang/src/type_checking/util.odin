@@ -4,8 +4,6 @@ import "core:slice"
 
 import "../ast"
 
-queue: [dynamic][dynamic]string
-
 auto_dereference :: proc(node: ^ast.node)
 {
   type_node := node.data_type

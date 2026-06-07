@@ -356,10 +356,10 @@ get_declaration :: proc(root: ^scope, scope: ^scope, identifier: ^node) -> (^nod
     imported_module := get_scope(root, imported_module_path[:])
     if !(identifier.value in imported_module.identifiers) do return nil, {}
 
-    identifier_node := imported_module.identifiers[identifier.value]
-    if identifier_node.directive == "#private" do return nil, {}
+    declaration := imported_module.identifiers[identifier.value]
+    if declaration.directive == "#private" do return nil, {}
 
-    return identifier_node, imported_module_path[:]
+    return declaration, imported_module_path[:]
   }
 
   if identifier.value in scope.identifiers
@@ -374,10 +374,10 @@ get_declaration :: proc(root: ^scope, scope: ^scope, identifier: ^node) -> (^nod
 
     if identifier.value in current.identifiers
     {
-      identifier_node := current.identifiers[identifier.value]
-      if path_length == len(scope.path) || is_visible_in_nested_proc(root, identifier_node)
+      declaration := current.identifiers[identifier.value]
+      if path_length == len(scope.path) || is_visible_in_nested_proc(root, declaration)
       {
-        return identifier_node, path
+        return declaration, path
       }
     }
   }

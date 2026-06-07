@@ -7,95 +7,98 @@ gl: = import("gl", "vendor")
 
 util: = import("examples/util")
 
-glfw.glfwInit()
-window: = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
-glfw.glfwMakeContextCurrent(window)
-glfw.glfwSwapInterval(0)
-
-boomstick.init()
-
-vertex_shader_src: = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
-vertex_shader_name: = util.compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src)
-
-fragment_shader_src: = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
-fragment_shader_name: = util.compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
-
-program_name: = util.link_shaders(vertex_shader_name, fragment_shader_name)
-
-triangle_count_1d: u32 = 64
-triangle_count: = triangle_count_1d * triangle_count_1d
-triangle_size: = 2 / f32(triangle_count_1d)
-vertex_count: = triangle_count * 3
-
-triangle_data: vec4[u64(vertex_count)]@gl.heap
-
-vertex_index: u32
-for x: u32, x < triangle_count_1d, x += 1
+main: proc() =
 {
-  for y: u32, y < triangle_count_1d, y += 1
+  glfw.glfwInit()
+  window: = glfw.glfwCreateWindow(1920, 1080, "Bangalang", nil, nil)
+  glfw.glfwMakeContextCurrent(window)
+  glfw.glfwSwapInterval(0)
+
+  boomstick.init()
+
+  vertex_shader_src: = "#version 460 core\nin vec3 position; void main() { gl_Position = vec4(position, 1.0); }"
+  vertex_shader_name: = util.compile_shader(gl.GL_VERTEX_SHADER, vertex_shader_src)
+
+  fragment_shader_src: = "#version 460 core\nout vec4 color; void main() { color = vec4(1.0); }"
+  fragment_shader_name: = util.compile_shader(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
+
+  program_name: = util.link_shaders(vertex_shader_name, fragment_shader_name)
+
+  triangle_count_1d: u32 = 64
+  triangle_count: = triangle_count_1d * triangle_count_1d
+  triangle_size: = 2 / f32(triangle_count_1d)
+  vertex_count: = triangle_count * 3
+
+  triangle_data: vec4[u64(vertex_count)]@gl.heap
+
+  vertex_index: u32
+  for x: u32, x < triangle_count_1d, x += 1
   {
-    left: = -1 + triangle_size * f32(x)
-    bottom: = -1 + triangle_size * f32(y)
+    for y: u32, y < triangle_count_1d, y += 1
+    {
+      left: = -1 + triangle_size * f32(x)
+      bottom: = -1 + triangle_size * f32(y)
 
-    triangle_data[vertex_index][0] = left + triangle_size * 0.5
-    triangle_data[vertex_index][1] = bottom + triangle_size
-    triangle_data[vertex_index][2] = 0
-    vertex_index += 1
+      triangle_data[vertex_index][0] = left + triangle_size * 0.5
+      triangle_data[vertex_index][1] = bottom + triangle_size
+      triangle_data[vertex_index][2] = 0
+      vertex_index += 1
 
-    triangle_data[vertex_index][0] = left
-    triangle_data[vertex_index][1] = bottom
-    triangle_data[vertex_index][2] = 0
-    vertex_index += 1
+      triangle_data[vertex_index][0] = left
+      triangle_data[vertex_index][1] = bottom
+      triangle_data[vertex_index][2] = 0
+      vertex_index += 1
 
-    triangle_data[vertex_index][0] = left + triangle_size
-    triangle_data[vertex_index][1] = bottom
-    triangle_data[vertex_index][2] = 0
-    vertex_index += 1
+      triangle_data[vertex_index][0] = left + triangle_size
+      triangle_data[vertex_index][1] = bottom
+      triangle_data[vertex_index][2] = 0
+      vertex_index += 1
+    }
   }
-}
-
-gl.glUseProgram(program_name) util.check_opengl_error()
-
-gl.glBindBuffer(gl.GL_ARRAY_BUFFER, gl.buffer_names[0])
-gl.glEnableVertexAttribArray(0) util.check_opengl_error()
-gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) util.check_opengl_error()
-
-fps_time: = os.time()
-frame_count: u64
-
-move_triangles: boomstick.kernel_t@gl.compute_shader =
-  do data[index] += { 0.0001, 0.0001, 0, 0 }
-
-for glfw.glfwWindowShouldClose(window) == 0
-{
-  glfw.glfwPollEvents()
-  glfw.glfwSwapBuffers(window)
-
-  /*for index: i32, index < i32(triangle_data.length), index += 1
-    do move_triangles(index, triangle_data)*/
-
-  boomstick.bang(move_triangles, triangle_data)
-
-  sync: = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) util.check_opengl_error()
-  gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) util.check_opengl_error()
-  gl.glClientWaitSync(sync, 0, 1000 * 1000 * 1000) util.check_opengl_error()
-  gl.glDeleteSync(sync)
 
   gl.glUseProgram(program_name) util.check_opengl_error()
 
-  gl.glClear(gl.GL_COLOR_BUFFER_BIT) util.check_opengl_error()
-  gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) util.check_opengl_error()
+  gl.glBindBuffer(gl.GL_ARRAY_BUFFER, gl.buffer_names[0])
+  gl.glEnableVertexAttribArray(0) util.check_opengl_error()
+  gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, false, 4 * 4, nil) util.check_opengl_error()
 
-  time: = os.time()
-  if time > fps_time + 1000000
+  fps_time: = os.time()
+  frame_count: u64
+
+  move_triangles: boomstick.kernel_t@gl.compute_shader =
+    do data[index] += { 0.0001, 0.0001, 0, 0 }
+
+  for glfw.glfwWindowShouldClose(window) == 0
   {
-    string_buf: byte[100]
-    strings.print("FPS: ")
-    strings.println(strings.itoa(frame_count, string_buf[]))
+    glfw.glfwPollEvents()
+    glfw.glfwSwapBuffers(window)
 
-    frame_count = 0
-    fps_time = time
+    /*for index: i32, index < i32(triangle_data.length), index += 1
+      do move_triangles(index, triangle_data)*/
+
+    boomstick.bang(move_triangles, triangle_data)
+
+    sync: = gl.glFenceSync(gl.GL_SYNC_GPU_COMMANDS_COMPLETE, 0) util.check_opengl_error()
+    gl.glClientWaitSync(sync, gl.GL_SYNC_FLUSH_COMMANDS_BIT, 0) util.check_opengl_error()
+    gl.glClientWaitSync(sync, 0, 1000 * 1000 * 1000) util.check_opengl_error()
+    gl.glDeleteSync(sync)
+
+    gl.glUseProgram(program_name) util.check_opengl_error()
+
+    gl.glClear(gl.GL_COLOR_BUFFER_BIT) util.check_opengl_error()
+    gl.glDrawArrays(gl.GL_TRIANGLES, 0, i32(vertex_count)) util.check_opengl_error()
+
+    time: = os.time()
+    if time > fps_time + 1000000
+    {
+      string_buf: byte[100]
+      strings.print("FPS: ")
+      strings.println(strings.itoa(frame_count, string_buf[]))
+
+      frame_count = 0
+      fps_time = time
+    }
+
+    frame_count += 1
   }
-
-  frame_count += 1
 }

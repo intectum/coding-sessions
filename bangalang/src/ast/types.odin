@@ -88,6 +88,8 @@ node_type :: enum
   switch_
 }
 
+core_globals_path: []string = { "core", "globals" }
+
 statements: []node_type = { .assignment_statement, .basic_for_statement, .break_statement, .continue_statement, .if_statement, .ranged_for_statement, .return_statement, .scope_statement }
 binary_operators: []node_type = { .add, .and, .bitwise_and, .bitwise_or, .divide, .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .modulo, .multiply, .not_equal, .or, .subtract }
 comparison_operators: []node_type = { .equal, .greater_than, .greater_than_or_equal, .less_than, .less_than_or_equal, .not_equal }

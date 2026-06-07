@@ -8,13 +8,13 @@ type_checking_context :: struct
   scope: ^ast.scope,
 
   next_index: int,
+
+  within_entry_module: bool,
   within_kernel: bool,
   within_for: bool,
   within_procedure_type: bool,
   within_struct_type: bool
 }
-
-core_globals_path: []string = { "core", "globals" }
 
 start_anonymous_scope := proc(parent_ctx: ^type_checking_context) -> type_checking_context
 {

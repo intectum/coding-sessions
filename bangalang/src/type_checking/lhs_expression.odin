@@ -60,16 +60,29 @@ type_check_lhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node) 
 core_allocator_names: []string = { "code", "extern", "none", "stack", "static" }
 type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
 {
+  procedure_type := node.data_type.type == .kernel_type || node.data_type.type == .procedure_type
+
   if node.allocator == nil
   {
-    node.allocator = ctx.program.identifiers[node.data_type.type == .kernel_type || node.data_type.type == .procedure_type ? "code" : "stack"]
+    node.allocator = ctx.program.identifiers[procedure_type ? "code" : (len(ctx.scope.path) == 2 ? "static" : "stack")]
     return true
   }
 
   if node.allocator.type == .identifier && !ast.is_member(node.allocator)
   {
-    _, core_allocator := slice.linear_search(core_allocator_names, node.allocator.value)
-    if core_allocator
+    if !procedure_type && node.allocator.value == "code"
+    {
+      src.print_position_message(node.src_position, "Cannot apply a code allocator to type '%s'", ast.type_name(node.data_type))
+      return false
+    }
+
+    if len(ctx.scope.path) == 2 && node.allocator.value == "stack" && !ctx.within_procedure_type
+    {
+      src.print_position_message(node.src_position, "Cannot apply a stack allocator to a module-level value")
+      return false
+    }
+
+    if slice.contains(core_allocator_names, node.allocator.value)
     {
       node.allocator = ctx.program.identifiers[node.allocator.value]
       return true
@@ -80,9 +93,21 @@ type_check_allocator :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bo
 
   _, code_allocator := ast.coerce_type(node.allocator.data_type, ctx.program.identifiers["code_allocator"])
   _, memory_allocator := ast.coerce_type(node.allocator.data_type, ctx.program.identifiers["memory_allocator"])
+
+  if node.data_type.type != .kernel_type && code_allocator
+  {
+    src.print_position_message(node.src_position, "Custom code allocators can only be applied to kernels")
+    return false
+  }
+
+  if len(ctx.scope.path) == 2 && memory_allocator
+  {
+    src.print_position_message(node.src_position, "Cannot apply a memory allocator to a module-level value")
+    return false
+  }
+
   if !code_allocator && !memory_allocator
   {
-    fmt.println(ast.type_name(ctx.program.identifiers["memory_allocator"]))
     src.print_position_message(node.src_position, "Cannot apply allocator with type '%s'", ast.type_name(node.allocator.data_type))
     return false
   }

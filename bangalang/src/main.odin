@@ -3,6 +3,7 @@ package main
 import "core:c/libc"
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import "core:sys/linux"
@@ -12,6 +13,7 @@ import "./generation"
 import "./generation/json"
 import "./generation/kernels"
 import "./generation/x86_64"
+import "./loading"
 import "./type_checking"
 
 help_flags: []string = { "-h", "--help" }
@@ -132,7 +134,7 @@ main :: proc()
       os.exit(1)
     }
 
-    run(input, string(code_data), fmt.aprintf("bin/%s", input))
+    run(input, string(code_data), fmt.aprintf("./bin/%s", input))
   case:
     assert(false, "Unsupported command")
   }
@@ -147,6 +149,8 @@ run :: proc(name: string, code: string, out_path: string)
 
 build :: proc(name: string, code: string, out_path: string, target := "x86_64")
 {
+  os.make_directory(filepath.dir(out_path))
+
   switch target
   {
   case "json":
@@ -190,33 +194,64 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   program: ast.scope
   ast.init_root(&program)
 
-  globals_data, globals_ok := os.read_entire_file("stdlib/core/globals.bang")
+  globals_data, globals_ok := os.read_entire_file(fmt.aprintf("%s/stdlib/core/globals.bang", filepath.dir(os.args[0])))
   if !globals_ok
   {
     fmt.println("Failed to read globals module file")
     os.exit(1)
   }
 
-  globals_path: []string = { "core", "globals" }
-  if !type_checking.type_check_program(&program, globals_path, string(globals_data))
+  if !loading.load_module(&program, ast.core_globals_path, string(globals_data))
   {
     os.exit(1)
   }
 
-  globals_module := ast.get_scope(&program, globals_path)
-  for identifier in globals_module.identifiers
+  type_checking_ctx: type_checking.type_checking_context =
+  {
+    program = &program,
+    scope = ast.get_scope(&program, ast.core_globals_path)
+  }
+
+  if !type_checking.type_check_statements(&type_checking_ctx, type_checking_ctx.scope.statements[:])
+  {
+    os.exit(1)
+  }
+
+  for identifier in type_checking_ctx.scope.identifiers
   {
     if identifier == "import"
     {
-      identifier_node := globals_module.identifiers[identifier]
-      append(&identifier_node.data_type.children, ast.make_node({ type = .module_type }))
+      import_declaration := type_checking_ctx.scope.identifiers[identifier]
+      append(&import_declaration.data_type.children, ast.make_node({ type = .module_type }))
     }
 
-    program.identifiers[identifier] = globals_module.identifiers[identifier]
+    program.identifiers[identifier] = type_checking_ctx.scope.identifiers[identifier]
   }
 
   path: []string = { "[main]", name }
-  if !type_checking.type_check_program(&program, path, code)
+  if !loading.load_module(&program, path, code)
+  {
+    os.exit(1)
+  }
+
+  type_checking_ctx.scope = ast.get_scope(&program, path)
+  type_checking_ctx.within_entry_module = true
+
+  call_main, call_main_ok := loading.load_code(name, "main()")
+  if !call_main_ok
+  {
+    fmt.println("Failed to load call to main")
+    os.exit(1)
+  }
+
+  append(&type_checking_ctx.scope.statements, call_main[0])
+
+  if !type_checking.type_check_statements(&type_checking_ctx, type_checking_ctx.scope.statements[:])
+  {
+    os.exit(1)
+  }
+
+  if !type_checking.type_check_queue(&program)
   {
     os.exit(1)
   }

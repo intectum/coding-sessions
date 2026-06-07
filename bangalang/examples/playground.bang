@@ -1,52 +1,55 @@
 os: = import("os", "core")
 strings: = import("strings", "core")
 
-buf: byte[8]
-
-for value, index in 0..10
-  do strings.println(strings.itoa(value + i64(index), buf[]))
-
-foo: vec4 = { 2, 4, 6, 8 }
-for ^value, index in foo
-  do strings.println(strings.itoa(value^ + f32(index), buf[]))
-
-strings.println(strings.itoa(vec4.size, buf[]))
-strings.println(vec4.name)
-strings.println(strings.itoa(u8.max, buf[]))
-strings.println(strings.itoa(i8.min, buf[]))
-
-ints: i64[10]@os.heap
-ints[3] = 42
-strings.println(strings.itoa(ints[3], buf[]))
-
-my_enum: = enum { foo, bar }
-bar: = my_enum.bar
-if bar == my_enum.bar do strings.println("equal")
-
-return_me: proc(me: $T) -> $T =
+main: proc() =
 {
-  test: $T = 43
-  return me
+  buf: byte[8]
+
+  for value, index in 0..10
+    do strings.println(strings.itoa(value + i64(index), buf[]))
+
+  foo: vec4 = { 2, 4, 6, 8 }
+  for ^value, index in foo
+    do strings.println(strings.itoa(value^ + f32(index), buf[]))
+
+  strings.println(strings.itoa(vec4.size, buf[]))
+  strings.println(vec4.name)
+  strings.println(strings.itoa(u8.max, buf[]))
+  strings.println(strings.itoa(i8.min, buf[]))
+
+  ints: i64[10]@os.heap
+  ints[3] = 42
+  strings.println(strings.itoa(ints[3], buf[]))
+
+  my_enum: = enum { foo, bar }
+  bar: = my_enum.bar
+  if bar == my_enum.bar do strings.println("equal")
+
+  return_me: proc(me: $T) -> $T =
+  {
+    test: $T = 43
+    return me
+  }
+
+  strings.println(strings.itoa(return_me(u8(42)), buf[]))
+  strings.println(strings.itoa(return_me(u64(42)), buf[]))
+
+  big_struct: struct { a: u8, b: u8, c: u8, d: u8, e: u8 } = { c = 42 }
+  my_slice: u8[] = { raw = ^big_struct.a, length = 5 }
+  my_slice2: u8[] = { 1 + 1, 4, 3 }
+
+  recursive_struct: = struct { a: u64, memba: ^recursive_struct }
+
+  struct_a: = struct { a: u64, memba: ^struct_b }
+  struct_b: = struct { a: u64, memba: struct_a }
+
+  //f: = my_slice2[1:7]
+  //os.exit(f[0])
+
+  // TODO sometimes does not trigger panic (above works fine)!
+  // os.exit(my_slice2[1:7][0])
+
+  my_array: u8[10]
+  blah: = my_array[5]
+  my_uint: u8 = 1
 }
-
-strings.println(strings.itoa(return_me(u8(42)), buf[]))
-strings.println(strings.itoa(return_me(u64(42)), buf[]))
-
-big_struct: struct { a: u8, b: u8, c: u8, d: u8, e: u8 } = { c = 42 }
-my_slice: u8[] = { raw = ^big_struct.a, length = 5 }
-my_slice2: u8[] = { 1 + 1, 4, 3 }
-
-recursive_struct: = struct { a: u64, memba: ^recursive_struct }
-
-struct_a: = struct { a: u64, memba: ^struct_b }
-struct_b: = struct { a: u64, memba: struct_a }
-
-//f: = my_slice2[1:7]
-//os.exit(f[0])
-
-// TODO sometimes does not trigger panic (above works fine)!
-// os.exit(my_slice2[1:7][0])
-
-my_array: u8[10]
-blah: = my_array[5]
-my_uint: u8 = 1
