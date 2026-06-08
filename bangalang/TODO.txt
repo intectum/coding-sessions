@@ -1,25 +1,24 @@
 bugs/issues
 
 - TEST EVERYTHING! including glsl
+- negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
 - glsl nilify
 - glsl static vars
 - glsl prevent calling in non-boomstick context
 - bounds checking kernels
-- negative tests (return errors from compile, fail if they are wrong messages, make for all error messages)
+- calling procs from kernels
 - check all TODOs
 - switch only generate expression_node once
 - auto-convert dynamic array sizes
 - dynamically sized soa
-- check if param names must match...
 - think through parsing messages
 - deferred type resolution
-- calling procs from kernels
 - asm/glsl indenting etc.
 - unify expression/assignment code, more efficient locations
 - x86 asm review
 - delete dynamic arrays/maps etc. in compiler after use
 - removed _node from vars in compiler
-- intermediaries and out compiler params
+- add expression to return in type checking
 
 dev tools
 

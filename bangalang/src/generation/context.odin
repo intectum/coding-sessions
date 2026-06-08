@@ -18,7 +18,6 @@ gen_context :: struct
   output: strings.Builder
 }
 
-// TODO why is this never used?
 copy_context := proc(ctx: ^gen_context) -> gen_context
 {
   ctx_copy := ctx^

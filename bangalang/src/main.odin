@@ -16,62 +16,117 @@ import "./generation/x86_64"
 import "./loading"
 import "./type_checking"
 
-help_flags: []string = { "-h", "--help" }
 commands: []string = { "build", "health-check", "run" }
+commands_with_input: []string = { "build", "run" }
 targets: []string = { "json", "kernels", "x86_64" }
+default_target := "x86_64"
 
 main :: proc()
 {
-  command := len(os.args) > 1 ? os.args[1] : ""
-  _, is_valid_command := slice.linear_search(commands, command)
+  command_options: map[string][]string
+  command_options["build"] = { "help", "intermediaries", "out", "target" }
+  command_options["health-check"] = {}
+  command_options["run"] = { "help", "intermediaries", "out" }
 
-  if !is_valid_command
+  command: string
+  input: string
+
+  options: map[string]string
+
+  for arg in os.args[1:]
   {
-    _, is_help_flag := slice.linear_search(help_flags, command)
-    if !is_help_flag
+    if command == ""
     {
-      fmt.printfln("[bangc] <command> is required to be one of %s.", commands)
-      fmt.println("")
+      if slice.contains([]string { "-h", "--help" }, command)
+      {
+        fmt.println("Usage: bangc <command>")
+        fmt.println("")
+        fmt.printfln("  <command>  Possible values include: %s. See 'bangc <command> --help' for more details about the commands.", commands)
+        os.exit(0)
+      }
+
+      command = arg
+    }
+    else if input == "" && slice.contains(commands_with_input, command)
+    {
+      if strings.has_prefix(arg, "-")
+      {
+        fmt.printfln("[bangc] Invalid input '%s'", arg)
+        os.exit(1)
+      }
+
+      input = arg
+    }
+    else if strings.has_prefix(arg, "-")
+    {
+      split_arg := strings.split(arg, "=")
+
+      switch split_arg[0]
+      {
+      case "-h", "--help": options["help"] = "true"
+      case "--intermediaries": options["intermediaries"] = "true"
+      case "-o", "--out": options["out"] = split_arg[1]
+      case "-t", "--target": options["target"] = split_arg[1]
+      case:
+        fmt.printfln("[bangc] Invalid argument '%s'", arg)
+        os.exit(1)
+      }
+    }
+    else
+    {
+      fmt.printfln("[bangc] Invalid argument '%s'", arg)
+      os.exit(1)
+    }
+  }
+
+  if !slice.contains(commands, command)
+  {
+    fmt.printfln("[bangc] <command> is required to be one of %s.", commands)
+    os.exit(1)
+  }
+
+  if input == "" && slice.contains(commands_with_input, command)
+  {
+    fmt.printfln("[bangc:%s] <input> is required.", command)
+    os.exit(1)
+  }
+
+  for option in options
+  {
+    if !slice.contains(command_options[command], option)
+    {
+      fmt.printfln("[bangc:%s] Invalid option '%s'", command, option)
+      os.exit(1)
+    }
+  }
+
+  if slice.contains(command_options[command], "target")
+  {
+    if !("target" in options)
+    {
+      options["target"] = default_target
     }
 
-    fmt.println("Usage: bangc <command>")
-    fmt.println("")
-    fmt.printfln("  <command>  Possible values include: %s. See 'bangc <command> --help' for more details about the commands.", commands)
+    if !slice.contains(targets, options["target"])
+    {
+      fmt.printfln("[bangc:%s] <target> is required to be one of %s.", command, targets)
+      os.exit(1)
+    }
+  }
 
-    os.exit(is_help_flag ? 0 : 1)
+  if slice.contains(command_options[command], "out")
+  {
+    if !("out" in options)
+    {
+      options["out"] = input
+    }
   }
 
   switch command
   {
   case "build":
-    input := len(os.args) > 2 ? os.args[2] : ""
-    target := len(os.args) > 3 ? os.args[3] : "--target=x86_64"
-    if strings.has_prefix(target, "--target=")
+    if options["help"] == "true"
     {
-      target = target[len("--target="):]
-    }
-    else if strings.has_prefix(target, "-t=")
-    {
-      target = target[len("-t="):]
-    }
-    _, is_valid_target := slice.linear_search(targets, target)
-
-    _, is_help_flag := slice.linear_search(help_flags, input)
-    if input == "" || !is_valid_target || is_help_flag
-    {
-      if !is_help_flag
-      {
-        if input == ""
-        {
-          fmt.println("[bangc:build] <input> is required.")
-        }
-        else if !is_valid_target
-        {
-          fmt.printfln("[bangc:build] <target> is required to be one of %s.", targets)
-        }
-        fmt.println("")
-      }
-
       fmt.println("Build the program with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc build <input> [options]")
@@ -80,9 +135,9 @@ main :: proc()
       fmt.println("")
       fmt.println("Options:")
       fmt.println("")
+      fmt.printfln("  --intermediaries  Retain intermediate build files.")
       fmt.printfln("  --target,-t  The target to compile to. Possible values include: %s.", targets)
-
-      os.exit(is_help_flag ? 0 : 1)
+      os.exit(0)
     }
 
     path := fmt.aprintf("%s.bang", input)
@@ -93,7 +148,7 @@ main :: proc()
       os.exit(1)
     }
 
-    build(input, string(code_data), fmt.aprintf("bin/%s", input), target)
+    build(input, string(code_data), options["out"], options["target"], options["intermediaries"] == "true")
   case "health-check":
     failed_tests := run_test_suite()
     if len(failed_tests) > 0
@@ -107,23 +162,18 @@ main :: proc()
 
     os.exit(len(failed_tests) > 0 ? 1 : 0)
   case "run":
-    input := len(os.args) > 2 ? os.args[2] : ""
-    _, is_help_flag := slice.linear_search(help_flags, input)
-    if input == "" || is_help_flag
+    if options["help"] == "true"
     {
-      if !is_help_flag
-      {
-        fmt.println("[bangc:run] <input> is required.")
-        fmt.println("")
-      }
-
       fmt.println("Build and run the program with the given entry module.")
       fmt.println("")
       fmt.println("Usage: bangc run <input>")
       fmt.println("")
       fmt.println("  <input>  The entry module. This is the relative path to the module file excluding the '.bang' extension.")
-
-      os.exit(is_help_flag ? 0 : 1)
+      fmt.println("")
+      fmt.println("Options:")
+      fmt.println("")
+      fmt.printfln("  --intermediaries  Retain intermediate build files.")
+      os.exit(0)
     }
 
     path := fmt.aprintf("%s.bang", input)
@@ -134,20 +184,20 @@ main :: proc()
       os.exit(1)
     }
 
-    run(input, string(code_data), fmt.aprintf("./bin/%s", input))
+    run(input, string(code_data), options["out"], options["intermediaries"] == "true")
   case:
     assert(false, "Unsupported command")
   }
 }
 
-run :: proc(name: string, code: string, out_path: string)
+run :: proc(name: string, code: string, out_path: string, intermediaries: bool)
 {
-  build(name, code, out_path)
+  build(name, code, out_path, default_target, intermediaries)
 
   os.exit(int(exec(out_path)))
 }
 
-build :: proc(name: string, code: string, out_path: string, target := "x86_64")
+build :: proc(name: string, code: string, out_path: string, target: string, intermediaries: bool)
 {
   os.make_directory(filepath.dir(out_path))
 
@@ -161,9 +211,11 @@ build :: proc(name: string, code: string, out_path: string, target := "x86_64")
   case "x86_64":
     asm_path := strings.concatenate({ out_path, ".asm" })
     program := compile(name, code, asm_path, target)
+    defer if !intermediaries do os.remove(asm_path)
 
     object_path := strings.concatenate({ out_path, ".o" })
     nasm_command := strings.concatenate({ "nasm -f elf64 ", asm_path, " -o ", object_path })
+    defer if !intermediaries do os.remove(object_path)
     nasm_code := exec(nasm_command)
     if nasm_code > 0
     {
@@ -252,6 +304,14 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   }
 
   if !type_checking.type_check_queue(&program)
+  {
+    os.exit(1)
+  }
+
+  import_path: [dynamic]string
+  defer delete(import_path)
+
+  if !type_checking.type_check_cyclic_imports(&program, path, &import_path)
   {
     os.exit(1)
   }

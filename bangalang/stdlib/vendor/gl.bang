@@ -1,18 +1,18 @@
 link("GL")
 
-GL_ARRAY_BUFFER: i32@static = 0x8892
-GL_COLOR_BUFFER_BIT: i32@static = 0x4000
-GL_COMPILE_STATUS: i32@static = 0x8B81
-GL_COMPUTE_SHADER: i32@static = 0x91B9
-GL_FLOAT: i32@static = 0x1406
-GL_FRAGMENT_SHADER: i32@static = 0x8B30
-GL_LINK_STATUS: i32@static = 0x8B82
-GL_NO_ERROR: i32@static = 0x0
-GL_SHADER_STORAGE_BUFFER: i32@static = 0x90D2
-GL_SYNC_FLUSH_COMMANDS_BIT: i32@static = 0x1
-GL_SYNC_GPU_COMMANDS_COMPLETE: i32@static = 0x9117
-GL_TRIANGLES: i32@static = 0x4
-GL_VERTEX_SHADER: i32@static = 0x8B31
+GL_ARRAY_BUFFER: i32 = 0x8892
+GL_COLOR_BUFFER_BIT: i32 = 0x4000
+GL_COMPILE_STATUS: i32 = 0x8B81
+GL_COMPUTE_SHADER: i32 = 0x91B9
+GL_FLOAT: i32 = 0x1406
+GL_FRAGMENT_SHADER: i32 = 0x8B30
+GL_LINK_STATUS: i32 = 0x8B82
+GL_NO_ERROR: i32 = 0x0
+GL_SHADER_STORAGE_BUFFER: i32 = 0x90D2
+GL_SYNC_FLUSH_COMMANDS_BIT: i32 = 0x1
+GL_SYNC_GPU_COMMANDS_COMPLETE: i32 = 0x9117
+GL_TRIANGLES: i32 = 0x4
+GL_VERTEX_SHADER: i32 = 0x8B31
 
 glAttachShader: proc(program: i32, shader: i32)@extern
 glBindBuffer: proc(target: i32, buffer: i32)@extern
@@ -41,9 +41,9 @@ glUseProgram: proc(program: i32)@extern
 glVertexAttribPointer: proc(index: i32, size: i32, type: i32, normalized: bool, stride: i32, pointer: ^byte)@extern
 
 // TODO proper map?!
-buffer_count: i32@static
-buffer_addresses: (^byte)[100]@static
-buffer_names: i32[100]@static
+buffer_count: i32
+buffer_addresses: (^byte)[100]
+buffer_names: i32[100]
 
 // TODO allow the use of memory_allocator here
 heap: proc(size: u64) -> ^byte =

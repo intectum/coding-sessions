@@ -3,6 +3,10 @@ strings: = import("strings", "core")
 
 main: proc() =
 {
+  proc_a: proc(proc_b: proc(x: string)) = do proc_b("hello")
+  proc_b: proc(y: string) = do strings.println(y)
+  proc_a(proc_b)
+
   buf: byte[8]
 
   for value, index in 0..10

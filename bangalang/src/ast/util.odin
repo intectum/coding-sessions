@@ -500,7 +500,16 @@ coerce_type :: proc(a: ^node, b: ^node) -> (^node, bool)
 
     for child_index := 0; child_index < len(a.children); child_index += 1
     {
-      _, child_coerce_ok := coerce_type(a.children[child_index], b.children[child_index])
+      a_child := a.children[child_index]
+      b_child := b.children[child_index]
+
+      if a.type == .assignment_statement && child_index == 0
+      {
+        a_child = a_child.data_type
+        b_child = a_child.data_type
+      }
+
+      _, child_coerce_ok := coerce_type(a_child, b_child)
       if !child_coerce_ok
       {
         return nil, false

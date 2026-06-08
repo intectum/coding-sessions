@@ -4,11 +4,11 @@ gl: = import("gl", "vendor")
 
 kernel_t: = kernel(index: u32, data: vec4[])
 
-#private pool: threading.thread_pool_t@static
+#private pool: threading.thread_pool_t
 
 // TODO proper map?!
 #private glsl_kernels: (^string)[]@none
-#private glsl_kernel_names: i32[100]@static
+#private glsl_kernel_names: i32[100]
 
 init: proc() =
 {

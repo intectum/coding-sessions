@@ -1345,6 +1345,6 @@ run_test :: proc(name: string, code: string) -> bool
 {
   main_code := fmt.aprintf("main: proc() = {{%s}}", code)
 
-  build(name, main_code, "bin/test")
+  build(name, main_code, "bin/test", default_target, false)
   return exec("bin/test") == 0
 }

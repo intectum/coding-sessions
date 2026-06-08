@@ -40,7 +40,6 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     basic_pre_declaration_node.children[0].data_type = ast.make_node({ type = .identifier, value = "[none]" })
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&basic_pre_declaration_node.children, start_expression_node)
-    assert(basic_pre_declaration_node.children[2].data_type == nil, "Oopsy daisy!") // TODO review
     basic_pre_declaration_node.children[2].data_type = ast.make_node({ type = .identifier, value = "[any_number]" })
     append(&basic_pre_node.children, basic_pre_declaration_node)
 

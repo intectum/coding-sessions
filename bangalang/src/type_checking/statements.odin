@@ -48,7 +48,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
 
         if lib_path == "."
         {
-          src.print_position_message(lhs_node.src_position, "Library '%s' not found", lib_name)
+          src.print_position_message(statement.src_position, "Library '%s' not found", lib_name)
           return false
         }
       }
@@ -67,7 +67,7 @@ type_check_statements :: proc(ctx: ^type_checking_context, statements: []^ast.no
       module_data, read_ok := os.read_entire_file(file_path)
       if !read_ok
       {
-        src.print_position_message(lhs_node.src_position, "Failed to read module file '%s'", module_name)
+        src.print_position_message(statement.src_position, "Failed to read module file '%s'", module_name)
         return false
       }
 

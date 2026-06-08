@@ -202,13 +202,6 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
         return false
       }
 
-      // TODO is this needed?
-      if params_type_node.children[0].children[0].value != "index"
-      {
-        src.print_position_message(node.src_position, "The first parameter of a kernel must have the name 'index'")
-        return false
-      }
-
       if !ast.is_slice(params_type_node.children[1].children[0].data_type)
       {
         src.print_position_message(node.src_position, "The second parameter of a kernel must be a slice")
