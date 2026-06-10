@@ -8,12 +8,6 @@ import ".."
 generate_call :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
   procedure_node := node.children[0]
-  if ast.is_type(procedure_node)
-  {
-    assert(false, "conversions not supported")
-    return
-  }
-
   procedure_type_node := procedure_node.data_type
   params_type_node := procedure_type_node.children[0]
 

@@ -10,7 +10,7 @@ main: proc() =
   buf: byte[8]
 
   for value, index in 0..10
-    do strings.println(strings.itoa(value + i64(index), buf[]))
+    do strings.println(strings.itoa(value + i32(index), buf[]))
 
   foo: vec4 = { 2, 4, 6, 8 }
   for ^value, index in foo

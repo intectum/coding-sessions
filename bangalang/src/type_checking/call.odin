@@ -127,13 +127,13 @@ type_check_conversion_call :: proc(ctx: ^type_checking_context, node: ^ast.node)
 
   _, param_numerical_type := slice.linear_search(ast.numerical_types, param_node.data_type.value)
   _, return_numerical_type := slice.linear_search(ast.numerical_types, procedure_node.value)
-  if !param_numerical_type && !return_numerical_type
+  if !param_numerical_type || !return_numerical_type
   {
-    src.print_position_message(node.src_position, "Type '%s' cannot be converted to type '%s'", param_node.data_type.value, procedure_node.value)
+    src.print_position_message(node.src_position, "Type '%s' cannot be converted to type '%s'", ast.type_name(param_node.data_type), ast.type_name(procedure_node))
     return false
   }
 
-  ast.upgrade_types(ctx.program, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f64"] : ctx.program.identifiers["i64"]) or_return
+  ast.upgrade_types(ctx.program, param_node, param_node.data_type.value == "[any_float]" ? ctx.program.identifiers["f32"] : ctx.program.identifiers["i32"]) or_return
 
   node.data_type = ast.clone_node(procedure_node)
 

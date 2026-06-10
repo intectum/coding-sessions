@@ -37,6 +37,8 @@ generate_procedures :: proc(ctx: ^generation.gen_context, references: ^map[strin
     append(generated_procedure_names, qualified_name)
 
     procedure := ast.get_scope(ctx.program, reference_path[:])
+    if procedure == nil do continue
+
     node := procedure.statements[0]
     lhs_node := node.children[0]
 

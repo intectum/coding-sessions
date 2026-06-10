@@ -30,7 +30,7 @@ to_byte_size :: proc(type_node: ^ast.node) -> int
     }
     else
     {
-      return address_size + 8 /* u64 */
+      return address_size + to_byte_size(length_type_node)
     }
   }
 

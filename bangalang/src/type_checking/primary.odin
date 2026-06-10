@@ -92,18 +92,25 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
       return false
     }
 
-    any_int_type_node := ast.make_node({ type = .identifier, value = "[any_int]" })
+    index_type := ctx.program.identifiers["u32"]
 
-    start_expression_node := node.children[1]
-    end_expression_node: ^ast.node = nil
-    if node.children[1].type == .range
+    start_expression_node: ^ast.node
+    end_expression_node: ^ast.node
+    if node.children[1].type != .range
     {
+      node.children[1] = auto_convert(node.children[1], index_type) or_return
+      start_expression_node = node.children[1]
+    }
+    else
+    {
+      node.children[1].children[0] = auto_convert(node.children[1].children[0], index_type) or_return
       start_expression_node = node.children[1].children[0]
+
+      node.children[1].children[1] = auto_convert(node.children[1].children[1], index_type) or_return
       end_expression_node = node.children[1].children[1]
     }
 
-    type_check_rhs_expression(ctx, start_expression_node, any_int_type_node) or_return
-    ast.upgrade_types(ctx.program, start_expression_node, ctx.program.identifiers["u64"]) or_return
+    type_check_rhs_expression(ctx, start_expression_node, index_type) or_return
 
     if node.children[1].type != .range
     {
@@ -111,8 +118,7 @@ type_check_primary :: proc(ctx: ^type_checking_context, node: ^ast.node) -> bool
     }
     else
     {
-      type_check_rhs_expression(ctx, end_expression_node, any_int_type_node) or_return
-      ast.upgrade_types(ctx.program, end_expression_node, ctx.program.identifiers["u64"]) or_return
+      type_check_rhs_expression(ctx, end_expression_node, index_type) or_return
 
       type_node := ast.make_node({ type = .subscript })
       append(&type_node.children, child_type_node.children[0])

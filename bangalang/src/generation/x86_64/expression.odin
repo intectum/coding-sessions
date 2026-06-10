@@ -33,7 +33,7 @@ generate_expression_1 :: proc(ctx: ^generation.gen_context, node: ^ast.node, reg
   result_type_node := node.data_type
 
   lhs_register_num := register_num
-  rhs_register_num := lhs_register_num + 1
+  rhs_register_num := lhs_register_num + 2
 
   lhs_location := generate_expression_1(ctx, lhs_node, lhs_register_num, contains_allocations)
   rhs_location := generate_expression_1(ctx, rhs_node, rhs_register_num, contains_allocations)
@@ -308,7 +308,7 @@ generate_expression_integer :: proc(ctx: ^generation.gen_context, node: ^ast.nod
     }
     else
     {
-      // TODO more testing!
+      // TODO more testing! could have been related to lhs_register_num + 1 above (now changed to + 2)
       rhs_non_immediate_location := copy_to_non_immediate(ctx, rhs_location, register_num + 1, result_type_node)
       fmt.sbprintfln(&ctx.output, "  mov %s, %s ; multiply: lhs", to_operand(register("ax", result_type_node)), to_operand(lhs_location))
       fmt.sbprintfln(&ctx.output, "  %smul %s %s ; multiply", prefix, to_operation_size(to_byte_size(result_type_node)), to_operand(rhs_non_immediate_location))

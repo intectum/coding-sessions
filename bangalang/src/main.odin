@@ -289,14 +289,14 @@ compile :: proc(name: string, code: string, out_path: string, target: string) ->
   type_checking_ctx.scope = ast.get_scope(&program, path)
   type_checking_ctx.within_entry_module = true
 
-  call_main, call_main_ok := loading.load_code(name, "main()")
+  call_main, call_main_ok := loading.load_statement(name, "main()")
   if !call_main_ok
   {
     fmt.println("Failed to load call to main")
     os.exit(1)
   }
 
-  append(&type_checking_ctx.scope.statements, call_main[0])
+  append(&type_checking_ctx.scope.statements, call_main)
 
   if !type_checking.type_check_statements(&type_checking_ctx, type_checking_ctx.scope.statements[:])
   {

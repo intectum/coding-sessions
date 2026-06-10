@@ -47,7 +47,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     {
       basic_pre_index_node := ast.make_node({ type = .assignment_statement })
       append(&basic_pre_index_node.children, ast.clone_node(index_node))
-      basic_pre_index_node.children[0].data_type = ctx.program.identifiers["u64"]
+      basic_pre_index_node.children[0].data_type = ctx.program.identifiers["u32"]
       append(&basic_pre_index_node.children, ast.make_node({ type = .assign, value = "=" }))
       append(&basic_pre_index_node.children, ast.make_node({ type = .number_literal, value = "0" }))
       append(&basic_pre_node.children, basic_pre_index_node)
@@ -98,7 +98,7 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     basic_pre_node := ast.make_node({ type = .group, value = "[pre]" })
     basic_pre_declaration_node := ast.make_node({ type = .assignment_statement })
     append(&basic_pre_declaration_node.children, ast.clone_node(basic_index_node))
-    basic_pre_declaration_node.children[0].data_type = ctx.program.identifiers["u64"]
+    basic_pre_declaration_node.children[0].data_type = ctx.program.identifiers["u32"]
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .assign, value = "=" }))
     append(&basic_pre_declaration_node.children, ast.make_node({ type = .number_literal, value = "0" }))
     append(&basic_pre_node.children, basic_pre_declaration_node)
@@ -106,8 +106,10 @@ type_check_ranged_for :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
 
     basic_expression_node := ast.make_node({ type = .less_than })
     append(&basic_expression_node.children, ast.clone_node(basic_index_node))
-    append(&basic_expression_node.children, ast.make_node({ type = .identifier, value = "length" }))
-    append(&basic_expression_node.children[1].children, expression_node)
+    append(&basic_expression_node.children, ast.make_node({ type = .call }))
+    append(&basic_expression_node.children[1].children, ctx.program.identifiers["u32"])
+    append(&basic_expression_node.children[1].children, ast.make_node({ type = .identifier, value = "length" }))
+    append(&basic_expression_node.children[1].children[1].children, expression_node)
     append(&basic_flow_node.children, basic_expression_node)
 
     basic_post_node := ast.make_node({ type = .group, value = "[post]" })

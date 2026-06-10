@@ -30,15 +30,13 @@ type_check_rhs_expression :: proc(ctx: ^type_checking_context, node: ^ast.node, 
 
   if coerced_type_node != nil
   {
-    // TODO this essentially provides default types for integer literals in expressions
-    // TODO is that something we want?
     if coerced_type_node.value == "[any_float]"
     {
-      ast.upgrade_types(ctx.program, node, ctx.program.identifiers["f64"]) or_return
+      ast.upgrade_types(ctx.program, node, ctx.program.identifiers["f32"]) or_return
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      ast.upgrade_types(ctx.program, node, ctx.program.identifiers["i64"]) or_return
+      ast.upgrade_types(ctx.program, node, ctx.program.identifiers["i32"]) or_return
     }
     else
     {
@@ -77,13 +75,13 @@ type_check_rhs_expression_1 :: proc(ctx: ^type_checking_context, node: ^ast.node
     node.data_type = ctx.program.identifiers["bool"]
     if coerced_type_node.value == "[any_float]"
     {
-      ast.upgrade_types(ctx.program, lhs_node, ctx.program.identifiers["f64"]) or_return
-      ast.upgrade_types(ctx.program, rhs_node, ctx.program.identifiers["f64"]) or_return
+      ast.upgrade_types(ctx.program, lhs_node, ctx.program.identifiers["f32"]) or_return
+      ast.upgrade_types(ctx.program, rhs_node, ctx.program.identifiers["f32"]) or_return
     }
     else if coerced_type_node.value == "[any_number]"
     {
-      ast.upgrade_types(ctx.program, lhs_node, ctx.program.identifiers["i64"]) or_return
-      ast.upgrade_types(ctx.program, rhs_node, ctx.program.identifiers["i64"]) or_return
+      ast.upgrade_types(ctx.program, lhs_node, ctx.program.identifiers["i32"]) or_return
+      ast.upgrade_types(ctx.program, rhs_node, ctx.program.identifiers["i32"]) or_return
     }
     else
     {

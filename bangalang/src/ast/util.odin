@@ -447,18 +447,6 @@ coerce_type :: proc(a: ^node, b: ^node) -> (^node, bool)
       {
         return nil, false
       }
-
-      _, a_integer_type := slice.linear_search(integer_types, a.value)
-      if b.value == "[any_int]" && !a_integer_type
-      {
-        return nil, false
-      }
-
-      _, b_integer_type := slice.linear_search(integer_types, b.value)
-      if a.value == "[any_int]" && !b_integer_type
-      {
-        return nil, false
-      }
     }
 
     a_string := is_slice(a) && a.children[0].value == "u8"
@@ -477,7 +465,6 @@ coerce_type :: proc(a: ^node, b: ^node) -> (^node, bool)
 
     if a.value != "[any_number]" && b.value != "[any_number]" &&
     a.value != "[any_float]" && b.value != "[any_float]" &&
-    a.value != "[any_int]" && b.value != "[any_int]" &&
     a.value != "[any_string]" && b.value != "[any_string]"
     {
       return nil, false
@@ -526,7 +513,7 @@ coerce_type :: proc(a: ^node, b: ^node) -> (^node, bool)
     return a, true
   }
 
-  return a.value == "[any_float]" || a.value == "[any_int]" || a.value == "[any_string]" ? b : a, true
+  return a.value == "[any_float]" || a.value == "[any_string]" ? b : a, true
 }
 
 type_name :: proc(type_node: ^node) -> string
@@ -589,8 +576,6 @@ type_name :: proc(type_node: ^node) -> string
   {
   case "[any_float]":
     return strings.concatenate({ prefix, "<any float>" })
-  case "[any_int]":
-    return strings.concatenate({ prefix, "<any int>" })
   case "[any_number]":
     return strings.concatenate({ prefix, "<any number>" })
   case "[any_string]":
@@ -667,7 +652,7 @@ upgrade_types :: proc(root: ^scope, current_node: ^node, new_type_node: ^node) -
     {
       current_node.data_type = root.identifiers["string"]
     }
-    else if current_node.data_type.value == "[any_int]" || current_node.data_type.value == "[any_number]"
+    else if current_node.data_type.value == "[any_number]"
     {
       if current_node.type == .number_literal && strings.has_prefix(current_node.value, "-")
       {

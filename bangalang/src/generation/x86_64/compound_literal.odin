@@ -77,7 +77,7 @@ generate_compound_literal :: proc(ctx: ^generation.gen_context, node: ^ast.node,
         member_location := memory("rsp", 0)
         if member_name == "length"
         {
-          member_type_node = ctx.program.identifiers["i64"]
+          member_type_node = ctx.program.identifiers["u64"]
           member_location.offset += address_size
         }
 

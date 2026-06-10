@@ -5,11 +5,11 @@ bugs/issues
 - glsl nilify
 - glsl static vars
 - glsl prevent calling in non-boomstick context
+- kernels prevent unsupported types
 - bounds checking kernels
 - calling procs from kernels
 - check all TODOs
 - switch only generate expression_node once
-- auto-convert dynamic array sizes
 - dynamically sized soa
 - think through parsing messages
 - deferred type resolution
@@ -19,6 +19,8 @@ bugs/issues
 - delete dynamic arrays/maps etc. in compiler after use
 - removed _node from vars in compiler
 - add expression to return in type checking
+- 32bit lengths for arrays/slices
+- change hand-rolled ast to load_statement
 
 dev tools
 

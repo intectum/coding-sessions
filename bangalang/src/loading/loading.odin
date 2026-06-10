@@ -16,7 +16,7 @@ load_module :: proc(program: ^ast.scope, path: []string, code: string) -> bool
   }
 
   readable_name := strings.concatenate({ path[0], ":", path[1] })
-  statements := load_code(readable_name, code) or_return
+  statements := load_statements(readable_name, code) or_return
 
   if !(path[0] in program.children)
   {
@@ -35,7 +35,13 @@ load_module :: proc(program: ^ast.scope, path: []string, code: string) -> bool
   return true
 }
 
-load_code :: proc(name: string, code: string) -> (nodes: [dynamic]^ast.node, ok: bool)
+load_statement :: proc(name: string, code: string) -> (statement: ^ast.node, ok: bool)
+{
+  statements := load_statements(name, code) or_return
+  return statements[0], true
+}
+
+load_statements :: proc(name: string, code: string) -> (statements: [dynamic]^ast.node, ok: bool)
 {
   tokenization_result := tokenization.tokenize(name, code) or_return
 
@@ -44,15 +50,15 @@ load_code :: proc(name: string, code: string) -> (nodes: [dynamic]^ast.node, ok:
 
   for stream.next_index < len(stream.tokens)
   {
-    statement_node, statement_ok := parsing.parse_statement(&ctx, &stream)
+    statement, statement_ok := parsing.parse_statement(&ctx, &stream)
     if !statement_ok
     {
       fmt.println(stream.error)
       return {}, false
     }
 
-    append(&nodes, statement_node)
+    append(&statements, statement)
   }
 
-  return nodes, true
+  return statements, true
 }

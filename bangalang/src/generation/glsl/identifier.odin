@@ -12,5 +12,12 @@ generate_identifier :: proc(ctx: ^generation.gen_context, node: ^ast.node)
     fmt.sbprintf(&ctx.output, ".")
   }
 
-  fmt.sbprintf(&ctx.output, node.value)
+  if ast.is_type(node)
+  {
+    fmt.sbprintf(&ctx.output, type_name(node))
+  }
+  else
+  {
+    fmt.sbprintf(&ctx.output, node.value)
+  }
 }

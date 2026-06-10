@@ -1264,7 +1264,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
 
     for numerical_type in ast.numerical_types
     {
-      if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
+      if numerical_type == "[any_float]" || numerical_type == "[any_number]"
       {
         continue
       }
@@ -1294,7 +1294,7 @@ run_test_suite :: proc() -> (failed_tests: [dynamic]string)
   {
     for numerical_type in ast.numerical_types
     {
-      if numerical_type == "[any_float]" || numerical_type == "[any_int]" || numerical_type == "[any_number]"
+      if numerical_type == "[any_float]" || numerical_type == "[any_number]"
       {
         continue
       }

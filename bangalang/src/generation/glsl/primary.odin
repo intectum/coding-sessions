@@ -11,8 +11,6 @@ import ".."
 
 generate_primary :: proc(ctx: ^generation.gen_context, node: ^ast.node)
 {
-  if ast.is_type(node) do return
-
   if node.type != .compound_literal && len(node.children) > 0
   {
     generate_primary(ctx, node.children[0])

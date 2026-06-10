@@ -127,7 +127,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
     }
   }
 
-  if lhs_node.data_type == nil || lhs_node.data_type.value == "[any_float]" || lhs_node.data_type.value == "[any_int]" || lhs_node.data_type.value == "[any_number]" || lhs_node.data_type.value == "[any_string]"
+  if lhs_node.data_type == nil || lhs_node.data_type.value == "[any_float]" || lhs_node.data_type.value == "[any_number]" || lhs_node.data_type.value == "[any_string]"
   {
     src.print_position_message(lhs_node.src_position, "Could not determine type of '%s'", lhs_node.value)
     return false
@@ -147,6 +147,7 @@ type_check_assignment :: proc(ctx: ^type_checking_context, node: ^ast.node) -> b
       length_expression_node: ^ast.node
       if ast.is_array(lhs_node.data_type)
       {
+        lhs_node.data_type.children[1] = auto_convert(lhs_node.data_type.children[1], ctx.program.identifiers["u64"]) or_return
         length_expression_node = lhs_node.data_type.children[1]
 
         range_node := ast.make_node({ type = .range })

@@ -1,29 +1,45 @@
 package type_checking
 
+import "core:fmt"
 import "core:slice"
 
 import "../ast"
+import "../loading"
 
-auto_dereference :: proc(node: ^ast.node)
+auto_convert :: proc(expression: ^ast.node, dest_type: ^ast.node) -> (converted_expression: ^ast.node, ok: bool)
 {
-  type_node := node.data_type
-  if type_node.type != .reference
+  if expression.type == .nil_literal
+  {
+    expression.data_type = dest_type
+    return expression, true
+  }
+
+  converted_expression = loading.load_statement("auto_convert", fmt.aprintf("%s(x)", dest_type.value)) or_return
+  converted_expression.children[1] = expression
+
+  return converted_expression, true
+}
+
+auto_dereference :: proc(expression: ^ast.node)
+{
+  type_node := expression.data_type
+  if expression.data_type.type != .reference
   {
     return
   }
 
-  child_node := ast.clone_node(node)
+  child_node := ast.clone_node(expression)
 
-  node^ = {
+  expression^ = {
     type = .dereference,
     src_position = child_node.src_position
   }
 
-  append(&node.children, child_node)
-  node.data_type = type_node.children[0]
+  append(&expression.children, child_node)
+  expression.data_type = type_node.children[0]
 
   // TODO not sure if this best, propagates #danger_boundless
-  node.data_type.modifier = type_node.modifier
+  expression.data_type.modifier = type_node.modifier
 }
 
 swizzle_values: []rune = { 'x', 'r', 'y', 'g', 'z', 'b', 'w', 'a' }
